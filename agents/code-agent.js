@@ -8,13 +8,16 @@ const { callLLM } = require('../backend/llm');
 
 class CodeAgent {
   async execute(company) {
-    const task = await createTask(company.id, 'code', 
+    const db = new TenantDB(company.id);
+    const executor = new CodeExecutor(company.id);
+    const deployer = new Deployer(company.id, company.subdomain);
+    
+    const task = await db.createTask('code', 
       'Ciclo de desarrollo diario', 
       'Analizar roadmap, escribir código, desplegar mejoras');
 
     try {
-      await updateTask(task.id, { status: 'running' });
-      await logActivity(company.id, task.id, 'task_start', 
+      await db.logActivity(task.id, 'task_start', 
         `Agente de código iniciado para ${company.name}`);
 
       // 1. Analizar estado actual y roadmap
@@ -42,13 +45,7 @@ class CodeAgent {
         output += `No se necesitan cambios de código hoy. ${decision.reason}`;
       }
 
-      await updateTask(task.id, { 
-        status: 'completed', 
-        output,
-        completed_at: new Date()
-      });
-
-      await logActivity(company.id, task.id, 'task_complete',
+      await db.logActivity(task.id, 'task_complete',
         `Agente de código completado: ${decision.action}`);
 
       return { 
@@ -58,80 +55,88 @@ class CodeAgent {
       };
 
     } catch (error) {
-      await updateTask(task.id, { 
-        status: 'failed', 
-        output: error.message,
-        completed_at: new Date()
-      });
+      await db.logActivity(task.id, 'task_error', 
+        `Error: ${error.message}`);
       throw error;
     }
   }
 
   async analyzeProduct(company) {
-    // Call LLM to analyze current state
-    const prompt = `You are the code agent for "${company.name}".
-Description: ${company.description}
-Industry: ${company.industry}
-Current status: ${company.status}
+    const prompt = `Eres el agente de código para "${company.name}".
+Descripción: ${company.description}
+Industria: ${company.industry}
+Estado actual: ${company.status}
 
-Analyze the current state of this product. What exists? What's missing? 
-What should be prioritized next?
+Analiza el estado actual de este producto. ¿Qué existe? ¿Qué falta? 
+¿Qué se debe priorizar?
 
-Respond in JSON format:
+Responde en JSON:
 {
-  "summary": "brief analysis",
+  "summary": "análisis breve",
   "existingFeatures": ["feature1", "feature2"],
-  "missingCritical": ["missing1", "missing2"],
-  "nextPriority": "what to build next"
+  "missingCritical": ["faltante1", "faltante2"],
+  "nextPriority": "qué construir siguiente"
 }`;
 
-    const response = await callLLM(prompt);
-    return JSON.parse(response);
+    const result = await callLLM(prompt, {
+      companyId: company.id,
+      taskType: 'code'
+    });
+    
+    return JSON.parse(result.content);
   }
 
   async decideDailyWork(company, analysis) {
-    const prompt = `Based on this analysis for "${company.name}":
+    const prompt = `Basado en este análisis para "${company.name}":
 ${JSON.stringify(analysis, null, 2)}
 
-Decide what coding work should be done TODAY (if any).
+Decide qué trabajo de código hacer HOY (si aplica).
 
-Consider:
-- Is there a critical missing feature?
-- Should we improve existing code?
-- Is the product ready to deploy?
-- Or should we wait/plan more?
+Considera:
+- ¿Hay una funcionalidad crítica faltante?
+- ¿Debemos mejorar código existente?
+- ¿El producto está listo para desplegar?
+- ¿O debemos esperar/planificar más?
 
-Respond in JSON:
+Responde en JSON:
 {
   "shouldCode": true/false,
   "shouldDeploy": true/false,
-  "action": "brief description of what to do",
-  "reason": "why this decision",
-  "files": ["file1.js", "file2.js"] // files to create/modify if shouldCode=true
+  "action": "descripción breve de qué hacer",
+  "reason": "por qué esta decisión",
+  "files": ["file1.js", "file2.js"]
 }`;
 
-    const response = await callLLM(prompt);
-    return JSON.parse(response);
+    const result = await callLLM(prompt, {
+      companyId: company.id,
+      taskType: 'code'
+    });
+    
+    return JSON.parse(result.content);
   }
 
   async generateCode(company, decision) {
     const codeFiles = [];
     
     for (const filename of decision.files) {
-      const prompt = `Generate code for "${company.name}" - ${filename}
+      const prompt = `Genera código para "${company.name}" - ${filename}
 
-Context:
-- Description: ${company.description}
-- Industry: ${company.industry}
-- Task: ${decision.action}
+Contexto:
+- Descripción: ${company.description}
+- Industria: ${company.industry}
+- Tarea: ${decision.action}
 
-Write production-ready code for this file. Include all necessary imports,
-error handling, and comments.
+Escribe código listo para producción. Incluye imports necesarios,
+manejo de errores, y comentarios.
 
-Respond ONLY with the code, no explanations.`;
+Responde SOLO con el código, sin explicaciones.`;
 
-      const code = await callLLM(prompt);
-      codeFiles.push({ filename, code });
+      const result = await callLLM(prompt, {
+        companyId: company.id,
+        taskType: 'code'
+      });
+      
+      codeFiles.push({ filename, code: result.content });
     }
 
     return {
@@ -141,8 +146,18 @@ Respond ONLY with the code, no explanations.`;
   }
 
   async deploy(company, codeFiles) {
-    // Use the deployer to push code to subdomain
-    return await deployToSubdomain(company.subdomain, codeFiles.files);
+    const deployer = new Deployer(company.id, company.subdomain);
+    
+    // Determinar tipo de deployment
+    const hasPackageJson = codeFiles.files.some(f => f.filename === 'package.json');
+    
+    if (hasPackageJson) {
+      // Deploy a Vercel si tiene package.json
+      return await deployer.deployToVercel(codeFiles.files, 'nextjs');
+    } else {
+      // Deploy estático si es solo HTML/CSS/JS
+      return await deployer.deployStatic(codeFiles.files);
+    }
   }
 
   async executeCustomTask(company, taskDescription) {
