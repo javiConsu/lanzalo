@@ -8,6 +8,7 @@ const BrowserExecutor = require('./executors/browser-executor');
 const TwitterExecutor = require('./executors/twitter-executor');
 const EmailExecutor = require('./executors/email-executor');
 const DataExecutor = require('./executors/data-executor');
+const TrendScoutExecutor = require('./executors/trend-scout-executor');
 
 class AgentOrchestrator {
   constructor() {
@@ -28,7 +29,8 @@ class AgentOrchestrator {
       new BrowserExecutor(),
       new TwitterExecutor(),
       new EmailExecutor(),
-      new DataExecutor()
+      new DataExecutor(),
+      new TrendScoutExecutor()
       // Financial Agent ya existe en /agents/financial-agent.js
       // pero usa estructura diferente (no executor)
       // TODO: Migrar Financial Agent a executor pattern

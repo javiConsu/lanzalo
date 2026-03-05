@@ -293,7 +293,9 @@ Si es solo conversación (no necesitas herramientas), usa action: "chat".`;
       'email': 'email-agent',
       'twitter': 'twitter-agent',
       'meta_ads': 'meta-ads-agent',
-      'financial': 'financial-agent'
+      'financial': 'financial-agent',
+      'trends': 'trend-scout-agent',
+      'ideas': 'trend-scout-agent'
     };
 
     return routing[tag] || 'code-agent';
