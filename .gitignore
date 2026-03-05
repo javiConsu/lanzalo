@@ -1,0 +1,47 @@
+# Dependencies
+node_modules/
+frontend/node_modules/
+
+# Environment
+.env
+.env.local
+.env.production
+
+# Build
+dist/
+build/
+.next/
+out/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Testing
+coverage/
+
+# Deployment
+.vercel/
+.railway/
+
+# Temp
+tmp/
+temp/
+*.tmp
+
+# Database
+*.sqlite
+*.db
+
+# Workspaces (para sandbox)
+/tmp/lanzalo_workspaces/
