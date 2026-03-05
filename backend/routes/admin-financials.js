@@ -65,10 +65,37 @@ router.get('/financials/dashboard', async (req, res) => {
       all: 60      // promedio mensual
     }[period];
 
-    const totalCosts = llmCosts + infraCosts;
+    // Resend costs (emails)
+    // Asumiendo ~1000 emails/usuario/mes (cold, newsletters, transactional)
+    // Pricing: $0.0004 per email (Pro plan 50K emails @ $20/mo)
+    // Cost per user: ~$0.40/mes
+    const emailsPerUser = 1000;
+    const costPerEmail = 0.0004; // $0.0004 per email (Resend Pro tier)
+    const resendCosts = period === 'month' 
+      ? proUsers * emailsPerUser * costPerEmail
+      : (proUsers * emailsPerUser * costPerEmail / 30) * getDaysInPeriod(period);
+
+    // Meta Ads management fee (15% commission)
+    // Asumiendo $300 promedio ad spend/usuario/mes
+    const avgAdSpendPerUser = 300;
+    const adsCommissionRate = 0.15; // 15%
+    const adsRevenue = period === 'month'
+      ? proUsers * avgAdSpendPerUser * adsCommissionRate
+      : (proUsers * avgAdSpendPerUser * adsCommissionRate / 30) * getDaysInPeriod(period);
+
+    // Sora video generation costs
+    // Asumiendo 10 videos/usuario/mes @ $15 per video (30s 1080p)
+    // Using OpenAI API pricing: $0.50/second × 30s = $15/video
+    const videosPerUser = 10;
+    const costPerVideo = 15; // $15 per 30s 1080p video
+    const soraCosts = period === 'month'
+      ? proUsers * videosPerUser * costPerVideo
+      : (proUsers * videosPerUser * costPerVideo / 30) * getDaysInPeriod(period);
+
+    const totalCosts = llmCosts + infraCosts + resendCosts + soraCosts;
 
     // PROFIT
-    const grossProfit = totalRevenue + revenueShare - totalCosts;
+    const grossProfit = totalRevenue + revenueShare + adsRevenue - totalCosts;
     const profitMargin = totalRevenue > 0 
       ? ((grossProfit / (totalRevenue + revenueShare)) * 100)
       : 0;
@@ -85,7 +112,7 @@ router.get('/financials/dashboard', async (req, res) => {
     res.json({
       period,
       summary: {
-        totalRevenue: totalRevenue + revenueShare,
+        totalRevenue: totalRevenue + revenueShare + adsRevenue,
         totalCosts,
         grossProfit,
         profitMargin: profitMargin.toFixed(2)
@@ -94,12 +121,20 @@ router.get('/financials/dashboard', async (req, res) => {
         mrr,
         proUsers,
         revenueShare,
-        total: totalRevenue + revenueShare
+        adsCommission: adsRevenue,
+        total: totalRevenue + revenueShare + adsRevenue
       },
       costs: {
         llm: llmCosts,
+        resend: resendCosts,
+        sora: soraCosts,
         infrastructure: infraCosts,
-        total: totalCosts
+        total: totalCosts,
+        breakdown: {
+          llmPerUser: proUsers > 0 ? (llmCosts / proUsers).toFixed(2) : 0,
+          resendPerUser: proUsers > 0 ? (resendCosts / proUsers).toFixed(2) : 0,
+          soraPerUser: proUsers > 0 ? (soraCosts / proUsers).toFixed(2) : 0
+        }
       },
       breakeven: {
         costPerUser: costPerUser.toFixed(2),
