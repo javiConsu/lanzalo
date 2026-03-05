@@ -21,10 +21,12 @@ app.get('/health', (req, res) => {
 });
 
 // API Routes
-app.use('/api/companies', require('./routes/companies'));
-app.use('/api/tasks', require('./routes/tasks'));
-app.use('/api/analytics', require('./routes/analytics'));
 app.use('/api/auth', require('./routes/auth'));
+app.use('/api/admin', require('./routes/admin'));
+app.use('/api/user', require('./routes/user'));
+app.use('/api/companies', require('./routes/companies'));  // Deprecated - usar /api/user/companies
+app.use('/api/tasks', require('./routes/tasks'));          // Deprecated - usar /api/user/companies/:id/tasks
+app.use('/api/analytics', require('./routes/analytics'));
 app.use('/api/webhooks', require('./routes/webhooks'));
 
 // Start HTTP server
