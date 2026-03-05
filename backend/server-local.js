@@ -96,6 +96,13 @@ const server = app.listen(PORT, () => {
   console.log(`   curl http://localhost:${PORT}`);
   console.log('');
   console.log('════════════════════════════════════════════════');
+  console.log('');
+  
+  // Iniciar Agent Orchestrator
+  console.log('🎭 Inicializando Agent Orchestrator...\n');
+  const { getOrchestrator } = require('../agents/agent-orchestrator');
+  global.orchestrator = getOrchestrator();
+  global.orchestrator.start();
 });
 
 // WebSocket server para live updates
@@ -121,6 +128,9 @@ global.broadcastActivity = (activity) => {
 // Graceful shutdown
 process.on('SIGTERM', () => {
   console.log('SIGTERM received, shutting down gracefully...');
+  if (global.orchestrator) {
+    global.orchestrator.stop();
+  }
   server.close(() => {
     dbSimple.pool.end();
     console.log('Process terminated');
@@ -129,6 +139,9 @@ process.on('SIGTERM', () => {
 
 process.on('SIGINT', () => {
   console.log('\n👋 Cerrando servidor...');
+  if (global.orchestrator) {
+    global.orchestrator.stop();
+  }
   server.close(() => {
     dbSimple.pool.end();
     console.log('✅ Servidor cerrado');
