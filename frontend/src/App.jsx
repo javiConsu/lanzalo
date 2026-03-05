@@ -1,0 +1,66 @@
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import Login from './pages/Login'
+import Dashboard from './pages/Dashboard'
+import Chat from './pages/Chat'
+import Backlog from './pages/Backlog'
+import Metrics from './pages/Metrics'
+
+function App() {
+  const [token, setToken] = useState(localStorage.getItem('token'))
+  const [user, setUser] = useState(null)
+
+  useEffect(() => {
+    if (token) {
+      // Verificar token válido
+      fetch('/api/user/profile', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (data.user) {
+            setUser(data.user)
+          } else {
+            localStorage.removeItem('token')
+            setToken(null)
+          }
+        })
+        .catch(() => {
+          localStorage.removeItem('token')
+          setToken(null)
+        })
+    }
+  }, [token])
+
+  const handleLogin = (newToken, userData) => {
+    localStorage.setItem('token', newToken)
+    setToken(newToken)
+    setUser(userData)
+  }
+
+  const handleLogout = () => {
+    localStorage.removeItem('token')
+    setToken(null)
+    setUser(null)
+  }
+
+  if (!token) {
+    return <Login onLogin={handleLogin} />
+  }
+
+  return (
+    <Router>
+      <Routes>
+        <Route path="/" element={<Dashboard user={user} onLogout={handleLogout} />}>
+          <Route index element={<Chat />} />
+          <Route path="chat" element={<Chat />} />
+          <Route path="backlog" element={<Backlog />} />
+          <Route path="metrics" element={<Metrics />} />
+        </Route>
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </Router>
+  )
+}
+
+export default App
