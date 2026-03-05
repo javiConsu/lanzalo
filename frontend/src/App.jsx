@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import Chat from './pages/Chat'
+import Ideas from './pages/Ideas'
 import Backlog from './pages/Backlog'
 import Metrics from './pages/Metrics'
 
@@ -54,6 +55,7 @@ function App() {
         <Route path="/" element={<Dashboard user={user} onLogout={handleLogout} />}>
           <Route index element={<Chat />} />
           <Route path="chat" element={<Chat />} />
+          <Route path="ideas" element={<Ideas />} />
           <Route path="backlog" element={<Backlog />} />
           <Route path="metrics" element={<Metrics />} />
         </Route>

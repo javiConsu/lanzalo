@@ -31,6 +31,18 @@ export default function Dashboard({ user, onLogout }) {
           </Link>
 
           <Link
+            to="/ideas"
+            className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+              isActive('/ideas')
+                ? 'bg-blue-600 text-white'
+                : 'text-gray-300 hover:bg-gray-700'
+            }`}
+          >
+            <span className="text-xl">💡</span>
+            <span className="font-medium">Ideas Validadas</span>
+          </Link>
+
+          <Link
             to="/backlog"
             className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
               isActive('/backlog')
