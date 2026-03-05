@@ -42,7 +42,7 @@
       <form id="idea-form" class="space-y-4">
         <textarea
           id="idea-input"
-          placeholder="¿Qué quieres construir? (o déjalo en blanco si no tienes ni idea)"
+          placeholder="Describe tu idea aquí (o déjalo en blanco si no tienes)"
           class="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
           rows="4"
         ></textarea>
@@ -59,12 +59,12 @@
           type="submit"
           class="w-full px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition text-lg"
         >
-          Montar mi negocio
+          Validar mi idea (gratis)
         </button>
       </form>
       
       <p class="text-sm text-gray-500 mt-4">
-        $29/mes • 7 días gratis • Cancela cuando quieras
+        14 días gratis • Sin tarjeta • $39/mes después
       </p>
     </div>
 
@@ -76,8 +76,8 @@
       <h2 class="text-2xl font-semibold mb-3">¿No sabes qué construir?</h2>
       <p class="text-gray-400 max-w-2xl mx-auto">
         Nosotros tampoco al principio.<br><br>
-        Por eso tenemos una IA que se pasa el día en Reddit, Twitter y Hacker News buscando gente quejándose.<br><br>
-        Cuando 50 personas piden lo mismo, lo apuntamos. Eso es una idea validada.
+        Por eso tenemos una IA que escanea Reddit, Twitter y Hacker News buscando problemas reales.<br><br>
+        Cuando 100+ personas piden lo mismo, lo validamos. Eso es demanda probada.
       </p>
     </div>
   </section>
@@ -172,15 +172,44 @@
       Cómo funciona
     </h2>
     <p class="text-center text-gray-400 mb-12">
-      (spoiler: es ridículamente simple)
+      Preguntamos primero. Construimos después.
     </p>
 
     <div class="space-y-8">
       <div class="flex gap-6">
         <div class="text-4xl font-bold text-blue-500">1</div>
         <div>
-          <h3 class="text-xl font-semibold mb-2">Describes tu idea. O eliges una de las nuestras.</h3>
-          <p class="text-gray-400">En serio, es literalmente eso.</p>
+          <h3 class="text-xl font-semibold mb-2">Describes tu idea</h3>
+          <p class="text-gray-400">"Plataforma de X para Y..."</p>
+        </div>
+      </div>
+
+      <div class="flex gap-6">
+        <div class="text-4xl font-bold text-blue-500">2</div>
+        <div>
+          <h3 class="text-xl font-semibold mb-2">Te decimos la verdad (30 segundos)</h3>
+          <div class="space-y-2 mt-3">
+            <div class="flex items-center gap-2">
+              <span class="text-2xl">✅</span>
+              <span class="text-gray-400">VERDE: "Buena idea, adelante"</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="text-2xl">🟡</span>
+              <span class="text-gray-400">AMARILLO: "Tiene potencial con ajustes"</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="text-2xl">🔴</span>
+              <span class="text-gray-400">ROJO: "Problemas serios, te explico"</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex gap-6">
+        <div class="text-4xl font-bold text-blue-500">3</div>
+        <div>
+          <h3 class="text-xl font-semibold mb-2">Tú decides</h3>
+          <p class="text-gray-400">Continuar (informado), ajustar (con sugerencias), o pivotar (a idea mejor)</p>
         </div>
       </div>
 
@@ -208,34 +237,93 @@
       <div class="flex gap-6">
         <div class="text-4xl font-bold text-blue-500">4</div>
         <div>
-          <h3 class="text-xl font-semibold mb-2">Tu IA consigue clientes 24/7:</h3>
+          <h3 class="text-xl font-semibold mb-2">Si continúas, construimos TODO</h3>
           <ul class="text-gray-400 space-y-1 mt-2">
-            <li>• <strong>Meta Ads:</strong> Facebook + Instagram optimizadas</li>
-            <li>• <strong>Cold Email:</strong> Outreach personalizado sin spam</li>
-            <li>• <strong>Twitter:</strong> Tweets + threads con tu voz</li>
-            <li>• <strong>Analytics:</strong> Métricas + recommendations</li>
-            <li>• <strong>A/B Testing:</strong> Optimización continua</li>
+            <li>• Landing page profesional</li>
+            <li>• <strong>Meta Ads:</strong> Facebook + Instagram automáticas</li>
+            <li>• <strong>Cold Email:</strong> Outreach personalizado</li>
+            <li>• <strong>Twitter:</strong> Tweets con tu voz</li>
+            <li>• <strong>Analytics:</strong> Métricas en tiempo real</li>
           </ul>
           <p class="text-sm text-gray-500 mt-3">
-            (No solo construimos. También vendemos.)
+            Pero ahora sabes en qué te metes.
           </p>
         </div>
       </div>
     </div>
 
-    <p class="text-center text-xl font-semibold mt-12 text-gray-300">
-      Tú decides. Ella ejecuta.
+    <div class="mt-12 text-center p-6 bg-gray-800/50 rounded-lg border border-gray-700">
+      <p class="text-xl text-gray-400 mb-2">
+        Otros construyen primero, preguntan después.
+      </p>
+      <p class="text-xl font-semibold text-white">
+        Nosotros preguntamos primero, construimos después.
+      </p>
+    </div>
+  </section>
+
+  <!-- Why Different -->
+  <section class="max-w-4xl mx-auto px-6 py-16 bg-gray-800/30 rounded-xl my-16">
+    <h2 class="text-4xl font-bold text-center mb-4">
+      Por qué Lanzalo es diferente
+    </h2>
+    <p class="text-center text-gray-400 mb-12">
+      Otros AI tools son asistentes.<br>
+      Nosotros somos tu co-fundador.
     </p>
+
+    <div class="grid md:grid-cols-2 gap-8 mb-12">
+      <!-- Other AIs -->
+      <div class="bg-gray-900/50 border border-gray-700 rounded-lg p-8">
+        <h3 class="text-xl font-bold mb-4 text-gray-400">Otras IAs</h3>
+        <div class="space-y-3 text-gray-500">
+          <p>💬 "¡Tu idea es increíble!"</p>
+          <p>💬 "Claro, como tú digas"</p>
+          <p>💬 Construyen cualquier cosa</p>
+          <p>💬 Te dicen que sí a todo</p>
+          <p>💬 Nunca cuestionan nada</p>
+        </div>
+        <p class="text-sm text-gray-600 mt-6 italic">
+          Asistentes sumisos
+        </p>
+      </div>
+
+      <!-- Lanzalo -->
+      <div class="bg-blue-900/20 border-2 border-blue-700 rounded-lg p-8">
+        <h3 class="text-xl font-bold mb-4 text-blue-400">Lanzalo</h3>
+        <div class="space-y-3 text-gray-300">
+          <p>🔥 "Esta idea tiene 3 problemas"</p>
+          <p>🔥 "No estoy de acuerdo, te explico"</p>
+          <p>🔥 "Mejor pivota a esto otro"</p>
+          <p>🔥 Te desafía cuando hace falta</p>
+          <p>🔥 Valida ANTES de construir</p>
+        </div>
+        <p class="text-sm text-blue-400 mt-6 font-semibold">
+          Co-fundador de verdad
+        </p>
+      </div>
+    </div>
+
+    <div class="text-center p-6 bg-gray-900/50 rounded-lg border border-gray-700">
+      <p class="text-xl text-gray-300 mb-2">
+        Un asistente te dice que sí.
+      </p>
+      <p class="text-2xl font-bold text-white">
+        Un co-fundador te dice la verdad.
+      </p>
+      <p class="text-gray-500 mt-4">
+        ¿Cuál prefieres?
+      </p>
+    </div>
   </section>
 
   <!-- Full Stack Marketing -->
-  <section class="max-w-4xl mx-auto px-6 py-16 bg-gray-800/30 rounded-xl my-16">
+  <section class="max-w-4xl mx-auto px-6 py-16">
     <h2 class="text-4xl font-bold text-center mb-4">
-      No solo construimos tu producto
+      Y sí, también construimos y vendemos
     </h2>
     <p class="text-center text-gray-400 mb-12">
-      También te conseguimos clientes<br>
-      (porque una web sin tráfico es una web muerta)
+      Pero solo después de validar que tiene sentido
     </p>
 
     <div class="grid md:grid-cols-2 gap-8 mb-12">
@@ -321,37 +409,66 @@
       Lo que NO hacemos
     </h2>
     <p class="text-center text-gray-400 mb-8">
-      (porque odiamos esa mierda tanto como tú)
+      (porque un co-fundador real tampoco lo haría)
     </p>
 
-    <div class="grid md:grid-cols-2 gap-4">
+    <div class="space-y-4 mb-8">
       <div class="flex items-start gap-3">
         <span class="text-2xl">❌</span>
-        <span class="text-gray-300">Pedirte reuniones de "discovery"</span>
+        <span class="text-gray-300">Decirte que todas tus ideas son geniales</span>
       </div>
       <div class="flex items-start gap-3">
         <span class="text-2xl">❌</span>
-        <span class="text-gray-300">Mandarte a "el equipo de ventas"</span>
+        <span class="text-gray-300">Construir cualquier cosa sin cuestionarla</span>
       </div>
       <div class="flex items-start gap-3">
         <span class="text-2xl">❌</span>
-        <span class="text-gray-300">Cobrar por "consultoría estratégica"</span>
+        <span class="text-gray-300">Dejarte perder tiempo y dinero en ideas malas</span>
       </div>
       <div class="flex items-start gap-3">
         <span class="text-2xl">❌</span>
-        <span class="text-gray-300">Templates genéricos que parecen de 2015</span>
+        <span class="text-gray-300">Actuar como asistente sumiso</span>
       </div>
-      <div class="flex items-start gap-3 md:col-span-2">
+      <div class="flex items-start gap-3">
         <span class="text-2xl">❌</span>
-        <span class="text-gray-300">"Optimización SEO enterprise blockchain synergy"</span>
+        <span class="text-gray-300">Decir "sí" a todo</span>
       </div>
     </div>
 
-    <div class="mt-8 text-center">
-      <div class="flex items-center justify-center gap-3 text-xl">
+    <div class="h-px bg-gray-700 my-8"></div>
+
+    <h3 class="text-2xl font-bold text-center mb-6 text-white">Lo que SÍ hacemos</h3>
+
+    <div class="space-y-4">
+      <div class="flex items-start gap-3">
         <span class="text-2xl">✅</span>
-        <span class="font-semibold">Describes idea → Negocio listo → Pagas si funciona</span>
+        <span class="text-gray-300">Validar tu idea ANTES de construir</span>
       </div>
+      <div class="flex items-start gap-3">
+        <span class="text-2xl">✅</span>
+        <span class="text-gray-300">Decirte "no" cuando hace falta</span>
+      </div>
+      <div class="flex items-start gap-3">
+        <span class="text-2xl">✅</span>
+        <span class="text-gray-300">Discutir contigo (como co-fundador)</span>
+      </div>
+      <div class="flex items-start gap-3">
+        <span class="text-2xl">✅</span>
+        <span class="text-gray-300">Darte alternativas mejores</span>
+      </div>
+      <div class="flex items-start gap-3">
+        <span class="text-2xl">✅</span>
+        <span class="text-gray-300">Construir SOLO si tiene sentido</span>
+      </div>
+    </div>
+
+    <div class="mt-8 text-center p-6 bg-blue-900/20 rounded-lg border border-blue-800">
+      <p class="text-xl font-semibold text-white mb-2">
+        Un buen co-fundador no está de acuerdo en todo.
+      </p>
+      <p class="text-gray-400">
+        Nosotros tampoco.
+      </p>
     </div>
   </section>
 
@@ -509,6 +626,16 @@
       <div class="bg-gray-800 border border-gray-700 rounded-lg p-6">
         <h3 class="font-semibold text-lg mb-2">"Esto suena demasiado fácil."</h3>
         <p class="text-gray-400">→ Porque lo es. Ese es el punto.</p>
+      </div>
+
+      <div class="bg-gray-800 border border-gray-700 rounded-lg p-6">
+        <h3 class="font-semibold text-lg mb-2">"¿Me vais a decir que mi idea es mala?"</h3>
+        <p class="text-gray-400">→ Si es mala, sí. Con datos, evidencia, y alternativas mejores. Eso es lo que hace un co-fundador de verdad.</p>
+      </div>
+
+      <div class="bg-gray-800 border border-gray-700 rounded-lg p-6">
+        <h3 class="font-semibold text-lg mb-2">"¿Y si quiero continuar de todos modos?"</h3>
+        <p class="text-gray-400">→ Es tu decisión. Te avisamos, pero tú mandas. Solo queremos que lo sepas antes de invertir tiempo y dinero.</p>
       </div>
 
       <div class="bg-gray-800 border border-gray-700 rounded-lg p-6">
