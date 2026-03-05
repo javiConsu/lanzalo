@@ -4,6 +4,7 @@
 
 const { pool } = require('../backend/db');
 const { callLLM } = require('../backend/llm');
+const MemorySystem = require('./memory-system');
 const crypto = require('crypto');
 
 class CEOAgent {
@@ -11,6 +12,7 @@ class CEOAgent {
     this.companyId = companyId;
     this.userId = userId;
     this.conversationHistory = [];
+    this.memory = new MemorySystem(companyId);
   }
 
   /**
@@ -53,8 +55,8 @@ class CEOAgent {
     // Guardar mensaje del usuario
     await this.saveMessage('user', userMessage);
 
-    // Construir contexto para el LLM
-    const context = this.buildContext();
+    // Construir contexto para el LLM (ahora async)
+    const context = await this.buildContext();
 
     // Preparar tools disponibles
     const tools = this.getAvailableTools();
@@ -85,8 +87,12 @@ class CEOAgent {
   /**
    * Construir contexto para el LLM
    */
-  buildContext() {
+  async buildContext() {
+    // Cargar memoria
+    const memoryContext = await this.memory.getFullContext();
+
     return {
+      memory: memoryContext,
       company: {
         name: this.company.name,
         description: this.company.description,
@@ -112,7 +118,24 @@ class CEOAgent {
    * Construir prompt para el CEO Agent
    */
   buildPrompt(context, userMessage) {
+    const memorySection = context.memory ? `
+MEMORIA COMPARTIDA:
+
+📊 Lo que sé de ${context.company.name}:
+- Industria: ${context.memory.domain.industry}
+- Audiencia: ${context.memory.domain.targetAudience}
+- Stack: ${context.memory.domain.techStack.join(', ')}
+- Monetización: ${context.memory.domain.monetization}
+
+⚙️ Preferencias del usuario:
+- Comunicación: ${context.memory.preferences.communicationStyle}
+- Respuestas: ${context.memory.preferences.responseLength}
+- Tech: ${context.memory.preferences.techPreferences.preferVanillaJS ? 'Vanilla JS preferido' : 'Flexible'}
+` : '';
+
     return `Eres el CEO Agent de ${context.company.name}.
+
+${memorySection}
 
 Tu rol es ser el co-fundador IA del usuario. Hablas como un colega emprendedor, no como un asistente corporativo.
 

@@ -71,6 +71,7 @@ try {
   app.use('/api/admin', require('./routes/admin-agent'));
   app.use('/api/user', require('./routes/user'));
   app.use('/api/user', require('./routes/ceo-chat'));
+  app.use('/api/user', require('./routes/memory'));
   console.log('✅ Rutas cargadas correctamente');
 } catch (error) {
   console.error('❌ Error cargando rutas:', error.message);

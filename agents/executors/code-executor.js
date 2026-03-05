@@ -26,8 +26,8 @@ class CodeExecutor extends TaskExecutor {
     );
     const company = companyResult.rows[0];
 
-    // Construir prompt para el LLM
-    const prompt = this.buildPrompt(task, company);
+    // Construir prompt para el LLM (ahora async)
+    const prompt = await this.buildPrompt(task, company);
 
     // Llamar al LLM
     const response = await callLLM(prompt, {
@@ -49,8 +49,39 @@ class CodeExecutor extends TaskExecutor {
   /**
    * Construir prompt para el LLM
    */
-  buildPrompt(task, company) {
+  async buildPrompt(task, company) {
+    // Cargar contexto de memoria
+    let memoryContext = '';
+    if (this.memory) {
+      try {
+        const context = await this.memory.getFullContext();
+        memoryContext = `
+MEMORIA DEL SISTEMA:
+
+📊 CONTEXTO EMPRESA:
+- Stack técnico: ${context.domain.techStack.join(', ')}
+- Features clave: ${context.domain.keyFeatures.join(', ') || 'Ninguna aún'}
+- Monetización: ${context.domain.monetization}
+
+⚙️ PREFERENCIAS:
+- Estilo: ${context.preferences.communicationStyle}
+- Tech: ${context.preferences.techPreferences.preferVanillaJS ? 'Vanilla JS (no frameworks)' : 'Frameworks OK'}
+- Diseño: ${context.preferences.designPreferences.style}
+
+🎯 BEST PRACTICES (cross-company):
+${context.patterns.successfulFeatures.map(f => `- ${f}`).join('\n')}
+
+⚠️ BUGS COMUNES A EVITAR:
+${context.patterns.commonBugs.map(b => `- ${b}`).join('\n')}
+`;
+      } catch (error) {
+        console.error('Error cargando memoria:', error);
+      }
+    }
+
     return `Eres el Code Agent de ${company.name}.
+
+${memoryContext}
 
 TAREA: ${task.title}
 DESCRIPCIÓN: ${task.description}

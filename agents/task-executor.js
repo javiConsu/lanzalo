@@ -5,6 +5,7 @@
  */
 
 const { pool } = require('../backend/db');
+const MemorySystem = require('./memory-system');
 const crypto = require('crypto');
 
 class TaskExecutor {
@@ -13,6 +14,7 @@ class TaskExecutor {
     this.agentName = agentName;
     this.isRunning = false;
     this.pollInterval = 10000; // 10 segundos
+    this.memory = null; // Inicializado por tarea
   }
 
   /**
@@ -85,6 +87,9 @@ class TaskExecutor {
     console.log(`\n🔧 ${this.agentName} ejecutando: [${task.tag}] ${task.title}`);
 
     try {
+      // Inicializar memoria para esta empresa
+      this.memory = new MemorySystem(task.company_id);
+
       // Marcar como in_progress
       await this.updateTaskStatus(task.id, 'in_progress', {
         started_at: new Date().toISOString()
@@ -92,6 +97,9 @@ class TaskExecutor {
 
       // Ejecutar la tarea (implementado por cada agente)
       const result = await this.execute(task);
+
+      // Curar memoria con aprendizajes de esta ejecución
+      await this.memory.curate(task, result);
 
       // Marcar como completed
       await this.updateTaskStatus(task.id, 'completed', {
