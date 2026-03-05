@@ -1,0 +1,36 @@
+{
+  "name": "lanzalo",
+  "version": "0.1.0",
+  "description": "AI Co-Founder Platform - Autonomous AI that builds and runs companies 24/7",
+  "main": "backend/server.js",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:backend": "nodemon backend/server.js",
+    "dev:frontend": "cd frontend && npm run dev",
+    "start": "node backend/server.js",
+    "db:setup": "psql -U postgres -f database/schema.sql",
+    "deploy": "npm run deploy:backend && npm run deploy:frontend",
+    "deploy:backend": "railway up",
+    "deploy:frontend": "cd frontend && vercel --prod"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "pg": "^8.11.3",
+    "node-cron": "^3.0.3",
+    "axios": "^1.6.2",
+    "stripe": "^14.10.0",
+    "nodemailer": "^6.9.7",
+    "ws": "^8.16.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2",
+    "concurrently": "^8.2.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "author": "Lanzalo Team",
+  "license": "MIT"
+}
