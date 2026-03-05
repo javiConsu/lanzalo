@@ -290,6 +290,7 @@ Si es solo conversación (no necesitas herramientas), usa action: "chat".`;
       'data': 'data-agent',
       'support': 'support-agent',
       'content': 'email-agent',
+      'email': 'email-agent',
       'twitter': 'twitter-agent',
       'meta_ads': 'meta-ads-agent',
       'financial': 'financial-agent'
