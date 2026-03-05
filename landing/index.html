@@ -578,8 +578,8 @@
 
   <script>
     // Resend API Configuration
-    const RESEND_API_KEY = 'YOUR_RESEND_API_KEY'; // ← Reemplazar con tu key
-    const NOTIFICATION_EMAIL = 'YOUR_EMAIL@example.com'; // ← Tu email
+    const RESEND_API_KEY = 're_Q38a4uLq_7LURmTjVJDdNLVREGTgCVJbe';
+    const NOTIFICATION_EMAIL = 'javi@mothershipx.dev';
     
     document.getElementById('idea-form').addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -597,8 +597,7 @@
       submitBtn.textContent = 'Enviando...';
       
       try {
-        // Option 1: Resend (uncomment when configured)
-        /*
+        // Send to Resend
         const response = await fetch('https://api.resend.com/emails', {
           method: 'POST',
           headers: {
@@ -621,10 +620,9 @@
         });
         
         if (!response.ok) throw new Error('Error enviando email');
-        */
         
-        // Option 2: Local logging (remove cuando configures Resend)
-        console.log('Signup:', { email, idea, timestamp: new Date().toISOString() });
+        // Log local también
+        console.log('Signup enviado:', { email, idea, timestamp: new Date().toISOString() });
         
         // Show success
         document.getElementById('success-message').classList.remove('hidden');
