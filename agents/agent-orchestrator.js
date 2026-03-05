@@ -4,6 +4,7 @@
 
 const CodeExecutor = require('./executors/code-executor');
 const ResearchExecutor = require('./executors/research-executor');
+const BrowserExecutor = require('./executors/browser-executor');
 
 class AgentOrchestrator {
   constructor() {
@@ -20,7 +21,8 @@ class AgentOrchestrator {
     // Crear instancias de agentes
     this.agents = [
       new CodeExecutor(),
-      new ResearchExecutor()
+      new ResearchExecutor(),
+      new BrowserExecutor()
       // TODO: Añadir más agentes:
       // new TwitterExecutor(),
       // new EmailExecutor(),
