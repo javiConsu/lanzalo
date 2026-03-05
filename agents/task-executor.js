@@ -1,212 +1,246 @@
 /**
- * Task Executor - Loop que ejecuta tareas del backlog
+ * Task Executor
  * 
- * Los agentes polling su backlog y ejecutan tareas asignadas a ellos
+ * Main execution loop:
+ * - Polls backlog every 10 seconds
+ * - Assigns tasks to appropriate agents
+ * - Executes tasks and updates status
+ * - Handles failures and retries
  */
 
 const { pool } = require('../backend/db');
-const MemorySystem = require('./memory-system');
 const crypto = require('crypto');
 
+// Import all agent executors
+const codeExecutor = require('./executors/code-executor');
+const researchExecutor = require('./executors/research-executor');
+const browserExecutor = require('./executors/browser-executor');
+const twitterExecutor = require('./executors/twitter-executor');
+const emailExecutor = require('./executors/email-executor');
+const dataExecutor = require('./executors/data-executor');
+const trendScoutExecutor = require('./executors/trend-scout-executor');
+
+// Map tags to executors
+const EXECUTORS = {
+  'code': codeExecutor,
+  'engineering': codeExecutor,
+  'research': researchExecutor,
+  'browser': browserExecutor,
+  'twitter': twitterExecutor,
+  'email': emailExecutor,
+  'data': dataExecutor,
+  'analytics': dataExecutor,
+  'trends': trendScoutExecutor,
+  'ideas': trendScoutExecutor
+};
+
 class TaskExecutor {
-  constructor(agentId, agentName) {
-    this.agentId = agentId;
-    this.agentName = agentName;
+  constructor() {
     this.isRunning = false;
-    this.pollInterval = 10000; // 10 segundos
-    this.memory = null; // Inicializado por tarea
+    this.pollInterval = 10000; // 10 seconds
+    this.maxConcurrent = 5; // Max concurrent tasks
+    this.activeTasks = new Set();
   }
 
   /**
-   * Iniciar polling del backlog
+   * Start the execution loop
    */
   start() {
     if (this.isRunning) {
-      console.log(`⚠️  ${this.agentName} ya está corriendo`);
+      console.log('[Task Executor] Already running');
       return;
     }
 
     this.isRunning = true;
-    console.log(`🚀 ${this.agentName} iniciado - polling cada ${this.pollInterval / 1000}s`);
+    console.log('[Task Executor] Starting execution loop...');
+    console.log(`[Task Executor] Polling every ${this.pollInterval}ms`);
+    console.log(`[Task Executor] Max concurrent tasks: ${this.maxConcurrent}`);
 
-    this.poll();
+    this.loop();
   }
 
   /**
-   * Detener polling
+   * Stop the execution loop
    */
   stop() {
     this.isRunning = false;
-    if (this.pollTimeout) {
-      clearTimeout(this.pollTimeout);
-    }
-    console.log(`🛑 ${this.agentName} detenido`);
+    console.log('[Task Executor] Stopping execution loop...');
   }
 
   /**
-   * Polling loop
+   * Main execution loop
    */
-  async poll() {
-    if (!this.isRunning) return;
-
-    try {
-      // Buscar tareas asignadas a este agente con status 'todo'
-      const result = await pool.query(
-        `SELECT * FROM tasks 
-         WHERE assigned_to = ? 
-         AND status = 'todo' 
-         ORDER BY 
-           CASE priority
-             WHEN 'critical' THEN 1
-             WHEN 'high' THEN 2
-             WHEN 'medium' THEN 3
-             WHEN 'low' THEN 4
-           END,
-           created_at
-         LIMIT 1`,
-        [this.agentId]
-      );
-
-      if (result.rows.length > 0) {
-        const task = result.rows[0];
-        await this.executeTask(task);
+  async loop() {
+    while (this.isRunning) {
+      try {
+        // Check if we can take more tasks
+        if (this.activeTasks.size < this.maxConcurrent) {
+          const availableSlots = this.maxConcurrent - this.activeTasks.size;
+          
+          // Get next tasks from backlog
+          const tasks = await this.getNextTasks(availableSlots);
+          
+          if (tasks.length > 0) {
+            console.log(`[Task Executor] Found ${tasks.length} tasks to execute`);
+            
+            // Execute each task in parallel
+            for (const task of tasks) {
+              this.executeTask(task); // Fire and forget
+            }
+          }
+        }
+        
+        // Wait before next poll
+        await this.sleep(this.pollInterval);
+        
+      } catch (error) {
+        console.error('[Task Executor] Loop error:', error);
+        await this.sleep(5000); // Wait 5s on error
       }
-
-    } catch (error) {
-      console.error(`❌ Error en ${this.agentName} poll:`, error.message);
     }
-
-    // Siguiente poll
-    this.pollTimeout = setTimeout(() => this.poll(), this.pollInterval);
   }
 
   /**
-   * Ejecutar una tarea
+   * Get next tasks from backlog
+   */
+  async getNextTasks(limit = 5) {
+    const result = await pool.query(
+      `SELECT * FROM current_backlog 
+       LIMIT ?`,
+      [limit]
+    );
+    
+    return result.rows || [];
+  }
+
+  /**
+   * Execute a single task
    */
   async executeTask(task) {
-    console.log(`\n🔧 ${this.agentName} ejecutando: [${task.tag}] ${task.title}`);
-
+    const taskId = task.id;
+    
+    // Mark as active
+    this.activeTasks.add(taskId);
+    
     try {
-      // Inicializar memoria para esta empresa
-      this.memory = new MemorySystem(task.company_id);
-
-      // Marcar como in_progress
-      await this.updateTaskStatus(task.id, 'in_progress', {
-        started_at: new Date().toISOString()
-      });
-
-      // Ejecutar la tarea (implementado por cada agente)
-      const result = await this.execute(task);
-
-      // Curar memoria con aprendizajes de esta ejecución
-      await this.memory.curate(task, result);
-
-      // Marcar como completed
-      await this.updateTaskStatus(task.id, 'completed', {
-        completed_at: new Date().toISOString(),
-        output: JSON.stringify(result)
-      });
-
-      console.log(`✅ ${this.agentName} completó: ${task.title}`);
-
-      // Notificar al usuario (opcional)
-      await this.notifyCompletion(task, result);
-
+      console.log(`[Task Executor] Executing task ${task.id}: ${task.title}`);
+      console.log(`[Task Executor] Tag: ${task.tag}, Priority: ${task.priority}`);
+      
+      // Update status to in_progress
+      await pool.query(
+        `UPDATE tasks 
+         SET status = 'in_progress', 
+             started_at = CURRENT_TIMESTAMP 
+         WHERE id = ?`,
+        [taskId]
+      );
+      
+      // Get executor for this task
+      const executor = this.getExecutor(task.tag);
+      
+      if (!executor) {
+        throw new Error(`No executor found for tag: ${task.tag}`);
+      }
+      
+      // Execute the task
+      const result = await executor.execute(task);
+      
+      // Mark as completed
+      await pool.query(
+        `UPDATE tasks 
+         SET status = 'completed',
+             output = ?,
+             completed_at = CURRENT_TIMESTAMP
+         WHERE id = ?`,
+        [result.output || 'Task completed', taskId]
+      );
+      
+      console.log(`[Task Executor] ✅ Task ${taskId} completed`);
+      
+      // If task generated artifacts, save them
+      if (result.artifacts) {
+        await this.saveArtifacts(taskId, result.artifacts);
+      }
+      
     } catch (error) {
-      console.error(`❌ ${this.agentName} falló en: ${task.title}`, error.message);
-
-      // Marcar como failed
-      await this.updateTaskStatus(task.id, 'failed', {
-        failed_at: new Date().toISOString(),
-        error_message: error.message
-      });
-
-      // Notificar fallo
-      await this.notifyFailure(task, error);
+      console.error(`[Task Executor] ❌ Task ${taskId} failed:`, error.message);
+      
+      // Check retry count
+      const retryCount = task.retry_count || 0;
+      
+      if (retryCount < 3) {
+        // Retry later
+        await pool.query(
+          `UPDATE tasks 
+           SET status = 'todo',
+               retry_count = ?,
+               error_message = ?
+           WHERE id = ?`,
+          [retryCount + 1, error.message, taskId]
+        );
+        
+        console.log(`[Task Executor] Task ${taskId} will retry (attempt ${retryCount + 1}/3)`);
+      } else {
+        // Failed permanently
+        await pool.query(
+          `UPDATE tasks 
+           SET status = 'failed',
+               error_message = ?,
+               completed_at = CURRENT_TIMESTAMP
+           WHERE id = ?`,
+          [error.message, taskId]
+        );
+        
+        console.log(`[Task Executor] Task ${taskId} failed permanently after 3 retries`);
+      }
+      
+    } finally {
+      // Remove from active tasks
+      this.activeTasks.delete(taskId);
     }
   }
 
   /**
-   * Actualizar estado de tarea
+   * Get executor for a task tag
    */
-  async updateTaskStatus(taskId, status, additionalFields = {}) {
-    const fields = ['status = ?'];
-    const values = [status];
-
-    // Añadir campos adicionales
-    for (const [key, value] of Object.entries(additionalFields)) {
-      fields.push(`${key} = ?`);
-      values.push(value);
-    }
-
-    values.push(taskId);
-
-    await pool.query(
-      `UPDATE tasks SET ${fields.join(', ')} WHERE id = ?`,
-      values
-    );
-  }
-
-  /**
-   * Método de ejecución (override en cada agente)
-   */
-  async execute(task) {
-    throw new Error('execute() debe ser implementado por el agente específico');
-  }
-
-  /**
-   * Notificar completación al usuario
-   */
-  async notifyCompletion(task, result) {
-    // Guardar mensaje en chat
-    const messageId = crypto.randomUUID();
-    
-    await pool.query(
-      `INSERT INTO chat_messages (id, company_id, user_id, role, content, task_id, action)
-       VALUES (?, ?, NULL, 'assistant', ?, ?, 'task_completed')`,
-      [
-        messageId,
-        task.company_id,
-        `✅ Tarea completada: ${task.title}\n\n${this.formatResult(result)}`,
-        task.id
-      ]
-    );
-
-    console.log(`📬 Notificación enviada para tarea: ${task.id}`);
-  }
-
-  /**
-   * Notificar fallo al usuario
-   */
-  async notifyFailure(task, error) {
-    const messageId = crypto.randomUUID();
-    
-    await pool.query(
-      `INSERT INTO chat_messages (id, company_id, user_id, role, content, task_id, action)
-       VALUES (?, ?, NULL, 'assistant', ?, ?, 'task_failed')`,
-      [
-        messageId,
-        task.company_id,
-        `❌ Tarea falló: ${task.title}\n\nError: ${error.message}`,
-        task.id
-      ]
-    );
-  }
-
-  /**
-   * Formatear resultado para mostrar al usuario
-   */
-  formatResult(result) {
-    if (typeof result === 'string') {
-      return result;
+  getExecutor(tag) {
+    if (!tag) {
+      return null;
     }
     
-    if (result.summary) {
-      return result.summary;
-    }
+    return EXECUTORS[tag.toLowerCase()];
+  }
 
-    return JSON.stringify(result, null, 2);
+  /**
+   * Save task artifacts
+   */
+  async saveArtifacts(taskId, artifacts) {
+    // TODO: Implement artifact storage
+    // For now, just log
+    console.log(`[Task Executor] Artifacts for ${taskId}:`, artifacts);
+  }
+
+  /**
+   * Sleep helper
+   */
+  sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  /**
+   * Get execution stats
+   */
+  getStats() {
+    return {
+      isRunning: this.isRunning,
+      activeTasks: this.activeTasks.size,
+      maxConcurrent: this.maxConcurrent,
+      pollInterval: this.pollInterval
+    };
   }
 }
 
-module.exports = TaskExecutor;
+// Singleton instance
+const taskExecutor = new TaskExecutor();
+
+module.exports = taskExecutor;

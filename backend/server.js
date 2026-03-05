@@ -7,6 +7,8 @@ const express = require('express');
 const cors = require('cors');
 const { WebSocketServer } = require('ws');
 const orchestrator = require('../agents/orchestrator');
+const taskExecutor = require('../agents/task-executor');
+const { scheduleDailySyncs } = require('../agents/daily-sync');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -24,6 +26,7 @@ app.get('/health', (req, res) => {
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/user', require('./routes/user'));
+app.use('/api/user', require('./routes/daily-syncs')); // Daily syncs routes
 app.use('/api/companies', require('./routes/companies'));  // Deprecated - usar /api/user/companies
 app.use('/api/tasks', require('./routes/tasks'));          // Deprecated - usar /api/user/companies/:id/tasks
 app.use('/api/analytics', require('./routes/analytics'));
@@ -34,7 +37,18 @@ const server = app.listen(PORT, () => {
   console.log(`🚀 Lanzalo API running on port ${PORT}`);
   
   // Start agent orchestrator
+  console.log('[Server] Starting Agent Orchestrator...');
   orchestrator.start();
+  
+  // Start task executor (polls backlog every 10s)
+  console.log('[Server] Starting Task Executor...');
+  taskExecutor.start();
+  
+  // Schedule daily syncs (runs hourly, checks which companies need sync)
+  console.log('[Server] Scheduling Daily Syncs...');
+  scheduleDailySyncs();
+  
+  console.log('✅ All systems running');
 });
 
 // WebSocket server for live updates
@@ -65,6 +79,7 @@ global.broadcastActivity = (activity) => {
 process.on('SIGTERM', () => {
   console.log('SIGTERM received, shutting down gracefully...');
   orchestrator.stop();
+  taskExecutor.stop();
   server.close(() => {
     console.log('Process terminated');
   });
