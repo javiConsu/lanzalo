@@ -67,6 +67,7 @@ try {
   app.use('/api/auth', require('./routes/auth'));
   app.use('/api/admin', require('./routes/admin'));
   app.use('/api/admin', require('./routes/admin-settings'));
+  app.use('/api/admin', require('./routes/admin-financials'));
   app.use('/api/user', require('./routes/user'));
   console.log('✅ Rutas cargadas correctamente');
 } catch (error) {
