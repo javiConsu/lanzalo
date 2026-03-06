@@ -255,4 +255,5 @@ module.exports = {
   register,
   login,
   createInitialAdmin
+  authenticate: requireAuth,
 };
