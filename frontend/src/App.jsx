@@ -8,6 +8,9 @@ import Backlog from './pages/Backlog'
 import Metrics from './pages/Metrics'
 import Discovery from './pages/Discovery'
 import DiscoveryAnalysis from './pages/DiscoveryAnalysis'
+import OnboardingSurvey from './pages/OnboardingSurvey'
+import OnboardingChoosePath from './pages/OnboardingChoosePath'
+import OnboardingChooseIdea from './pages/OnboardingChooseIdea'
 
 function App() {
   const [token, setToken] = useState(localStorage.getItem('token'))
@@ -54,6 +57,9 @@ function App() {
   return (
     <Router>
       <Routes>
+        <Route path="/onboarding/survey" element={<OnboardingSurvey />} />
+        <Route path="/onboarding/choose-path" element={<OnboardingChoosePath />} />
+        <Route path="/onboarding/choose-idea" element={<OnboardingChooseIdea />} />
         <Route path="/discovery" element={<Discovery />} />
         <Route path="/discovery/analysis" element={<DiscoveryAnalysis />} />
         
