@@ -21,7 +21,7 @@ class TwitterExecutor extends TaskExecutor {
 
     // Obtener info de la empresa
     const companyResult = await pool.query(
-      'SELECT * FROM companies WHERE id = ?',
+      'SELECT * FROM companies WHERE id = $1',
       [task.company_id]
     );
     const company = companyResult.rows[0];
@@ -176,8 +176,8 @@ GENERA EL TWEET (JSON):
 
     const result = await pool.query(
       `SELECT COUNT(*) as count FROM tweets 
-       WHERE company_id = ? 
-       AND DATE(created_at) = ?`,
+       WHERE company_id = $1 
+       AND DATE(created_at) = $2`,
       [companyId, today]
     );
 
@@ -198,7 +198,7 @@ GENERA EL TWEET (JSON):
 
     await pool.query(
       `INSERT INTO tweets (id, company_id, content, type, published, created_at)
-       VALUES (?, ?, ?, ?, ?, datetime('now'))`,
+       VALUES ($1, $2, $3, $4, $5, NOW())`,
       [tweetId, companyId, tweet.content, tweet.type || 'generic', false]
     );
 
@@ -230,7 +230,7 @@ GENERA EL TWEET (JSON):
     
     // Actualizar DB con tweet_id de Twitter
     await pool.query(
-      'UPDATE tweets SET published = ?, twitter_id = ? WHERE id = ?',
+      'UPDATE tweets SET published = $1, twitter_id = $2 WHERE id = $3',
       [true, result.data.id, tweetId]
     );
     

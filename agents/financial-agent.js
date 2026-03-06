@@ -54,7 +54,7 @@ class FinancialAgent {
     const mrrResult = await pool.query(
       `SELECT COUNT(*) as pro_users FROM users WHERE plan = 'pro' AND role != 'admin'`
     );
-    const proUsers = parseInt(mrrResult.rows[0]?.pro_users || 0);
+    const proUsers = parseInt(mrrResult.rows[0]$1.pro_users || 0);
     const mrr = proUsers * 39;
 
     // Costos LLM (último mes)
@@ -63,7 +63,7 @@ class FinancialAgent {
        FROM llm_usage 
        WHERE recorded_at > datetime('now', '-30 days')`
     );
-    const llmCosts = parseFloat(costsResult.rows[0]?.total || 0);
+    const llmCosts = parseFloat(costsResult.rows[0]$2.total || 0);
 
     // Costos por empresa
     const perCompanyResult = await pool.query(
@@ -82,7 +82,7 @@ class FinancialAgent {
     const infraCosts = 60; // Fixed
     const totalCosts = llmCosts + infraCosts;
     const profit = mrr - totalCosts;
-    const margin = mrr > 0 ? ((profit / mrr) * 100) : 0;
+    const margin = mrr > 0 $3 ((profit / mrr) * 100) : 0;
 
     return {
       mrr,
@@ -99,8 +99,8 @@ class FinancialAgent {
         name: r.name,
         plan: r.plan,
         cost: parseFloat(r.cost),
-        revenue: r.plan === 'pro' ? 39 : 0,
-        profitable: r.plan === 'pro' ? (39 - parseFloat(r.cost)) > 0 : false
+        revenue: r.plan === 'pro' $4 39 : 0,
+        profitable: r.plan === 'pro' $5 (39 - parseFloat(r.cost)) > 0 : false
       }))
     };
   }
@@ -112,21 +112,21 @@ class FinancialAgent {
     const prompt = `Eres el agente financiero de Lanzalo, una plataforma SaaS.
 
 DATOS ACTUALES:
-- MRR: $${data.mrr}/mes (${data.proUsers} usuarios Pro @ $39/mes)
-- Costos totales: $${data.costs.total}/mes (LLM: $${data.costs.llm}, Infra: $${data.costs.infra})
-- Profit: $${data.profit}/mes
+- MRR: ${data.mrr}/mes (${data.proUsers} usuarios Pro @ $39/mes)
+- Costos totales: ${data.costs.total}/mes (LLM: ${data.costs.llm}, Infra: ${data.costs.infra})
+- Profit: ${data.profit}/mes
 - Margen: ${data.margin.toFixed(2)}%
 
 EMPRESAS PROBLEMÁTICAS:
 ${data.companies.filter(c => !c.profitable).slice(0, 5).map(c => 
-  `- ${c.name} (${c.plan}): Costo $${c.cost}, Revenue $${c.revenue}, Loss: $${c.revenue - c.cost}`
+  `- ${c.name} (${c.plan}): Costo ${c.cost}, Revenue ${c.revenue}, Loss: ${c.revenue - c.cost}`
 ).join('\n')}
 
 ANALIZA:
-1. ¿La situación es sostenible?
-2. ¿Cuáles son los mayores problemas?
-3. ¿Qué riesgos existen?
-4. ¿Qué oportunidades hay?
+1. ¿La situación es sostenible$6
+2. ¿Cuáles son los mayores problemas$7
+3. ¿Qué riesgos existen$8
+4. ¿Qué oportunidades hay$9
 
 Responde en JSON:
 {
@@ -184,7 +184,7 @@ Responde en JSON:
           action: 'force_upgrade',
           companyId: company.id,
           companyName: company.name,
-          reason: `Plan FREE gastando $${company.cost}/mes. Forzar upgrade a Pro.`,
+          reason: `Plan FREE gastando ${company.cost}/mes. Forzar upgrade a Pro.`,
           priority: 'high',
           autoExecute: true
         });
@@ -194,7 +194,7 @@ Responde en JSON:
           action: 'limit_quotas',
           companyId: company.id,
           companyName: company.name,
-          reason: `Plan FREE gastando $${company.cost}/mes. Limitar quotas.`,
+          reason: `Plan FREE gastando ${company.cost}/mes. Limitar quotas.`,
           priority: 'medium',
           autoExecute: true
         });
@@ -204,7 +204,7 @@ Responde en JSON:
           action: 'use_cheaper_models',
           companyId: company.id,
           companyName: company.name,
-          reason: `Usuario Pro gastando $${company.cost}/mes (pérdida: $${company.cost - 39}). Cambiar a modelos baratos.`,
+          reason: `Usuario Pro gastando ${company.cost}/mes (pérdida: ${company.cost - 39}). Cambiar a modelos baratos.`,
           priority: 'high',
           autoExecute: true
         });
@@ -216,7 +216,7 @@ Responde en JSON:
       decisions.push({
         type: 'cost_optimization',
         action: 'switch_to_cheaper_models',
-        reason: `Costos LLM ($${data.costs.llm}) > 50% del MRR. Usar modelos más baratos globalmente.`,
+        reason: `Costos LLM (${data.costs.llm}) > 50% del MRR. Usar modelos más baratos globalmente.`,
         priority: 'high',
         autoExecute: false
       });
@@ -228,7 +228,7 @@ Responde en JSON:
         type: 'growth',
         action: 'invest_in_marketing',
         amount: Math.floor(data.profit * 0.3),
-        reason: `Profit saludable ($${data.profit}). Invertir 30% en adquirir usuarios.`,
+        reason: `Profit saludable (${data.profit}). Invertir 30% en adquirir usuarios.`,
         priority: 'medium',
         autoExecute: false
       });
@@ -310,7 +310,7 @@ Responde en JSON:
   async forceUpgrade(companyId) {
     // Pausar empresa y notificar al dueño
     await pool.query(
-      `UPDATE companies SET status = 'paused' WHERE id = ?`,
+      `UPDATE companies SET status = 'paused' WHERE id = $10`,
       [companyId]
     );
 
@@ -326,7 +326,7 @@ Responde en JSON:
     // Reducir quotas a la mitad
     await pool.query(
       `INSERT INTO company_settings (company_id, cost_limit_daily, enabled)
-       VALUES (?, 2.0, 1)
+       VALUES ($1, 2.0, 1)
        ON CONFLICT(company_id) DO UPDATE SET cost_limit_daily = 2.0`,
       [companyId]
     );
@@ -341,7 +341,7 @@ Responde en JSON:
     // Forzar uso de Haiku (modelo más barato)
     await pool.query(
       `INSERT INTO company_settings (company_id, model_override, enabled)
-       VALUES (?, 'anthropic/claude-haiku-3', 1)
+       VALUES ($1, 'anthropic/claude-haiku-3', 1)
        ON CONFLICT(company_id) DO UPDATE SET model_override = 'anthropic/claude-haiku-3'`,
       [companyId]
     );
@@ -391,7 +391,7 @@ Responde en JSON:
     // Guardar en DB para audit
     await pool.query(
       `INSERT INTO admin_audit_log (admin_id, action, target_type, details)
-       VALUES ('financial-agent', 'financial_analysis', 'platform', ?)`,
+       VALUES ('financial-agent', 'financial_analysis', 'platform', $1)`,
       [JSON.stringify({ analysis, decisions: decisions.length, actions: executed.length })]
     );
   }

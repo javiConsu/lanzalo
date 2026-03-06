@@ -20,7 +20,7 @@ class DataExecutor extends TaskExecutor {
 
     // Obtener info de la empresa
     const companyResult = await pool.query(
-      'SELECT * FROM companies WHERE id = ?',
+      'SELECT * FROM companies WHERE id = $1',
       [task.company_id]
     );
     const company = companyResult.rows[0];
@@ -257,7 +257,7 @@ Responde en 2-3 frases:
         SUM(CASE WHEN status = 'in_progress' THEN 1 ELSE 0 END) as in_progress,
         SUM(CASE WHEN status = 'todo' THEN 1 ELSE 0 END) as pending
       FROM tasks
-      WHERE company_id = ?
+      WHERE company_id = $1
     `, [company.id]);
 
     metrics.tasks = tasksResult.rows[0];
@@ -268,7 +268,7 @@ Responde en 2-3 frases:
         COUNT(*) as total,
         SUM(CASE WHEN published THEN 1 ELSE 0 END) as published
       FROM tweets
-      WHERE company_id = ?
+      WHERE company_id = $1
     `, [company.id]);
 
     metrics.tweets = tweetsResult.rows[0];
@@ -281,7 +281,7 @@ Responde en 2-3 frases:
         SUM(CASE WHEN opened THEN 1 ELSE 0 END) as opened,
         SUM(CASE WHEN clicked THEN 1 ELSE 0 END) as clicked
       FROM emails
-      WHERE company_id = ?
+      WHERE company_id = $1
     `, [company.id]);
 
     metrics.emails = emailsResult.rows[0];
@@ -293,7 +293,7 @@ Responde en 2-3 frases:
         type,
         COUNT(*) as count
       FROM reports
-      WHERE company_id = ?
+      WHERE company_id = $1
       GROUP BY type
     `, [company.id]);
 
@@ -306,7 +306,7 @@ Responde en 2-3 frases:
     const memoryResult = await pool.query(`
       SELECT content
       FROM memory
-      WHERE company_id = ? AND layer = 1
+      WHERE company_id = $1 AND layer = 1
       ORDER BY updated_at DESC
       LIMIT 1
     `, [company.id]);
@@ -550,7 +550,7 @@ Generated: ${new Date().toISOString()}
 
     await pool.query(
       `INSERT INTO reports (id, company_id, task_id, type, title, content, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, datetime('now'))`,
+       VALUES ($1, $2, $3, $4, $5, $6, NOW())`,
       [reportId, task.company_id, task.id, 'data_analysis', task.title, content]
     );
 

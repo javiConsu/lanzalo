@@ -342,7 +342,7 @@ Solo las MEJORES y más VIABLES.`;
       try {
         // Check si ya existe (por título similar)
         const existing = await pool.query(
-          `SELECT id FROM discovered_ideas WHERE title = ? LIMIT 1`,
+          `SELECT id FROM discovered_ideas WHERE title = $1 LIMIT 1`,
           [idea.title]
         );
 
@@ -359,7 +359,7 @@ Solo las MEJORES y más VIABLES.`;
             id, title, problem, target_audience, evidence,
             source, difficulty, potential_revenue, category, score,
             discovered_at, is_active
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), 1)`,
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), 1)`,
           [
             ideaId,
             idea.title,
@@ -438,7 +438,7 @@ Generado: ${new Date().toISOString()}
 
     await pool.query(
       `INSERT INTO reports (id, company_id, task_id, type, title, content, created_at)
-       VALUES (?, NULL, ?, 'trend_scout', 'Trend Scout Report', ?, datetime('now'))`,
+       VALUES ($1, NULL, $2, 'trend_scout', 'Trend Scout Report', $3, NOW())`,
       [reportId, task.id, content]
     );
 

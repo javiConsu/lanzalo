@@ -52,9 +52,9 @@ router.get('/companies/:companyId/chat/history', requireCompanyAccess, async (re
 
     const result = await pool.query(
       `SELECT * FROM chat_messages 
-       WHERE company_id = ? 
+       WHERE company_id = $1 
        ORDER BY created_at DESC 
-       LIMIT ?`,
+       LIMIT $2`,
       [companyId, limit]
     );
 
@@ -79,7 +79,7 @@ router.get('/companies/:companyId/backlog', requireCompanyAccess, async (req, re
 
     const result = await pool.query(
       `SELECT * FROM tasks 
-       WHERE company_id = ? AND status IN ('todo', 'in_progress')
+       WHERE company_id = $1 AND status IN ('todo', 'in_progress')
        ORDER BY 
          CASE priority
            WHEN 'critical' THEN 1
@@ -116,12 +116,12 @@ router.post('/companies/:companyId/tasks', requireCompanyAccess, async (req, res
     await pool.query(
       `INSERT INTO tasks (
         id, company_id, created_by, title, description, tag, priority, status
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
       [taskId, companyId, req.user.id, title, description, tag, priority || 'medium', 'todo']
     );
 
     const result = await pool.query(
-      'SELECT * FROM tasks WHERE id = ?',
+      'SELECT * FROM tasks WHERE id = $1',
       [taskId]
     );
 

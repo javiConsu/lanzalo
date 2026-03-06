@@ -22,7 +22,7 @@ CREATE TABLE companies (
   subdomain VARCHAR(100) UNIQUE, -- e.g., mycompany.lanzalo.app
   status VARCHAR(50) DEFAULT 'planning', -- planning, building, live, paused
   revenue_total DECIMAL(10,2) DEFAULT 0,
-  revenue_share_rate DECIMAL(3,2) DEFAULT 0.20, -- 20%
+  revenue_share_rate DECIMAL(3,2) DEFAULT 0.05, -- 5%
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
 );

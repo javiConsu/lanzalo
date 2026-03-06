@@ -131,7 +131,7 @@ async function seedIdeas() {
           id, title, problem, target_audience, evidence,
           source, category, difficulty, potential_revenue, score,
           discovered_at, is_active
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), 1)`,
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), 1)`,
         [
           id,
           idea.title,

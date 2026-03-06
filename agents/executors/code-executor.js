@@ -21,7 +21,7 @@ class CodeExecutor extends TaskExecutor {
 
     // Obtener info de la empresa
     const companyResult = await pool.query(
-      'SELECT * FROM companies WHERE id = ?',
+      'SELECT * FROM companies WHERE id = $1',
       [task.company_id]
     );
     const company = companyResult.rows[0];

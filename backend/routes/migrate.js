@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS companies (
   subdomain VARCHAR(100) UNIQUE,
   status VARCHAR(50) DEFAULT 'planning',
   revenue_total DECIMAL(10,2) DEFAULT 0,
-  revenue_share_rate DECIMAL(3,2) DEFAULT 0.20,
+  revenue_share_rate DECIMAL(3,2) DEFAULT 0.05,
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
 );

@@ -19,9 +19,9 @@ router.get('/companies/:companyId/syncs', authenticate, async (req, res) => {
     
     const result = await pool.query(
       `SELECT * FROM daily_syncs 
-       WHERE company_id = ? 
+       WHERE company_id = $1 
        ORDER BY sync_date DESC 
-       LIMIT ?`,
+       LIMIT $2`,
       [companyId, limit]
     );
     
@@ -55,7 +55,7 @@ router.get('/companies/:companyId/syncs/:syncId', authenticate, async (req, res)
     const { syncId } = req.params;
     
     const result = await pool.query(
-      'SELECT * FROM daily_syncs WHERE id = ?',
+      'SELECT * FROM daily_syncs WHERE id = $1',
       [syncId]
     );
     

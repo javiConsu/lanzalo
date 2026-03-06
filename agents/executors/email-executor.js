@@ -21,7 +21,7 @@ class EmailExecutor extends TaskExecutor {
 
     // Obtener info de la empresa
     const companyResult = await pool.query(
-      'SELECT * FROM companies WHERE id = ?',
+      'SELECT * FROM companies WHERE id = $1',
       [task.company_id]
     );
     const company = companyResult.rows[0];
@@ -360,9 +360,9 @@ Responde en JSON:
 
     const result = await pool.query(
       `SELECT COUNT(*) as count FROM emails 
-       WHERE company_id = ? 
+       WHERE company_id = $1 
        AND type = 'cold'
-       AND DATE(created_at) = ?`,
+       AND DATE(created_at) = $2`,
       [companyId, today]
     );
 
@@ -383,7 +383,7 @@ Responde en JSON:
 
     await pool.query(
       `INSERT INTO emails (id, company_id, type, recipient, subject, body, sent, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())`,
       [emailId, companyId, type, email.to || null, email.subject, email.body, false]
     );
 
@@ -411,7 +411,7 @@ Responde en JSON:
     
     // Actualizar DB
     await pool.query(
-      'UPDATE emails SET sent = ?, sent_at = datetime("now") WHERE id = ?',
+      'UPDATE emails SET sent = $1, sent_at = datetime("now") WHERE id = $2',
       [true, emailId]
     );
     */

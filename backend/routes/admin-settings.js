@@ -79,16 +79,16 @@ router.post('/settings', async (req, res) => {
         id, openrouter_api_key, default_model, model_strategy,
         cost_alert_threshold, max_daily_cost, auto_pause_expensive_companies,
         updated_by
-      ) VALUES ('global', ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES ('global', $1, $2, $3, $4, $5, $6, $7)
       ON CONFLICT(id) DO UPDATE SET
-        openrouter_api_key = COALESCE(?, openrouter_api_key),
-        default_model = COALESCE(?, default_model),
-        model_strategy = COALESCE(?, model_strategy),
-        cost_alert_threshold = COALESCE(?, cost_alert_threshold),
-        max_daily_cost = COALESCE(?, max_daily_cost),
-        auto_pause_expensive_companies = COALESCE(?, auto_pause_expensive_companies),
-        updated_by = ?,
-        updated_at = datetime('now')`,
+        openrouter_api_key = COALESCE($8, openrouter_api_key),
+        default_model = COALESCE($9, default_model),
+        model_strategy = COALESCE($10, model_strategy),
+        cost_alert_threshold = COALESCE($11, cost_alert_threshold),
+        max_daily_cost = COALESCE($12, max_daily_cost),
+        auto_pause_expensive_companies = COALESCE($13, auto_pause_expensive_companies),
+        updated_by = $14,
+        updated_at = NOW()`,
       [
         openrouter_api_key, default_model, strategyJson,
         cost_alert_threshold, max_daily_cost, auto_pause_expensive_companies ? 1 : 0,
@@ -102,7 +102,7 @@ router.post('/settings', async (req, res) => {
     // Log audit
     await pool.query(
       `INSERT INTO admin_audit_log (admin_id, action, target_type, details)
-       VALUES (?, 'settings_update', 'platform', ?)`,
+       VALUES ($1, 'settings_update', 'platform', $2)`,
       [req.user.id, JSON.stringify({ updated_fields: Object.keys(req.body) })]
     );
 

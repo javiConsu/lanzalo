@@ -91,7 +91,7 @@ async function getActiveCompanies() {
 }
 
 async function getCompanyById(id) {
-  const result = await pool.query('SELECT * FROM companies WHERE id = ?', [id]);
+  const result = await pool.query('SELECT * FROM companies WHERE id = $1', [id]);
   return result.rows[0];
 }
 
@@ -101,7 +101,7 @@ async function createCompany(userId, name, description, industry) {
   
   const result = await pool.query(
     `INSERT INTO companies (id, user_id, name, description, industry, subdomain)
-     VALUES (?, ?, ?, ?, ?, ?)`,
+     VALUES ($1, $2, $3, $4, $5, $6)`,
     [id, userId, name, description, industry, subdomain]
   );
   
@@ -113,11 +113,11 @@ async function createTask(companyId, agentType, title, description) {
   
   await pool.query(
     `INSERT INTO tasks (id, company_id, agent_type, title, description, scheduled_for)
-     VALUES (?, ?, ?, ?, ?, datetime('now'))`,
+     VALUES ($1, $2, $3, $4, $5, NOW())`,
     [id, companyId, agentType, title, description]
   );
   
-  const result = await pool.query('SELECT * FROM tasks WHERE id = ?', [id]);
+  const result = await pool.query('SELECT * FROM tasks WHERE id = $1', [id]);
   return result.rows[0];
 }
 
@@ -141,11 +141,11 @@ async function logActivity(companyId, taskId, activityType, message, metadata = 
   
   await pool.query(
     `INSERT INTO activity_log (id, company_id, task_id, activity_type, message, metadata)
-     VALUES (?, ?, ?, ?, ?, ?)`,
+     VALUES ($1, $2, $3, $4, $5, $6)`,
     [id, companyId, taskId, activityType, message, JSON.stringify(metadata)]
   );
   
-  const result = await pool.query('SELECT * FROM activity_log WHERE id = ?', [id]);
+  const result = await pool.query('SELECT * FROM activity_log WHERE id = $1', [id]);
   const activity = result.rows[0];
   
   if (global.broadcastActivity) {

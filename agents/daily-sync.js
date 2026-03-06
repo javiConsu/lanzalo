@@ -51,7 +51,7 @@ async function getCompaniesDueForSync() {
   const result = await pool.query(
     `SELECT c.* FROM companies c
      WHERE c.daily_sync_enabled = TRUE
-       AND c.daily_sync_time = ?
+       AND c.daily_sync_time = $1
        AND (c.last_sync_at IS NULL 
             OR DATE(c.last_sync_at) < DATE('now'))`,
     [currentTime]
@@ -87,7 +87,7 @@ async function runDailySync(companyId) {
     `INSERT INTO daily_syncs 
      (id, company_id, sync_date, summary, wins, issues, trends, 
       decisions, recommendations, agent_reports, metrics_snapshot)
-     VALUES (?, ?, DATE('now', '-1 day'), ?, ?, ?, ?, ?, ?, ?, ?)`,
+     VALUES ($1, $2, DATE('now', '-1 day'), $3, $4, $5, $6, $7, $8, $9, $10)`,
     [
       syncId,
       companyId,
@@ -114,7 +114,7 @@ async function runDailySync(companyId) {
   
   // 6. Update last sync time
   await pool.query(
-    `UPDATE companies SET last_sync_at = CURRENT_TIMESTAMP WHERE id = ?`,
+    `UPDATE companies SET last_sync_at = CURRENT_TIMESTAMP WHERE id = $1`,
     [companyId]
   );
   
@@ -132,9 +132,9 @@ async function gatherAgentReports(companyId) {
   // Tasks completed yesterday
   const completed = await pool.query(
     `SELECT * FROM tasks 
-     WHERE company_id = ? 
+     WHERE company_id = $1 
        AND status = 'completed'
-       AND DATE(completed_at) = ?
+       AND DATE(completed_at) = $2
      ORDER BY tag`,
     [companyId, yesterday]
   );
@@ -142,9 +142,9 @@ async function gatherAgentReports(companyId) {
   // Tasks failed yesterday
   const failed = await pool.query(
     `SELECT * FROM tasks 
-     WHERE company_id = ? 
+     WHERE company_id = $1 
        AND status = 'failed'
-       AND DATE(updated_at) = ?
+       AND DATE(updated_at) = $2
      ORDER BY tag`,
     [companyId, yesterday]
   );
@@ -187,7 +187,7 @@ async function gatherAgentReports(companyId) {
   // Business metrics (last 7 days)
   const metricsResult = await pool.query(
     `SELECT * FROM company_metrics 
-     WHERE company_id = ? 
+     WHERE company_id = $1 
      ORDER BY date DESC 
      LIMIT 7`,
     [companyId]
@@ -196,7 +196,7 @@ async function gatherAgentReports(companyId) {
   // Backlog count
   const backlogResult = await pool.query(
     `SELECT COUNT(*) as count FROM tasks 
-     WHERE company_id = ? AND status = 'todo'`,
+     WHERE company_id = $1 AND status = 'todo'`,
     [companyId]
   );
   
@@ -387,7 +387,7 @@ async function createTaskFromDecision(companyId, decision) {
   await pool.query(
     `INSERT INTO tasks 
      (id, company_id, title, description, tag, priority, status, auto_created)
-     VALUES (?, ?, ?, ?, ?, ?, 'todo', TRUE)`,
+     VALUES ($1, $2, $3, $4, $5, $6, 'todo', TRUE)`,
     [
       taskId,
       companyId,
@@ -419,7 +419,7 @@ async function sendDailySyncEmail(company, analysis, date) {
  * Helpers
  */
 async function getCompany(id) {
-  const result = await pool.query('SELECT * FROM companies WHERE id = ?', [id]);
+  const result = await pool.query('SELECT * FROM companies WHERE id = $1', [id]);
   return result.rows?.[0];
 }
 

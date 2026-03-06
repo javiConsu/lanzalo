@@ -49,7 +49,7 @@ router.get('/ideas', async (req, res) => {
     // Incrementar times_shown
     for (const idea of result.rows) {
       await pool.query(
-        'UPDATE discovered_ideas SET times_shown = times_shown + 1 WHERE id = ?',
+        'UPDATE discovered_ideas SET times_shown = times_shown + 1 WHERE id = $1',
         [idea.id]
       );
     }
@@ -73,7 +73,7 @@ router.get('/ideas/:ideaId', async (req, res) => {
     const { ideaId } = req.params;
 
     const result = await pool.query(
-      'SELECT * FROM discovered_ideas WHERE id = ?',
+      'SELECT * FROM discovered_ideas WHERE id = $1',
       [ideaId]
     );
 
@@ -101,7 +101,7 @@ router.post('/ideas/:ideaId/launch', requireAuth, async (req, res) => {
 
     // Obtener idea
     const ideaResult = await pool.query(
-      'SELECT * FROM discovered_ideas WHERE id = ?',
+      'SELECT * FROM discovered_ideas WHERE id = $1',
       [ideaId]
     );
 
@@ -119,7 +119,7 @@ router.post('/ideas/:ideaId/launch', requireAuth, async (req, res) => {
       `INSERT INTO companies (
         id, user_id, name, description, industry, subdomain, 
         target_audience, status, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, 'active', datetime('now'))`,
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, 'active', NOW())`,
       [
         companyId,
         req.user.id,
@@ -133,7 +133,7 @@ router.post('/ideas/:ideaId/launch', requireAuth, async (req, res) => {
 
     // Incrementar times_launched
     await pool.query(
-      'UPDATE discovered_ideas SET times_launched = times_launched + 1 WHERE id = ?',
+      'UPDATE discovered_ideas SET times_launched = times_launched + 1 WHERE id = $1',
       [ideaId]
     );
 
@@ -144,7 +144,7 @@ router.post('/ideas/:ideaId/launch', requireAuth, async (req, res) => {
       `INSERT INTO tasks (
         id, company_id, created_by, assigned_to, title, description, 
         tag, priority, status
-      ) VALUES (?, ?, ?, 'code-agent', ?, ?, 'engineering', 'high', 'todo')`,
+      ) VALUES ($1, $2, $3, 'code-agent', $4, $5, 'engineering', 'high', 'todo')`,
       [
         taskId,
         companyId,

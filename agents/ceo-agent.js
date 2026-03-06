@@ -21,7 +21,7 @@ class CEOAgent {
   async initialize() {
     // Cargar contexto de la empresa
     const companyResult = await pool.query(
-      'SELECT * FROM companies WHERE id = ?',
+      'SELECT * FROM companies WHERE id = $1',
       [this.companyId]
     );
     this.company = companyResult.rows[0];
@@ -29,7 +29,7 @@ class CEOAgent {
     // Cargar historial de chat reciente (últimos 20 mensajes)
     const historyResult = await pool.query(
       `SELECT * FROM chat_messages 
-       WHERE company_id = ? 
+       WHERE company_id = $1 
        ORDER BY created_at DESC 
        LIMIT 20`,
       [this.companyId]
@@ -40,7 +40,7 @@ class CEOAgent {
     // Cargar backlog actual
     const backlogResult = await pool.query(
       `SELECT * FROM tasks 
-       WHERE company_id = ? AND status IN ('todo', 'in_progress')
+       WHERE company_id = $1 AND status IN ('todo', 'in_progress')
        ORDER BY priority, created_at
        LIMIT 10`,
       [this.companyId]
@@ -278,7 +278,7 @@ Si es solo conversación (no necesitas herramientas), usa action: "chat".`;
       `INSERT INTO tasks (
         id, company_id, created_by, assigned_to,
         title, description, tag, priority, status
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
       [
         taskId,
         this.companyId,
@@ -328,7 +328,7 @@ Si es solo conversación (no necesitas herramientas), usa action: "chat".`;
    */
   async getTaskStatus(taskId) {
     const result = await pool.query(
-      'SELECT * FROM tasks WHERE id = ?',
+      'SELECT * FROM tasks WHERE id = $1',
       [taskId]
     );
     return result.rows[0];
@@ -340,7 +340,7 @@ Si es solo conversación (no necesitas herramientas), usa action: "chat".`;
   async getBacklog() {
     const result = await pool.query(
       `SELECT * FROM tasks 
-       WHERE company_id = ? AND status IN ('todo', 'in_progress')
+       WHERE company_id = $1 AND status IN ('todo', 'in_progress')
        ORDER BY priority, created_at`,
       [this.companyId]
     );
@@ -355,7 +355,7 @@ Si es solo conversación (no necesitas herramientas), usa action: "chat".`;
 
     await pool.query(
       `INSERT INTO chat_messages (id, company_id, user_id, role, content, action, task_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
       [messageId, this.companyId, this.userId, role, content, action, taskId]
     );
 

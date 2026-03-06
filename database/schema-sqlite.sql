@@ -10,8 +10,8 @@ CREATE TABLE IF NOT EXISTS users (
   plan TEXT DEFAULT 'free',
   stripe_customer_id TEXT,
   email_verified INTEGER DEFAULT 0,
-  created_at TEXT DEFAULT (datetime('now')),
-  updated_at TEXT DEFAULT (datetime('now'))
+  created_at TEXT DEFAULT (NOW()),
+  updated_at TEXT DEFAULT (NOW())
 );
 
 -- Companies
@@ -25,9 +25,9 @@ CREATE TABLE IF NOT EXISTS companies (
   subdomain TEXT UNIQUE,
   status TEXT DEFAULT 'planning',
   revenue_total REAL DEFAULT 0,
-  revenue_share_rate REAL DEFAULT 0.20,
-  created_at TEXT DEFAULT (datetime('now')),
-  updated_at TEXT DEFAULT (datetime('now'))
+  revenue_share_rate REAL DEFAULT 0.05,
+  created_at TEXT DEFAULT (NOW()),
+  updated_at TEXT DEFAULT (NOW())
 );
 
 -- Tasks
@@ -42,7 +42,7 @@ CREATE TABLE IF NOT EXISTS tasks (
   scheduled_for TEXT,
   started_at TEXT,
   completed_at TEXT,
-  created_at TEXT DEFAULT (datetime('now'))
+  created_at TEXT DEFAULT (NOW())
 );
 
 -- Activity Log
@@ -53,7 +53,7 @@ CREATE TABLE IF NOT EXISTS activity_log (
   activity_type TEXT NOT NULL,
   message TEXT NOT NULL,
   metadata TEXT,
-  created_at TEXT DEFAULT (datetime('now'))
+  created_at TEXT DEFAULT (NOW())
 );
 
 -- LLM Usage
@@ -63,7 +63,7 @@ CREATE TABLE IF NOT EXISTS llm_usage (
   model TEXT NOT NULL,
   tokens_used INTEGER NOT NULL,
   estimated_cost REAL,
-  recorded_at TEXT DEFAULT (datetime('now'))
+  recorded_at TEXT DEFAULT (NOW())
 );
 
 -- Usage Tracking
@@ -73,7 +73,7 @@ CREATE TABLE IF NOT EXISTS usage_tracking (
   quota_type TEXT NOT NULL,
   period TEXT NOT NULL,
   amount INTEGER DEFAULT 0,
-  recorded_at TEXT DEFAULT (datetime('now')),
+  recorded_at TEXT DEFAULT (NOW()),
   UNIQUE(company_id, quota_type, period)
 );
 

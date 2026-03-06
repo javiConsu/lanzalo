@@ -26,7 +26,7 @@ class MemorySystem {
 
     const result = await pool.query(
       `SELECT content FROM memory 
-       WHERE company_id = ? AND layer = 1
+       WHERE company_id = $1 AND layer = 1
        ORDER BY updated_at DESC
        LIMIT 1`,
       [this.companyId]
@@ -49,9 +49,9 @@ class MemorySystem {
 
     await pool.query(
       `INSERT INTO memory (id, company_id, layer, content, updated_at)
-       VALUES (?, ?, 1, ?, datetime('now'))
+       VALUES ($1, $2, 1, $3, NOW())
        ON CONFLICT(company_id, layer) 
-       DO UPDATE SET content = ?, updated_at = datetime('now')`,
+       DO UPDATE SET content = $4, updated_at = NOW()`,
       [crypto.randomUUID(), this.companyId, JSON.stringify(merged), JSON.stringify(merged)]
     );
 
@@ -62,7 +62,7 @@ class MemorySystem {
   async initializeLayer1() {
     // Cargar contexto inicial de la empresa
     const companyResult = await pool.query(
-      'SELECT * FROM companies WHERE id = ?',
+      'SELECT * FROM companies WHERE id = $1',
       [this.companyId]
     );
     
@@ -101,7 +101,7 @@ class MemorySystem {
 
     const result = await pool.query(
       `SELECT content FROM memory 
-       WHERE company_id = ? AND layer = 2
+       WHERE company_id = $1 AND layer = 2
        ORDER BY updated_at DESC
        LIMIT 1`,
       [this.companyId]
@@ -124,9 +124,9 @@ class MemorySystem {
 
     await pool.query(
       `INSERT INTO memory (id, company_id, layer, content, updated_at)
-       VALUES (?, ?, 2, ?, datetime('now'))
+       VALUES ($1, $2, 2, $3, NOW())
        ON CONFLICT(company_id, layer) 
-       DO UPDATE SET content = ?, updated_at = datetime('now')`,
+       DO UPDATE SET content = $4, updated_at = NOW()`,
       [crypto.randomUUID(), this.companyId, JSON.stringify(merged), JSON.stringify(merged)]
     );
 
@@ -180,9 +180,9 @@ class MemorySystem {
 
     await pool.query(
       `INSERT INTO memory (id, company_id, layer, content, updated_at)
-       VALUES (?, NULL, 3, ?, datetime('now'))
+       VALUES ($1, NULL, 3, $2, NOW())
        ON CONFLICT(layer) WHERE company_id IS NULL
-       DO UPDATE SET content = ?, updated_at = datetime('now')`,
+       DO UPDATE SET content = $3, updated_at = NOW()`,
       [crypto.randomUUID(), JSON.stringify(merged), JSON.stringify(merged)]
     );
 

@@ -34,7 +34,8 @@ async function callLLM(prompt, options = {}) {
     taskType = 'code',
     model = MODEL_STRATEGY[taskType],
     temperature = 0.7,
-    maxTokens = 4000
+    maxTokens = 4000,
+    systemPrompt = null
   } = options;
 
   // Verificar presupuesto si hay companyId
@@ -55,6 +56,7 @@ async function callLLM(prompt, options = {}) {
       {
         model,
         messages: [
+          ...(systemPrompt ? [{ role: 'system', content: systemPrompt }] : []),
           {
             role: 'user',
             content: prompt

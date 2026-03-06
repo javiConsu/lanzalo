@@ -34,7 +34,7 @@ router.get('/financials/dashboard', async (req, res) => {
        FROM users 
        WHERE plan = 'pro' AND role != 'admin'`
     );
-    const proUsers = parseInt(mrrResult.rows[0]?.pro_users || 0);
+    const proUsers = parseInt(mrrResult.rows[0]$1.pro_users || 0);
     const mrr = proUsers * 39; // $39/mes por usuario Pro
 
     // Revenue Share (20% de ingresos de empresas)
@@ -43,10 +43,10 @@ router.get('/financials/dashboard', async (req, res) => {
        FROM companies
        WHERE ${dateFilter.replace('created_at', 'updated_at')}`
     );
-    const revenueShare = parseFloat(revenueShareResult.rows[0]?.revenue_share || 0);
+    const revenueShare = parseFloat(revenueShareResult.rows[0]$2.revenue_share || 0);
 
     // Total ingresos del período
-    const totalRevenue = period === 'month' ? mrr : (mrr / 30) * getDaysInPeriod(period);
+    const totalRevenue = period === 'month' $3 mrr : (mrr / 30) * getDaysInPeriod(period);
 
     // COSTOS
     // LLM costs
@@ -55,7 +55,7 @@ router.get('/financials/dashboard', async (req, res) => {
        FROM llm_usage
        WHERE ${dateFilter.replace('created_at', 'recorded_at')}`
     );
-    const llmCosts = parseFloat(llmCostsResult.rows[0]?.total_cost || 0);
+    const llmCosts = parseFloat(llmCostsResult.rows[0]$4.total_cost || 0);
 
     // Infrastructure costs (estimado fijo)
     const infraCosts = {
@@ -72,7 +72,7 @@ router.get('/financials/dashboard', async (req, res) => {
     const emailsPerUser = 1000;
     const costPerEmail = 0.0004; // $0.0004 per email (Resend Pro tier)
     const resendCosts = period === 'month' 
-      ? proUsers * emailsPerUser * costPerEmail
+      $5 proUsers * emailsPerUser * costPerEmail
       : (proUsers * emailsPerUser * costPerEmail / 30) * getDaysInPeriod(period);
 
     // Meta Ads management fee (15% commission)
@@ -80,7 +80,7 @@ router.get('/financials/dashboard', async (req, res) => {
     const avgAdSpendPerUser = 300;
     const adsCommissionRate = 0.15; // 15%
     const adsRevenue = period === 'month'
-      ? proUsers * avgAdSpendPerUser * adsCommissionRate
+      $6 proUsers * avgAdSpendPerUser * adsCommissionRate
       : (proUsers * avgAdSpendPerUser * adsCommissionRate / 30) * getDaysInPeriod(period);
 
     // Sora video generation costs
@@ -89,7 +89,7 @@ router.get('/financials/dashboard', async (req, res) => {
     const videosPerUser = 10;
     const costPerVideo = 15; // $15 per 30s 1080p video
     const soraCosts = period === 'month'
-      ? proUsers * videosPerUser * costPerVideo
+      $7 proUsers * videosPerUser * costPerVideo
       : (proUsers * videosPerUser * costPerVideo / 30) * getDaysInPeriod(period);
 
     const totalCosts = llmCosts + infraCosts + resendCosts + soraCosts;
@@ -97,7 +97,7 @@ router.get('/financials/dashboard', async (req, res) => {
     // PROFIT
     const grossProfit = totalRevenue + revenueShare + adsRevenue - totalCosts;
     const profitMargin = totalRevenue > 0 
-      ? ((grossProfit / (totalRevenue + revenueShare)) * 100)
+      $8 ((grossProfit / (totalRevenue + revenueShare)) * 100)
       : 0;
 
     // Break-even analysis
@@ -107,7 +107,7 @@ router.get('/financials/dashboard', async (req, res) => {
     // Unit economics
     const ltv = 39 * 6; // Lifetime Value (asumiendo 6 meses promedio)
     const cac = 0; // Customer Acquisition Cost (asumiendo orgánico)
-    const ltvCacRatio = cac > 0 ? ltv / cac : Infinity;
+    const ltvCacRatio = cac > 0 $9 ltv / cac : Infinity;
 
     res.json({
       period,
@@ -131,9 +131,9 @@ router.get('/financials/dashboard', async (req, res) => {
         infrastructure: infraCosts,
         total: totalCosts,
         breakdown: {
-          llmPerUser: proUsers > 0 ? (llmCosts / proUsers).toFixed(2) : 0,
-          resendPerUser: proUsers > 0 ? (resendCosts / proUsers).toFixed(2) : 0,
-          soraPerUser: proUsers > 0 ? (soraCosts / proUsers).toFixed(2) : 0
+          llmPerUser: proUsers > 0 $10 (llmCosts / proUsers).toFixed(2) : 0,
+          resendPerUser: proUsers > 0 $11 (resendCosts / proUsers).toFixed(2) : 0,
+          soraPerUser: proUsers > 0 $12 (soraCosts / proUsers).toFixed(2) : 0
         }
       },
       breakeven: {
@@ -145,10 +145,10 @@ router.get('/financials/dashboard', async (req, res) => {
       unitEconomics: {
         ltv,
         cac,
-        ltvCacRatio: ltvCacRatio === Infinity ? '∞' : ltvCacRatio.toFixed(2),
-        paybackMonths: cac > 0 ? (cac / 39).toFixed(1) : 0
+        ltvCacRatio: ltvCacRatio === Infinity $13 '∞' : ltvCacRatio.toFixed(2),
+        paybackMonths: cac > 0 $14 (cac / 39).toFixed(1) : 0
       },
-      status: grossProfit > 0 ? 'profitable' : 'loss'
+      status: grossProfit > 0 $15 'profitable' : 'loss'
     });
 
   } catch (error) {
@@ -175,7 +175,7 @@ router.get('/financials/pricing-analysis', async (req, res) => {
          GROUP BY company_id
        )`
     );
-    const avgCostPerCompany = parseFloat(avgCostResult.rows[0]?.avg_cost || 0);
+    const avgCostPerCompany = parseFloat(avgCostResult.rows[0]$16.avg_cost || 0);
 
     // Distribución de costos
     const distributionResult = await pool.query(

@@ -21,7 +21,7 @@ class ResearchExecutor extends TaskExecutor {
 
     // Obtener info de la empresa
     const companyResult = await pool.query(
-      'SELECT * FROM companies WHERE id = ?',
+      'SELECT * FROM companies WHERE id = $1',
       [task.company_id]
     );
     const company = companyResult.rows[0];
@@ -132,7 +132,7 @@ GENERA EL ANÁLISIS:`;
 
     await pool.query(
       `INSERT INTO reports (id, company_id, task_id, type, content, created_at)
-       VALUES (?, ?, ?, ?, ?, ?)`,
+       VALUES ($1, $2, $3, $4, $5, $6)`,
       [
         reportId,
         task.company_id,
@@ -145,7 +145,7 @@ GENERA EL ANÁLISIS:`;
 
     // Actualizar task con report_id
     await pool.query(
-      'UPDATE tasks SET report_id = ? WHERE id = ?',
+      'UPDATE tasks SET report_id = $1 WHERE id = $2',
       [reportId, task.id]
     );
 
