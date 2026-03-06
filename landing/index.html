@@ -736,30 +736,31 @@
       submitBtn.textContent = 'Enviando...';
       
       try {
-        // Send to Resend
-        const response = await fetch('https://api.resend.com/emails', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${RESEND_API_KEY}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            from: 'Lanzalo <noreply@lanzalo.pro>',
-            to: NOTIFICATION_EMAIL,
-            subject: `🚀 Nuevo signup: ${email}`,
-            html: `
-              <h2>Nuevo registro en Lanzalo</h2>
-              <p><strong>Email:</strong> ${email}</p>
-              <p><strong>Idea:</strong></p>
-              <p>${idea}</p>
-              <hr>
-              <p><small>Timestamp: ${new Date().toISOString()}</small></p>
-            `
-          })
-        });
-        
-        if (!response.ok) throw new Error('Error enviando email');
-        
+// Send to Railway backend (evita CORS)
+          const BACKEND_URL = 'https://lanzalo-production.up.railway.app';
+          const tempPassword = 'Lanzalo' + Math.random().toString(36).slice(2, 10) + '!';
+          const response = await fetch(`${BACKEND_URL}/api/onboarding/register`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ email, password: tempPassword, idea })
+          });
+
+          if (!response.ok) {
+            const errData = await response.json().catch(() => ({}));
+            throw new Error(errData.error || 'Error registrando usuario');
+          }
+
+          const data = await response.json();
+
+          // Guardar token y redirigir
+          if (data.token) {
+            localStorage.setItem('lanzalo_token', data.token);
+            localStorage.setItem('lanzalo_user', JSON.stringify(data.user || { email }));
+            window.location.href = '/onboarding/survey';
+            return;
+          }
         // Log local también
         console.log('Signup enviado:', { email, idea, timestamp: new Date().toISOString() });
         
