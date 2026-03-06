@@ -1,4 +1,4 @@
-// v2 - includes schema.sql
+// v3 - schema applied inline in route, only run numbered migrations
 const { Pool } = require('pg');
 const fs = require('fs');
 const path = require('path');
@@ -8,9 +8,8 @@ const pool = new Pool({
   ssl: process.env.DATABASE_URL && process.env.DATABASE_URL.includes('railway') ? { rejectUnauthorized: false } : false
 });
 
-// Schema base + migrations en orden
+// Solo las migraciones numeradas (schema base se aplica inline en la ruta)
 const migrationFiles = [
-  { name: '000_schema.sql', file: path.join(__dirname, '..', 'database', 'schema.sql') },
   { name: '001_add_quotas.sql', file: path.join(__dirname, '..', 'database', 'migrations', '001_add_quotas.sql') },
   { name: '002_add_auth.sql', file: path.join(__dirname, '..', 'database', 'migrations', '002_add_auth.sql') },
   { name: '003_add_settings.sql', file: path.join(__dirname, '..', 'database', 'migrations', '003_add_settings.sql') },
