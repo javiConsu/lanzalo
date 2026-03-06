@@ -7,24 +7,25 @@ const pool = new Pool({
   ssl: process.env.DATABASE_URL && process.env.DATABASE_URL.includes('railway') ? { rejectUnauthorized: false } : false
 });
 
-const migrations = [
-  '001_add_quotas.sql',
-  '002_add_auth.sql',
-  '003_add_settings.sql',
-  '004_add_tasks_system.sql',
-  '005_add_reports.sql',
-  '006_add_memory.sql',
-  '007_add_tweets_emails.sql',
-  '008_add_discovered_ideas.sql',
-  '009_add_daily_syncs.sql',
-  '010_add_onboarding_fields.sql',
-  '011_add_discovery_fields.sql'
+// Schema base + migrations en orden
+const migrationFiles = [
+  { name: '000_schema.sql', file: path.join(__dirname, '..', 'database', 'schema.sql') },
+  { name: '001_add_quotas.sql', file: path.join(__dirname, '..', 'database', 'migrations', '001_add_quotas.sql') },
+  { name: '002_add_auth.sql', file: path.join(__dirname, '..', 'database', 'migrations', '002_add_auth.sql') },
+  { name: '003_add_settings.sql', file: path.join(__dirname, '..', 'database', 'migrations', '003_add_settings.sql') },
+  { name: '004_add_tasks_system.sql', file: path.join(__dirname, '..', 'database', 'migrations', '004_add_tasks_system.sql') },
+  { name: '005_add_reports.sql', file: path.join(__dirname, '..', 'database', 'migrations', '005_add_reports.sql') },
+  { name: '006_add_memory.sql', file: path.join(__dirname, '..', 'database', 'migrations', '006_add_memory.sql') },
+  { name: '007_add_tweets_emails.sql', file: path.join(__dirname, '..', 'database', 'migrations', '007_add_tweets_emails.sql') },
+  { name: '008_add_discovered_ideas.sql', file: path.join(__dirname, '..', 'database', 'migrations', '008_add_discovered_ideas.sql') },
+  { name: '009_add_daily_syncs.sql', file: path.join(__dirname, '..', 'database', 'migrations', '009_add_daily_syncs.sql') },
+  { name: '010_add_onboarding_fields.sql', file: path.join(__dirname, '..', 'database', 'migrations', '010_add_onboarding_fields.sql') },
+  { name: '011_add_discovery_fields.sql', file: path.join(__dirname, '..', 'database', 'migrations', '011_add_discovery_fields.sql') },
 ];
 
 async function runMigrations() {
   const client = await pool.connect();
   try {
-    // Create migrations tracking table
     await client.query(`
       CREATE TABLE IF NOT EXISTS _migrations (
         id SERIAL PRIMARY KEY,
@@ -34,29 +35,28 @@ async function runMigrations() {
     `);
 
     const results = [];
-    for (const migration of migrations) {
-      const { rows } = await client.query('SELECT name FROM _migrations WHERE name = $1', [migration]);
+    for (const { name, file } of migrationFiles) {
+      const { rows } = await client.query('SELECT name FROM _migrations WHERE name = $1', [name]);
       if (rows.length > 0) {
-        results.push({ migration, status: 'skipped (already applied)' });
+        results.push({ migration: name, status: 'skipped (already applied)' });
         continue;
       }
 
-      const filePath = path.join(__dirname, '..', 'database', 'migrations', migration);
-      if (!fs.existsSync(filePath)) {
-        results.push({ migration, status: 'skipped (file not found)' });
+      if (!fs.existsSync(file)) {
+        results.push({ migration: name, status: 'skipped (file not found: ' + file + ')' });
         continue;
       }
 
-      const sql = fs.readFileSync(filePath, 'utf8');
+      const sql = fs.readFileSync(file, 'utf8');
       await client.query('BEGIN');
       try {
         await client.query(sql);
-        await client.query('INSERT INTO _migrations (name) VALUES ($1)', [migration]);
+        await client.query('INSERT INTO _migrations (name) VALUES ($1)', [name]);
         await client.query('COMMIT');
-        results.push({ migration, status: 'success' });
+        results.push({ migration: name, status: 'success' });
       } catch (err) {
         await client.query('ROLLBACK');
-        results.push({ migration, status: 'error: ' + err.message });
+        results.push({ migration: name, status: 'error: ' + err.message.split('\n')[0] });
       }
     }
     return results;
