@@ -16,6 +16,7 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const { pool } = require('../db');
 const { authenticate } = require('../middleware/auth');
+const { sendWelcomeEmail } = require('../services/email-service');
 
 /**
  * POST /api/onboarding/register
@@ -72,6 +73,17 @@ router.post('/register', async (req, res) => {
     
     console.log(`[Onboarding] New user registered: ${email}`);
     
+    // Send welcome email (async, don't block response)
+    const newUser = {
+      email: email.toLowerCase(),
+      name: name || email.split('@')[0],
+      trial_ends_at: trialEndsAt.toISOString()
+    };
+    
+    sendWelcomeEmail(newUser).catch(err => {
+      console.error('[Onboarding] Failed to send welcome email:', err);
+    });
+    
     // Return user + token
     res.json({
       success: true,
@@ -86,8 +98,6 @@ router.post('/register', async (req, res) => {
       },
       redirect: '/onboarding/survey'
     });
-    
-    // TODO: Send welcome email
     
   } catch (error) {
     console.error('[Onboarding] Registration error:', error);

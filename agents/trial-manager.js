@@ -7,6 +7,7 @@
 
 const cron = require('node-cron');
 const { pool } = require('../backend/db');
+const { sendTrialReminder, sendDowngradeNotification } = require('../backend/services/email-service');
 
 /**
  * Schedule trial checks
@@ -74,8 +75,10 @@ async function downgradeToFree(user) {
     [user.id]
   );
   
-  // TODO: Send downgrade email
-  console.log(`[Trial Manager] Email would be sent to ${user.email}`);
+  // Send downgrade email
+  sendDowngradeNotification(user).catch(err => {
+    console.error(`[Trial Manager] Failed to send downgrade email to ${user.email}:`, err);
+  });
   
   // Log event
   console.log(`[Trial Manager] ${user.email} downgraded to Free (trial expired ${user.trial_ends_at})`);
@@ -106,8 +109,9 @@ async function sendTrialReminders() {
       console.log(`[Trial Manager] ${users.length} users have ${daysLeft} day(s) left`);
       
       for (const user of users) {
-        // TODO: Send reminder email
-        console.log(`[Trial Manager] Reminder email (${daysLeft} days) would be sent to ${user.email}`);
+        sendTrialReminder(user, daysLeft).catch(err => {
+          console.error(`[Trial Manager] Failed to send reminder to ${user.email}:`, err);
+        });
       }
     }
   }
