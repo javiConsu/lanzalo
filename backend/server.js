@@ -26,6 +26,7 @@ app.get('/health', (req, res) => {
 // API Routes
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/onboarding', require('./routes/onboarding'));
+app.use('/api/discovery', require('./routes/discovery'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/user', require('./routes/user'));
 app.use('/api/user', require('./routes/daily-syncs')); // Daily syncs routes
