@@ -254,6 +254,6 @@ module.exports = {
   requireCompanyAccess,
   register,
   login,
-  createInitialAdmin
+  createInitialAdmin,
   authenticate: requireAuth,
 };
