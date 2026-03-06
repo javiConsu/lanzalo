@@ -1,68 +1,82 @@
 /**
- * Form Handler con Resend
- * 
+ * Form Handler - Lanzalo Landing
+ *
+ * FIX: Llamada al backend Railway en lugar de Resend directamente
+ * (Resend no permite llamadas desde el browser por CORS)
+ *
  * SETUP:
- * 1. Reemplaza YOUR_RESEND_API_KEY con tu key de Resend
- * 2. Reemplaza YOUR_EMAIL con tu email
- * 3. Añade este script a index.html antes del </body>
+ * 1. Cambia BACKEND_URL a tu URL de Railway
+ * 2. Añade este script a index.html antes del </body>
  */
 
-const RESEND_API_KEY = 'YOUR_RESEND_API_KEY'; // ← Reemplazar
-const NOTIFICATION_EMAIL = 'YOUR_EMAIL@example.com'; // ← Reemplazar
+// ← CAMBIA ESTO por tu URL de Railway (ej: https://lanzalo-backend.up.railway.app)
+const BACKEND_URL = 'https://lanzalo-production.up.railway.app';
 
 document.getElementById('idea-form').addEventListener('submit', async (e) => {
   e.preventDefault();
-  
+
   const emailInput = document.getElementById('email-input');
   const ideaInput = document.getElementById('idea-input');
   const submitBtn = e.target.querySelector('button[type="submit"]');
-  
-  const email = emailInput.value;
-  const idea = ideaInput.value || 'Sin idea (explorando)';
-  
-  // Disable button
+
+  const email = emailInput.value.trim();
+  const idea = ideaInput ? ideaInput.value.trim() : '';
+
+  if (!email) return;
+
+  // Deshabilitar botón
   const originalText = submitBtn.textContent;
   submitBtn.disabled = true;
   submitBtn.textContent = 'Enviando...';
-  
+
   try {
-    // Send to Resend
-    const response = await fetch('https://api.resend.com/emails', {
+    // Llamar al backend Railway (NO a Resend directamente)
+    const response = await fetch(`${BACKEND_URL}/api/onboarding/register`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${RESEND_API_KEY}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        from: 'Lanzalo <noreply@lanzalo.pro>',
-        to: NOTIFICATION_EMAIL,
-        subject: `🚀 Nuevo signup: ${email}`,
-        html: `
-          <h2>Nuevo registro en Lanzalo</h2>
-          <p><strong>Email:</strong> ${email}</p>
-          <p><strong>Idea:</strong></p>
-          <p>${idea}</p>
-          <hr>
-          <p><small>Timestamp: ${new Date().toISOString()}</small></p>
-        `
+        email: email,
+        password: 'temp_' + Math.random().toString(36).substring(2, 10), // password temporal
+        idea: idea || 'Sin idea (explorando)'
       })
     });
-    
+
+    const data = await response.json();
+
     if (!response.ok) {
-      throw new Error('Error enviando email');
+      throw new Error(data.error || 'Error en el registro');
     }
-    
-    // Show success
-    document.getElementById('success-message').classList.remove('hidden');
-    
+
+    // Guardar token JWT si viene en la respuesta
+    if (data.token) {
+      localStorage.setItem('lanzalo_token', data.token);
+    }
+
+    // Mostrar mensaje de exito
+    const successMessage = document.getElementById('success-message');
+    if (successMessage) {
+      successMessage.classList.remove('hidden');
+    }
+
     // Reset form
     e.target.reset();
-    
+
+    // Redirigir a onboarding (segun el backend)
+    const redirect = data.redirect || '/onboarding/survey';
+    setTimeout(() => {
+      window.location.href = redirect;
+    }, 1500);
+
   } catch (error) {
-    console.error('Error:', error);
-    alert('Error al enviar. Por favor intenta de nuevo.');
+    console.error('Error en registro:', error);
+
+    // Mostrar error al usuario
+    const errorMsg = error.message || 'Error al registrar. Inténtalo de nuevo.';
+    alert(errorMsg);
+
   } finally {
-    // Re-enable button
     submitBtn.disabled = false;
     submitBtn.textContent = originalText;
   }
