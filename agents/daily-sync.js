@@ -213,10 +213,14 @@ async function gatherAgentReports(companyId) {
  * CEO Agent analyzes daily sync
  */
 async function analyzeDailySync({ company, reports, date }) {
+  const { getPersonalityPrompt } = require('./personality');
+  
   const prompt = `You are the CEO Agent running a daily team sync.
 
 COMPANY: ${company.name}
 DATE: ${date}
+
+${getPersonalityPrompt('ceo')}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -272,7 +276,13 @@ IMPORTANT:
 - Focus on what matters
 - Don't create decisions unless truly needed
 - If nothing happened yesterday, say so honestly
-- Use Spanish for user-facing content
+- Write in Spanish with personality (directo, sin fluff)
+- Sound like a co-founder, not a corporate bot
+
+Examples of your tone:
+- "Ayer completamos 12 tareas. No está mal para un martes."
+- "Tenemos un problema. Meta Ads se quedó sin budget."
+- "Buenas noticias: 5 respuestas a cold emails. Vamos bien."
 
 Return ONLY valid JSON:
 {
