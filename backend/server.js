@@ -9,6 +9,7 @@ const { WebSocketServer } = require('ws');
 const orchestrator = require('../agents/orchestrator');
 const taskExecutor = require('../agents/task-executor');
 const { scheduleDailySyncs } = require('../agents/daily-sync');
+const { scheduleTrialChecks, scheduleTrialReminders } = require('../agents/trial-manager');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -24,6 +25,7 @@ app.get('/health', (req, res) => {
 
 // API Routes
 app.use('/api/auth', require('./routes/auth'));
+app.use('/api/onboarding', require('./routes/onboarding'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/user', require('./routes/user'));
 app.use('/api/user', require('./routes/daily-syncs')); // Daily syncs routes
@@ -47,6 +49,11 @@ const server = app.listen(PORT, () => {
   // Schedule daily syncs (runs hourly, checks which companies need sync)
   console.log('[Server] Scheduling Daily Syncs...');
   scheduleDailySyncs();
+  
+  // Schedule trial management (runs daily at 9 AM)
+  console.log('[Server] Scheduling Trial Manager...');
+  scheduleTrialChecks();
+  scheduleTrialReminders();
   
   console.log('✅ All systems running');
 });
