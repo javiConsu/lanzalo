@@ -1,3 +1,4 @@
+// v2 - includes schema.sql
 const { Pool } = require('pg');
 const fs = require('fs');
 const path = require('path');
