@@ -1,24 +1,17 @@
--- Migración: Sistema de Memoria (3 Layers)
+-- Migración: Sistema de Memoria (3 Layers) (PostgreSQL)
 
 CREATE TABLE IF NOT EXISTS memory (
-  id TEXT PRIMARY KEY,
-  company_id TEXT REFERENCES companies(id) ON DELETE CASCADE,
-  
-  layer INTEGER NOT NULL, -- 1, 2, 3
-  content TEXT NOT NULL, -- JSON
-  
-  created_at TEXT DEFAULT (datetime('now')),
-  updated_at TEXT DEFAULT (datetime('now')),
-  
-  -- Constraints
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  company_id UUID REFERENCES companies(id) ON DELETE CASCADE,
+
+  layer INTEGER NOT NULL,
+  content JSONB NOT NULL,
+
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW(),
+
   UNIQUE(company_id, layer)
 );
 
--- Índices
-CREATE INDEX idx_memory_company ON memory(company_id);
-CREATE INDEX idx_memory_layer ON memory(layer);
-
--- Layer 3 (global) tiene company_id NULL
-CREATE UNIQUE INDEX idx_memory_global_layer3 
-  ON memory(layer) 
-  WHERE company_id IS NULL AND layer = 3;
+CREATE INDEX IF NOT EXISTS idx_memory_company ON memory(company_id);
+CREATE INDEX IF NOT EXISTS idx_memory_layer ON memory(layer);
