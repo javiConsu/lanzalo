@@ -1,100 +1,91 @@
--- Migración: Sistema de Tareas Completo
+-- Migración: Sistema de Tareas Completo (PostgreSQL)
 
--- Tabla de tareas (reemplaza la existente básica)
-DROP TABLE IF EXISTS tasks;
+-- Eliminar tabla existente y recrear con más campos
+DROP TABLE IF EXISTS tasks CASCADE;
 
 CREATE TABLE tasks (
-  id TEXT PRIMARY KEY,
-  company_id TEXT REFERENCES companies(id) ON DELETE CASCADE,
-  created_by TEXT, -- 'user', 'ceo-agent', agent_id
-  assigned_to TEXT, -- agent_id que debe ejecutarla
-  
-  -- Metadata
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  company_id UUID REFERENCES companies(id) ON DELETE CASCADE,
+  created_by TEXT,
+  assigned_to TEXT,
+
   title TEXT NOT NULL,
   description TEXT NOT NULL,
-  tag TEXT NOT NULL, -- engineering, browser, research, data, support, content, meta_ads, financial
-  task_type TEXT, -- bug, feature, refactor, css, auth, seo, research, etc.
-  
-  -- Workflow
-  status TEXT DEFAULT 'todo', -- todo, in_progress, completed, failed, blocked
-  priority TEXT DEFAULT 'medium', -- low, medium, high, critical
-  
-  -- Estimation
-  complexity INTEGER, -- 1-10
-  estimated_hours REAL, -- max 4
-  
-  -- Relationships
-  related_task_ids TEXT, -- JSON array of task IDs
-  parent_task_id TEXT REFERENCES tasks(id),
-  
-  -- Recurrence (NULL if one-time)
-  recurring TEXT, -- daily, weekdays, weekly, monthly, NULL
-  recurrence_pattern TEXT, -- JSON con config específica
-  
-  -- Timestamps
-  created_at TEXT DEFAULT (datetime('now')),
-  started_at TEXT,
-  completed_at TEXT,
-  failed_at TEXT,
-  blocked_at TEXT,
-  
-  -- Resultados
+  tag TEXT NOT NULL,
+  task_type TEXT,
+
+  status TEXT DEFAULT 'todo',
+  priority TEXT DEFAULT 'medium',
+
+  complexity INTEGER,
+  estimated_hours REAL,
+
+  related_task_ids JSONB,
+  parent_task_id UUID REFERENCES tasks(id),
+
+  recurring TEXT,
+  recurrence_pattern JSONB,
+
+  created_at TIMESTAMP DEFAULT NOW(),
+  started_at TIMESTAMP,
+  completed_at TIMESTAMP,
+  failed_at TIMESTAMP,
+  blocked_at TIMESTAMP,
+
   output TEXT,
   error_message TEXT,
-  report_id TEXT, -- Link al reporte si se creó
-  
-  -- Metadata adicional
-  metadata TEXT -- JSON con data extra
+  report_id UUID,
+
+  metadata JSONB
 );
 
--- Tabla de propuestas de tareas (requieren aprobación)
-CREATE TABLE task_proposals (
-  id TEXT PRIMARY KEY,
-  company_id TEXT REFERENCES companies(id) ON DELETE CASCADE,
-  proposed_by TEXT, -- agent_id
-  
+-- Tabla de propuestas de tareas
+CREATE TABLE IF NOT EXISTS task_proposals (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  company_id UUID REFERENCES companies(id) ON DELETE CASCADE,
+  proposed_by TEXT,
+
   title TEXT NOT NULL,
   description TEXT NOT NULL,
   tag TEXT NOT NULL,
   priority TEXT DEFAULT 'medium',
-  
-  status TEXT DEFAULT 'pending', -- pending, approved, rejected
+
+  status TEXT DEFAULT 'pending',
   approved_by TEXT,
   rejected_reason TEXT,
-  
-  created_at TEXT DEFAULT (datetime('now')),
-  resolved_at TEXT
+
+  created_at TIMESTAMP DEFAULT NOW(),
+  resolved_at TIMESTAMP
 );
 
 -- Tabla de conversaciones con CEO Agent
-CREATE TABLE chat_messages (
-  id TEXT PRIMARY KEY,
-  company_id TEXT REFERENCES companies(id) ON DELETE CASCADE,
-  user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
-  
-  role TEXT NOT NULL, -- user, assistant, system
+CREATE TABLE IF NOT EXISTS chat_messages (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  company_id UUID REFERENCES companies(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+
+  role TEXT NOT NULL,
   content TEXT NOT NULL,
-  
-  -- Metadata
-  task_id TEXT REFERENCES tasks(id), -- Si el mensaje creó/mencionó una tarea
-  action TEXT, -- create_task, get_status, etc.
-  
-  created_at TEXT DEFAULT (datetime('now'))
+
+  task_id UUID REFERENCES tasks(id),
+  action TEXT,
+
+  created_at TIMESTAMP DEFAULT NOW()
 );
 
 -- Índices
-CREATE INDEX idx_tasks_company ON tasks(company_id);
-CREATE INDEX idx_tasks_status ON tasks(status);
-CREATE INDEX idx_tasks_assigned ON tasks(assigned_to);
-CREATE INDEX idx_tasks_tag ON tasks(tag);
-CREATE INDEX idx_task_proposals_company ON task_proposals(company_id);
-CREATE INDEX idx_task_proposals_status ON task_proposals(status);
-CREATE INDEX idx_chat_messages_company ON chat_messages(company_id);
-CREATE INDEX idx_chat_messages_user ON chat_messages(user_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_company ON tasks(company_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
+CREATE INDEX IF NOT EXISTS idx_tasks_assigned ON tasks(assigned_to);
+CREATE INDEX IF NOT EXISTS idx_tasks_tag ON tasks(tag);
+CREATE INDEX IF NOT EXISTS idx_task_proposals_company ON task_proposals(company_id);
+CREATE INDEX IF NOT EXISTS idx_task_proposals_status ON task_proposals(status);
+CREATE INDEX IF NOT EXISTS idx_chat_messages_company ON chat_messages(company_id);
+CREATE INDEX IF NOT EXISTS idx_chat_messages_user ON chat_messages(user_id);
 
 -- Vista para backlog actual
-CREATE VIEW current_backlog AS
-SELECT 
+CREATE OR REPLACE VIEW current_backlog AS
+SELECT
   t.*,
   c.name as company_name,
   u.email as owner_email
@@ -102,7 +93,7 @@ FROM tasks t
 JOIN companies c ON t.company_id = c.id
 LEFT JOIN users u ON c.user_id = u.id
 WHERE t.status IN ('todo', 'in_progress')
-ORDER BY 
+ORDER BY
   CASE t.priority
     WHEN 'critical' THEN 1
     WHEN 'high' THEN 2
