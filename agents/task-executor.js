@@ -240,7 +240,10 @@ class TaskExecutor {
   }
 }
 
-// Singleton instance
-const taskExecutor = new TaskExecutor();
+// Export both class and singleton instance
+module.exports = TaskExecutor;
+module.exports.TaskExecutor = TaskExecutor;
 
-module.exports = taskExecutor;
+// Singleton instance for server.js to use
+const taskExecutorInstance = new TaskExecutor();
+module.exports.instance = taskExecutorInstance;

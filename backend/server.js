@@ -7,7 +7,7 @@ const express = require('express');
 const cors = require('cors');
 const { WebSocketServer } = require('ws');
 const orchestrator = require('../agents/orchestrator');
-const taskExecutor = require('../agents/task-executor');
+const taskExecutor = require('../agents/task-executor').instance;
 const { scheduleDailySyncs } = require('../agents/daily-sync');
 const { scheduleTrialChecks, scheduleTrialReminders } = require('../agents/trial-manager');
 
