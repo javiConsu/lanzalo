@@ -6,6 +6,8 @@ import Chat from './pages/Chat'
 import Ideas from './pages/Ideas'
 import Backlog from './pages/Backlog'
 import Metrics from './pages/Metrics'
+import Discovery from './pages/Discovery'
+import DiscoveryAnalysis from './pages/DiscoveryAnalysis'
 
 function App() {
   const [token, setToken] = useState(localStorage.getItem('token'))
@@ -52,6 +54,9 @@ function App() {
   return (
     <Router>
       <Routes>
+        <Route path="/discovery" element={<Discovery />} />
+        <Route path="/discovery/analysis" element={<DiscoveryAnalysis />} />
+        
         <Route path="/" element={<Dashboard user={user} onLogout={handleLogout} />}>
           <Route index element={<Chat />} />
           <Route path="chat" element={<Chat />} />
