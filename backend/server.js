@@ -34,6 +34,7 @@ app.use('/api/companies', require('./routes/companies'));  // Deprecated - usar 
 app.use('/api/tasks', require('./routes/tasks'));          // Deprecated - usar /api/user/companies/:id/tasks
 app.use('/api/analytics', require('./routes/analytics'));
 app.use('/api/webhooks', require('./routes/webhooks'));
+app.use('/api/migrate', require('./routes/migrate'));
 
 // Start HTTP server
 const server = app.listen(PORT, () => {
