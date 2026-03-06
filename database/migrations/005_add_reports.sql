@@ -1,20 +1,19 @@
--- Migración: Sistema de Reportes
+-- Migración: Sistema de Reportes (PostgreSQL)
 
 CREATE TABLE IF NOT EXISTS reports (
-  id TEXT PRIMARY KEY,
-  company_id TEXT REFERENCES companies(id) ON DELETE CASCADE,
-  task_id TEXT REFERENCES tasks(id),
-  
-  type TEXT NOT NULL, -- research, financial, analytics, marketing
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  company_id UUID REFERENCES companies(id) ON DELETE CASCADE,
+  task_id UUID REFERENCES tasks(id),
+
+  type TEXT NOT NULL,
   title TEXT,
-  content TEXT NOT NULL, -- Markdown/JSON
-  
-  metadata TEXT, -- JSON con data extra
-  
-  created_at TEXT DEFAULT (datetime('now')),
-  updated_at TEXT DEFAULT (datetime('now'))
+  content TEXT NOT NULL,
+
+  metadata JSONB,
+
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
 );
 
-CREATE INDEX idx_reports_company ON reports(company_id);
-CREATE INDEX idx_reports_task ON reports(task_id);
-CREATE INDEX idx_reports_type ON reports(type);
+CREATE INDEX IF NOT EXISTS idx_reports_company ON reports(company_id);
+CREATE INDEX IF NOT EXISTS idx_reports_task ON reports(task_id);
