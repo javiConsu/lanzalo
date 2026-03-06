@@ -1,267 +1,155 @@
 /**
- * Twitter Agent Executor - Publicar tweets automáticamente
+ * Twitter Agent Executor - Publicar tweets via twitterapi.io
+ * 
+ * Usa twitterapi.io ($0.003/tweet) en vez de la API oficial de Twitter.
+ * Requiere: TWITTERAPI_KEY en .env
  */
 
-const TaskExecutor = require('../task-executor');
 const { callLLM } = require('../../backend/llm');
+const { getSystemPrompt } = require('../system-prompts');
 const { pool } = require('../../backend/db');
+const axios = require('axios');
 const crypto = require('crypto');
 
-class TwitterExecutor extends TaskExecutor {
+const TWITTERAPI_KEY = process.env.TWITTERAPI_KEY;
+const TWITTER_LOGIN_COOKIES = process.env.TWITTER_LOGIN_COOKIES;
+const TWITTER_PROXY = process.env.TWITTER_PROXY;
+
+class TwitterExecutor {
   constructor() {
-    super('twitter-agent', 'Twitter Agent');
+    this.name = 'Twitter Agent';
     this.dailyTweetLimit = 2;
   }
 
-  /**
-   * Ejecutar tarea de Twitter
-   */
   async execute(task) {
     console.log(`🐦 Twitter Agent procesando: ${task.title}`);
 
-    // Obtener info de la empresa
-    const companyResult = await pool.query(
-      'SELECT * FROM companies WHERE id = $1',
-      [task.company_id]
-    );
-    const company = companyResult.rows[0];
-
-    // Verificar rate limit
+    const company = await this.getCompany(task.company_id);
     await this.checkRateLimit(task.company_id);
 
-    // Cargar contexto de memoria
-    let memoryContext = '';
-    if (this.memory) {
-      const context = await this.memory.getFullContext();
-      memoryContext = `
-CONTEXTO EMPRESA:
-- Nombre: ${context.domain.companyName}
-- Industria: ${context.domain.industry}
-- Audiencia: ${context.domain.targetAudience}
-- Features: ${context.domain.keyFeatures.join(', ') || 'En desarrollo'}
-`;
-    }
+    // Generar tweet con system prompt
+    const systemPrompt = getSystemPrompt('twitter', company.name);
+    const tweet = await this.generateTweet(task, company, systemPrompt);
 
-    // Generar tweet con LLM
-    const tweet = await this.generateTweet(task, company, memoryContext);
-
-    // Guardar tweet en DB
+    // Guardar en DB
     const tweetId = await this.saveTweet(task.company_id, tweet);
 
-    // TODO: Publicar en Twitter API real cuando tengas cuenta
-    // await this.postToTwitterAPI(tweet);
-
-    console.log(`📝 Tweet generado (guardado, no publicado aún):\n"${tweet.content}"`);
+    // Publicar si hay credenciales
+    let published = false;
+    if (TWITTERAPI_KEY && TWITTER_LOGIN_COOKIES && TWITTER_PROXY) {
+      published = await this.postTweet(tweet.content, tweetId);
+    } else {
+      console.log('⚠️ twitterapi.io no configurado. Tweet guardado en DB.');
+    }
 
     return {
-      summary: `Tweet creado: "${tweet.content.substring(0, 50)}..."`,
+      summary: `Tweet: "${tweet.content.substring(0, 50)}..."`,
       tweetId,
       content: tweet.content,
-      published: false, // true cuando tengas API keys
-      note: 'Tweet guardado en DB. Publicar manualmente o configurar API cuando esté lista.'
+      published
     };
   }
 
-  /**
-   * Generar tweet con LLM
-   */
-  async generateTweet(task, company, memoryContext) {
-    const prompt = `Eres el Twitter Agent de ${company.name}.
+  async getCompany(companyId) {
+    const result = await pool.query(
+      'SELECT * FROM companies WHERE id = $1', [companyId]
+    );
+    return result.rows[0];
+  }
 
-${memoryContext}
+  async generateTweet(task, company, systemPrompt) {
+    const prompt = `TAREA: ${task.title}
+DESCRIPCIÓN: ${task.description || 'Tweet general sobre el negocio'}
+EMPRESA: ${company.name} — ${company.description || ''}
+URL: ${company.subdomain || company.name.toLowerCase()}.lanzalo.app
 
-TAREA: ${task.title}
-DESCRIPCIÓN: ${task.description}
-
-REGLAS CRÍTICAS:
-- Máximo 280 caracteres (límite estricto de Twitter)
-- Tono: Dark humor, witty, amargo > emocionado
-- Sin emojis, sin hashtags
-- Nunca decir "excited/thrilled"
-- SIEMPRE incluir link a ${company.subdomain}.lanzalo.app
-- Estilo: Directo, sin fluff
-
-EJEMPLOS DE VOZ:
-❌ "Excited to announce our new feature! 🎉 #startup"
-✅ "Day 3. Still standing. ${company.subdomain}.lanzalo.app"
-
-❌ "We're thrilled to help you succeed! ✨"
-✅ "$500 MRR. Ramen budget secured. ${company.subdomain}.lanzalo.app"
-
-❌ "Check out our amazing product! #innovation"
-✅ "Built this in 48h. Works on mobile. Barely. ${company.subdomain}.lanzalo.app"
-
-TIPO DE TWEET:
-${this.determineTweetType(task)}
-
-GENERA EL TWEET (JSON):
-
-{
-  "content": "Tu tweet aquí (max 280 chars, include link)",
-  "type": "launch|milestone|feature|dark_humor|question"
-}`;
+Genera UN tweet. JSON:
+{"content": "tweet aquí (max 280 chars, incluir link)", "type": "launch|milestone|feature|dark_humor"}`;
 
     const response = await callLLM(prompt, {
       companyId: task.company_id,
-      taskType: 'content',
-      temperature: 0.8 // Más creativo
+      taskType: 'twitter',
+      systemPrompt,
+      temperature: 0.8
     });
 
     try {
-      const tweet = JSON.parse(response.content);
-      
+      // Intentar parsear JSON
+      const match = response.content.match(/\{[\s\S]*\}/);
+      const tweet = JSON.parse(match ? match[0] : response.content);
+
       // Validar longitud
       if (tweet.content.length > 280) {
-        console.warn(`⚠️ Tweet muy largo (${tweet.content.length} chars), truncando...`);
         tweet.content = tweet.content.substring(0, 277) + '...';
       }
 
-      // Validar que incluya link
-      if (!tweet.content.includes('.lanzalo.app')) {
-        console.warn('⚠️ Tweet sin link, añadiendo...');
-        tweet.content += ` ${company.subdomain}.lanzalo.app`;
-      }
-
       return tweet;
+    } catch {
+      // Fallback: texto plano
+      let content = response.content.replace(/[{}"]/g, '').trim();
+      if (content.length > 280) content = content.substring(0, 277) + '...';
+      return { content, type: 'generic' };
+    }
+  }
 
+  async postTweet(content, dbTweetId) {
+    try {
+      const response = await axios.post(
+        'https://api.twitterapi.io/twitter/create_tweet_v2',
+        {
+          login_cookies: TWITTER_LOGIN_COOKIES,
+          tweet_text: content,
+          proxy: TWITTER_PROXY
+        },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'X-API-Key': TWITTERAPI_KEY
+          },
+          timeout: 30000
+        }
+      );
+
+      if (response.data.status === 'success') {
+        // Actualizar DB con tweet_id de Twitter
+        await pool.query(
+          `UPDATE tweets SET status = 'posted', tweet_id = $1, posted_at = NOW() WHERE id = $2`,
+          [response.data.tweet_id, dbTweetId]
+        );
+        console.log(`✅ Tweet publicado: ${response.data.tweet_id}`);
+        return true;
+      } else {
+        console.error(`❌ Twitter error: ${response.data.msg}`);
+        return false;
+      }
     } catch (error) {
-      // Fallback: tratar como texto plano
-      let content = response.content.trim();
-      
-      if (content.length > 280) {
-        content = content.substring(0, 277) + '...';
-      }
-      
-      if (!content.includes('.lanzalo.app')) {
-        content += ` ${company.subdomain}.lanzalo.app`;
-      }
-
-      return {
-        content,
-        type: 'generic'
-      };
+      console.error(`❌ twitterapi.io error: ${error.message}`);
+      return false;
     }
   }
 
-  /**
-   * Determinar tipo de tweet según tarea
-   */
-  determineTweetType(task) {
-    const desc = task.description.toLowerCase();
-    
-    if (desc.includes('launch') || desc.includes('lanzamiento')) {
-      return 'Launch tweet (anuncio de nuevo producto/feature)';
-    }
-    
-    if (desc.includes('milestone') || desc.includes('hito') || desc.includes('mrr') || desc.includes('revenue')) {
-      return 'Milestone tweet (logro alcanzado)';
-    }
-    
-    if (desc.includes('feature') || desc.includes('nueva')) {
-      return 'Feature announcement (nueva funcionalidad)';
-    }
-    
-    if (desc.includes('question') || desc.includes('pregunta')) {
-      return 'Question tweet (engage con audiencia)';
-    }
-    
-    return 'General tweet (contenido de valor o dark humor)';
-  }
-
-  /**
-   * Verificar rate limit (2 tweets/día)
-   */
   async checkRateLimit(companyId) {
-    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-
+    const today = new Date().toISOString().split('T')[0];
     const result = await pool.query(
       `SELECT COUNT(*) as count FROM tweets 
-       WHERE company_id = $1 
-       AND DATE(created_at) = $2`,
+       WHERE company_id = $1 AND DATE(created_at) = $2`,
       [companyId, today]
     );
 
-    const todayCount = parseInt(result.rows[0].count);
-
-    if (todayCount >= this.dailyTweetLimit) {
-      throw new Error(`Rate limit alcanzado: ${todayCount}/${this.dailyTweetLimit} tweets hoy. Intenta mañana.`);
+    const count = parseInt(result.rows[0].count);
+    if (count >= this.dailyTweetLimit) {
+      throw new Error(`Rate limit: ${count}/${this.dailyTweetLimit} tweets hoy`);
     }
-
-    console.log(`📊 Rate limit: ${todayCount}/${this.dailyTweetLimit} tweets hoy`);
   }
 
-  /**
-   * Guardar tweet en base de datos
-   */
   async saveTweet(companyId, tweet) {
-    const tweetId = crypto.randomUUID();
-
+    const id = crypto.randomUUID();
     await pool.query(
-      `INSERT INTO tweets (id, company_id, content, type, published, created_at)
-       VALUES ($1, $2, $3, $4, $5, NOW())`,
-      [tweetId, companyId, tweet.content, tweet.type || 'generic', false]
+      `INSERT INTO tweets (id, company_id, content, status, created_at)
+       VALUES ($1, $2, $3, 'draft', NOW())`,
+      [id, companyId, tweet.content]
     );
-
-    console.log(`💾 Tweet guardado en DB: ${tweetId}`);
-
-    return tweetId;
-  }
-
-  /**
-   * Publicar en Twitter API (cuando tengas credenciales)
-   */
-  async postToTwitterAPI(tweet) {
-    // TODO: Implementar cuando tengas:
-    // 1. Cuenta de Twitter de Lanzalo
-    // 2. Twitter API keys (v2)
-    // 3. OAuth 2.0 setup
-    
-    /*
-    const Twitter = require('twitter-api-v2');
-    
-    const client = new Twitter({
-      appKey: process.env.TWITTER_API_KEY,
-      appSecret: process.env.TWITTER_API_SECRET,
-      accessToken: process.env.TWITTER_ACCESS_TOKEN,
-      accessSecret: process.env.TWITTER_ACCESS_SECRET,
-    });
-    
-    const result = await client.v2.tweet(tweet.content);
-    
-    // Actualizar DB con tweet_id de Twitter
-    await pool.query(
-      'UPDATE tweets SET published = $1, twitter_id = $2 WHERE id = $3',
-      [true, result.data.id, tweetId]
-    );
-    
-    console.log(`✅ Tweet publicado: https://twitter.com/lanzalo/status/${result.data.id}`);
-    */
-    
-    console.log('ℹ️ Twitter API no configurada aún. Tweet guardado en DB.');
-  }
-
-  /**
-   * Override formatResult
-   */
-  formatResult(result) {
-    if (result.published) {
-      return `🐦 Tweet publicado
-
-"${result.content}"
-
-✅ Publicado en Twitter
-Link: https://twitter.com/lanzalo/status/${result.tweetId}`;
-    } else {
-      return `📝 Tweet creado (pendiente de publicar)
-
-"${result.content}"
-
-⚠️ Nota: ${result.note}
-
-Para publicar:
-1. Configurar Twitter API keys
-2. O publicar manualmente en @lanzalo`;
-    }
+    return id;
   }
 }
 
