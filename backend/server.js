@@ -43,6 +43,7 @@ app.use('/api/payments', require('./routes/payments'));
 app.use('/sites', require('./routes/sites'));
 app.use('/api/webhooks', require('./routes/webhooks'));
 app.use('/api/migrate', require('./routes/migrate'));
+app.use('/api', require('./routes/ceo-chat')); // Co-Founder Agent chat
 
 // Start HTTP server
 const server = app.listen(PORT, () => {
