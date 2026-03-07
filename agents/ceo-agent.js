@@ -86,20 +86,34 @@ INGRESOS: $${this.company.revenue_total || 0}`;
       { role: 'user', content: userMessage }
     ];
 
-    // Llamar al LLM con tools (create_task, get_tasks, web_search, get_company_info)
-    const tools = getToolsForAgent('ceo');
-    const toolHandlers = createToolHandlers(this.companyId, this.userId);
+    // Activar tools solo cuando el usuario pide algo concreto que las requiere
+    const needsTools = /\b(crea|crear|haz|hacer|añade|añadir|busca|buscar|tarea|task|investiga|analiza|lanza|despliega|tweet|email|campaña)\b/i.test(userMessage);
 
-    const response = await callLLMWithTools(null, {
-      messages,
-      tools,
-      toolHandlers,
-      companyId: this.companyId,
-      taskType: 'ceo',
-      maxTurns: 1,
-      temperature: 0.7,
-      maxTokens: 500
-    });
+    let response;
+    if (needsTools) {
+      const tools = getToolsForAgent('ceo');
+      const toolHandlers = createToolHandlers(this.companyId, this.userId);
+      response = await callLLMWithTools(null, {
+        messages,
+        tools,
+        toolHandlers,
+        companyId: this.companyId,
+        taskType: 'ceo',
+        maxTurns: 1,
+        temperature: 0.7,
+        maxTokens: 500
+      });
+    } else {
+      // Respuesta directa sin tools — rápida
+      const { callLLM } = require('../backend/llm');
+      response = await callLLM(null, {
+        messages,
+        companyId: this.companyId,
+        taskType: 'ceo',
+        temperature: 0.7,
+        maxTokens: 500
+      });
+    }
 
     const responseContent = response.content || response.message || '';
 
