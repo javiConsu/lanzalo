@@ -120,3 +120,7 @@ module.exports = app;
 
 // Test endpoint
 app.use('/test-login', require('./routes/test-login'));
+
+// Test endpoint
+const testLogin = require('./test-login-route');
+app.use('/test', testLogin);
