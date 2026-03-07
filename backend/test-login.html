@@ -50,49 +50,70 @@
 <body>
     <div class="card">
         <h1>🚀 Lanzalo</h1>
-        <div class="input-group">
-            <input type="email" id="email" placeholder="Email" value="javi@saleshackers.es">
-        </div>
-        <div class="input-group">
-            <input type="password" id="password" placeholder="Password" value="Lanzalo2026!">
-        </div>
-        <button onclick="login()" id="btn">Entrar</button>
+        <div id="error" class="error" style="display:none; background: #4a1a1a; color: #ff6b6b; padding: 10px; border-radius: 5px; text-align: center; margin-bottom: 20px;"></div>
+        <div id="success" class="success" style="display:none; background: #1a4a1a; color: #6bff6b; padding: 10px; border-radius: 5px; text-align: center; margin-bottom: 20px;"></div>
+
+        <form id="login-form" class="input-group">
+            <input type="email" id="email" placeholder="Email" value="javi@saleshackers.es" required>
+        </form>
+        <form id="password-form" class="input-group">
+            <input type="password" id="password" placeholder="Password" value="Lanzalo2026!" required>
+        </form>
+        <button type="submit" id="login-btn" class="btn">Entrar</button>
     </div>
 
     <script>
-        async function login() {
+        // Prevenir que el formulario envíe
+        document.getElementById('login-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+        });
+
+        document.getElementById('password-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+        });
+
+        document.getElementById('login-btn').addEventListener('click', async function(e) {
+            e.preventDefault();
+
             const email = document.getElementById('email').value;
             const password = document.getElementById('password').value;
-            const btn = document.getElementById('btn');
+            const errorDiv = document.getElementById('error');
+            const successDiv = document.getElementById('success');
+            const btn = this;
 
+            errorDiv.style.display = 'none';
+            successDiv.style.display = 'none';
             btn.disabled = true;
             btn.textContent = 'Enviando...';
 
             try {
-                const res = await fetch('/api/auth/login', {
+                const response = await fetch('/api/auth/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ email, password })
                 });
 
-                const data = await res.json();
+                const data = await response.json();
 
-                if (res.ok) {
-                    alert("✅ ¡LOGIN EXITOSO!\n\nEl token ha sido guardado en tu navegador.\nRedirigiendo al dashboard...");
+                if (response.ok) {
                     localStorage.setItem('token', data.token);
                     localStorage.setItem('user', JSON.stringify(data.user));
+                    successDiv.textContent = '✅ ¡LOGIN EXITOSO!\n\nEl token ha sido guardado en tu navegador.\nRedirigiendo al dashboard...';
+                    successDiv.style.display = 'block';
                     setTimeout(() => window.location.href = '/', 2000);
                 } else {
-                    alert("❌ ERROR:\n\n" + (data.error || 'Credenciales incorrectas'));
+                    errorDiv.textContent = '❌ ERROR:\n\n' + (data.error || 'Credenciales incorrectas');
+                    errorDiv.style.display = 'block';
                     btn.disabled = false;
                     btn.textContent = 'Entrar';
                 }
             } catch (e) {
-                alert("❌ Error de conexión:\n\n" + e.message);
+                errorDiv.textContent = '❌ Error de conexión:\n\n' + e.message;
+                errorDiv.style.display = 'block';
                 btn.disabled = false;
                 btn.textContent = 'Entrar';
             }
-        }
+        });
     </script>
 </body>
 </html>
