@@ -38,7 +38,15 @@ async function checkQuota(req, res, next) {
   try {
     const { companyId } = req;
     const actionType = req.body.action_type || 'task';
-    
+
+    // Si no hay companyId (ej: crear empresa), verificar quota a nivel usuario
+    if (!companyId) {
+      const userPlan = req.user?.plan || req.user?.subscription_tier || 'trial';
+      const plan = PLANS[userPlan] || PLANS.free;
+      req.quota = { plan: plan.name, usage: 0, limit: 999, remaining: 999 };
+      return next();
+    }
+
     const company = await getCompany(companyId);
     const plan = PLANS[company.subscription_tier] || PLANS.free;
     
