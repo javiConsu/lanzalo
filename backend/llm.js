@@ -1,5 +1,11 @@
 /**
- * LLM integration con control de costos y quotas
+ * LLM integration con tool use, control de costos y quotas
+ * 
+ * Soporta:
+ * - System prompts por agente
+ * - Tool use (function calling) de Claude/OpenAI
+ * - Tracking de costos por empresa
+ * - Fallback entre modelos
  */
 
 const axios = require('axios');
@@ -7,7 +13,6 @@ const { LLMCostTracker } = require('./middleware/quotas');
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 
-// Precios por modelo (por millón de tokens)
 const MODEL_COSTS = {
   'anthropic/claude-sonnet-4': { input: 3, output: 15 },
   'anthropic/claude-sonnet-3.5': { input: 3, output: 15 },
@@ -16,17 +21,21 @@ const MODEL_COSTS = {
   'openai/gpt-4o-mini': { input: 0.15, output: 0.6 }
 };
 
-// Estrategia de modelos por tipo de tarea
 const MODEL_STRATEGY = {
-  code: 'anthropic/claude-sonnet-4',        // Crítico
-  marketing: 'anthropic/claude-sonnet-3.5', // Creativo
-  email: 'anthropic/claude-haiku-3',        // Simple
-  twitter: 'anthropic/claude-haiku-3',      // Simple
-  analytics: 'openai/gpt-4o-mini'           // Análisis básico
+  code: 'anthropic/claude-sonnet-4',
+  marketing: 'anthropic/claude-sonnet-3.5',
+  email: 'anthropic/claude-haiku-3',
+  twitter: 'anthropic/claude-haiku-3',
+  content: 'anthropic/claude-haiku-3',
+  research: 'anthropic/claude-sonnet-3.5',
+  data: 'openai/gpt-4o-mini',
+  analytics: 'openai/gpt-4o-mini',
+  trends: 'anthropic/claude-sonnet-3.5',
+  ceo: 'anthropic/claude-sonnet-4'
 };
 
 /**
- * Llamada al LLM con tracking de costos
+ * Llamada al LLM con tool use y tracking de costos
  */
 async function callLLM(prompt, options = {}) {
   const {
@@ -35,63 +44,91 @@ async function callLLM(prompt, options = {}) {
     model = MODEL_STRATEGY[taskType],
     temperature = 0.7,
     maxTokens = 4000,
-    systemPrompt = null
+    systemPrompt = null,
+    tools = null,
+    messages = null
   } = options;
 
-  // Verificar presupuesto si hay companyId
+  // Verificar presupuesto
   if (companyId) {
     const costTracker = new LLMCostTracker(companyId);
     const withinBudget = await costTracker.isWithinBudget();
-    
     if (!withinBudget) {
-      throw new Error(
-        'Cuota de tokens LLM excedida para este mes. Actualiza tu plan.'
-      );
+      throw new Error('Cuota de tokens LLM excedida para este mes.');
     }
+  }
+
+  // Construir mensajes
+  const msgArray = messages || [
+    ...(systemPrompt ? [{ role: 'system', content: systemPrompt }] : []),
+    { role: 'user', content: prompt }
+  ];
+
+  // Construir request body
+  const body = {
+    model,
+    messages: msgArray,
+    temperature,
+    max_tokens: maxTokens
+  };
+
+  // Añadir tools si se proporcionan
+  if (tools && tools.length > 0) {
+    body.tools = tools;
+    body.tool_choice = 'auto';
   }
 
   try {
     const response = await axios.post(
       'https://openrouter.ai/api/v1/chat/completions',
-      {
-        model,
-        messages: [
-          ...(systemPrompt ? [{ role: 'system', content: systemPrompt }] : []),
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-        temperature,
-        max_tokens: maxTokens
-      },
+      body,
       {
         headers: {
           'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
           'Content-Type': 'application/json',
-          'HTTP-Referer': 'https://lanzalo.app',
+          'HTTP-Referer': 'https://lanzalo.pro',
           'X-Title': 'Lanzalo AI Co-Founder'
-        }
+        },
+        timeout: 120000 // 2 min timeout
       }
     );
 
     const result = response.data;
-    const tokensUsed = result.usage.total_tokens;
-    const cost = calculateCost(model, result.usage);
+    const tokensUsed = result.usage?.total_tokens || 0;
+    const cost = calculateCost(model, result.usage || {});
 
-    // Registrar uso si hay companyId
+    // Registrar uso
     if (companyId) {
       const costTracker = new LLMCostTracker(companyId);
       await costTracker.recordUsage(model, tokensUsed, cost);
     }
 
-    console.log(`LLM call: ${model} | ${tokensUsed} tokens | $${cost.toFixed(4)}`);
+    const choice = result.choices[0];
+    const message = choice.message;
+
+    // Detectar tool calls
+    if (message.tool_calls && message.tool_calls.length > 0) {
+      return {
+        content: message.content || '',
+        toolCalls: message.tool_calls.map(tc => ({
+          id: tc.id,
+          name: tc.function.name,
+          arguments: JSON.parse(tc.function.arguments || '{}')
+        })),
+        tokensUsed,
+        cost,
+        model,
+        finishReason: choice.finish_reason
+      };
+    }
 
     return {
-      content: result.choices[0].message.content,
+      content: message.content,
+      toolCalls: null,
       tokensUsed,
       cost,
-      model
+      model,
+      finishReason: choice.finish_reason
     };
 
   } catch (error) {
@@ -101,30 +138,104 @@ async function callLLM(prompt, options = {}) {
 }
 
 /**
- * Calcular costo basado en uso de tokens
+ * Llamada con tool loop — ejecuta tools automáticamente hasta completar
  */
-function calculateCost(model, usage) {
-  const costs = MODEL_COSTS[model];
-  if (!costs) {
-    console.warn(`Modelo ${model} no tiene costos definidos, usando default`);
-    return (usage.total_tokens / 1000000) * 5; // $5/M tokens default
+async function callLLMWithTools(prompt, options = {}) {
+  const {
+    tools = [],
+    toolHandlers = {},
+    maxTurns = 10,
+    systemPrompt = null,
+    ...llmOptions
+  } = options;
+
+  let messages = [
+    ...(systemPrompt ? [{ role: 'system', content: systemPrompt }] : []),
+    { role: 'user', content: prompt }
+  ];
+
+  let turn = 0;
+  let finalContent = '';
+
+  while (turn < maxTurns) {
+    turn++;
+
+    const response = await callLLM(null, {
+      ...llmOptions,
+      messages,
+      tools,
+      systemPrompt: null // ya incluido en messages
+    });
+
+    // Si no hay tool calls, hemos terminado
+    if (!response.toolCalls || response.toolCalls.length === 0) {
+      finalContent = response.content;
+      break;
+    }
+
+    // Añadir respuesta del asistente con tool calls
+    messages.push({
+      role: 'assistant',
+      content: response.content || null,
+      tool_calls: response.toolCalls.map(tc => ({
+        id: tc.id,
+        type: 'function',
+        function: { name: tc.name, arguments: JSON.stringify(tc.arguments) }
+      }))
+    });
+
+    // Ejecutar cada tool call
+    for (const toolCall of response.toolCalls) {
+      const handler = toolHandlers[toolCall.name];
+      let result;
+
+      if (handler) {
+        try {
+          result = await handler(toolCall.arguments);
+          result = typeof result === 'string' ? result : JSON.stringify(result);
+        } catch (error) {
+          result = JSON.stringify({ error: error.message });
+        }
+      } else {
+        result = JSON.stringify({ error: `Tool '${toolCall.name}' not implemented` });
+      }
+
+      messages.push({
+        role: 'tool',
+        tool_call_id: toolCall.id,
+        content: result
+      });
+    }
+
+    console.log(`  🔧 Turn ${turn}: ${response.toolCalls.map(t => t.name).join(', ')}`);
   }
 
-  const inputCost = (usage.prompt_tokens / 1000000) * costs.input;
-  const outputCost = (usage.completion_tokens / 1000000) * costs.output;
-  
+  if (turn >= maxTurns) {
+    console.warn(`⚠️ Tool loop reached max turns (${maxTurns})`);
+  }
+
+  return {
+    content: finalContent,
+    turns: turn,
+    messages
+  };
+}
+
+function calculateCost(model, usage) {
+  const costs = MODEL_COSTS[model];
+  if (!costs) return ((usage.total_tokens || 0) / 1000000) * 5;
+  const inputCost = ((usage.prompt_tokens || 0) / 1000000) * costs.input;
+  const outputCost = ((usage.completion_tokens || 0) / 1000000) * costs.output;
   return inputCost + outputCost;
 }
 
-/**
- * Obtener modelo óptimo para una tarea
- */
 function getModelForTask(taskType) {
   return MODEL_STRATEGY[taskType] || MODEL_STRATEGY.code;
 }
 
-module.exports = { 
-  callLLM, 
+module.exports = {
+  callLLM,
+  callLLMWithTools,
   getModelForTask,
   MODEL_STRATEGY,
   MODEL_COSTS
