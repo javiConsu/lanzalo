@@ -54,6 +54,15 @@
           required
           class="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
+
+        <input
+          type="password"
+          id="password-input"
+          placeholder="Contraseña (mínimo 8 caracteres)"
+          required
+          minlength="8"
+          class="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
         
         <div id="form-error" class="hidden text-red-400 text-sm text-center py-2 px-4 bg-red-900/20 rounded-lg"></div>
         <button
@@ -728,6 +737,7 @@
       const errorMsg = document.getElementById('form-error');
 
       const email = emailInput.value;
+      const password = document.getElementById('password-input').value;
       const idea = ideaInput.value || 'Sin idea (explorando)';
 
       // Ocultar error anterior
@@ -739,26 +749,39 @@
       submitBtn.textContent = 'Enviando...';
 
       try {
-        const tempPassword = 'Lanzalo' + Math.random().toString(36).slice(2, 10) + '!';
         const response = await fetch(`${BACKEND_URL}/api/onboarding/register`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ email, password: tempPassword, idea })
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password, idea })
         });
 
         const data = await response.json();
 
         if (!response.ok) {
+          if (data.error === 'Email already registered') {
+            // Intentar login directo con las mismas credenciales
+            const loginRes = await fetch(`${BACKEND_URL}/api/auth/login`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ email, password })
+            });
+            const loginData = await loginRes.json();
+            if (loginData.token) {
+              localStorage.setItem('token', loginData.token);
+              localStorage.setItem('lanzalo_user', JSON.stringify(loginData.user || { email }));
+              window.location.href = '/';
+              return;
+            }
+            throw new Error('Ya tienes cuenta. Usa tu contraseña correcta.');
+          }
           throw new Error(data.error || data.message || 'Error al registrar. Intenta de nuevo.');
         }
 
         // Guardar token y redirigir
         if (data.token) {
-          localStorage.setItem('lanzalo_token', data.token);
+          localStorage.setItem('token', data.token);
           localStorage.setItem('lanzalo_user', JSON.stringify(data.user || { email }));
-          window.location.href = '/onboarding/survey';
+          window.location.href = '/';
           return;
         }
 
