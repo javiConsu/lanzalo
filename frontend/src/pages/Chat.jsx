@@ -1,3 +1,4 @@
+import { apiUrl } from '../api.js'
 import { useState, useEffect, useRef } from 'react'
 
 export default function Chat() {
@@ -12,7 +13,7 @@ export default function Chat() {
 
   // Cargar empresas
   useEffect(() => {
-    fetch('/api/user/companies', {
+    fetch(apiUrl('/api/user/companies', {
       headers: { 'Authorization': `Bearer ${token}` }
     })
       .then(res => res.json())

@@ -1,3 +1,4 @@
+import { apiUrl } from '../api.js'
 import { useState } from 'react'
 
 export default function Login({ onLogin }) {
@@ -12,7 +13,7 @@ export default function Login({ onLogin }) {
     setLoading(true)
 
     try {
-      const res = await fetch('/api/auth/login', {
+      const res = await fetch(apiUrl('/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password })

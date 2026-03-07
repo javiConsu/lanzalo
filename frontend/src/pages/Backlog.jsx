@@ -1,3 +1,4 @@
+import { apiUrl } from '../api.js'
 import { useState, useEffect } from 'react'
 
 export default function Backlog() {
@@ -10,7 +11,7 @@ export default function Backlog() {
 
   // Cargar empresas
   useEffect(() => {
-    fetch('/api/user/companies', {
+    fetch(apiUrl('/api/user/companies', {
       headers: { 'Authorization': `Bearer ${token}` }
     })
       .then(res => res.json())

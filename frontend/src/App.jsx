@@ -19,7 +19,8 @@ function App() {
   useEffect(() => {
     if (token) {
       // Verificar token válido
-      fetch('/api/user/profile', {
+      import { apiUrl } from '../api.js'
+      fetch(apiUrl('/api/user/profile', {
         headers: { 'Authorization': `Bearer ${token}` }
       })
         .then(res => res.json())
