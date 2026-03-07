@@ -14,24 +14,24 @@ const { LLMCostTracker } = require('./middleware/quotas');
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 
 const MODEL_COSTS = {
-  'anthropic/claude-sonnet-4': { input: 3, output: 15 },
-  'anthropic/claude-sonnet-3.5': { input: 3, output: 15 },
-  'anthropic/claude-haiku-3': { input: 0.25, output: 1.25 },
+  'anthropic/claude-sonnet-4-5': { input: 3, output: 15 },
+  'anthropic/claude-3-5-sonnet': { input: 3, output: 15 },
+  'anthropic/claude-3-haiku': { input: 0.25, output: 1.25 },
   'openai/gpt-4o': { input: 2.5, output: 10 },
   'openai/gpt-4o-mini': { input: 0.15, output: 0.6 }
 };
 
 const MODEL_STRATEGY = {
-  code: 'anthropic/claude-sonnet-4',
-  marketing: 'anthropic/claude-sonnet-3.5',
-  email: 'anthropic/claude-haiku-3',
-  twitter: 'anthropic/claude-haiku-3',
-  content: 'anthropic/claude-haiku-3',
-  research: 'anthropic/claude-sonnet-3.5',
+  code: 'anthropic/claude-sonnet-4-5',
+  marketing: 'anthropic/claude-3-5-sonnet',
+  email: 'anthropic/claude-3-haiku',
+  twitter: 'anthropic/claude-3-haiku',
+  content: 'anthropic/claude-3-haiku',
+  research: 'anthropic/claude-3-5-sonnet',
   data: 'openai/gpt-4o-mini',
   analytics: 'openai/gpt-4o-mini',
-  trends: 'anthropic/claude-sonnet-3.5',
-  ceo: 'anthropic/claude-sonnet-4'
+  trends: 'anthropic/claude-3-5-sonnet',
+  ceo: 'anthropic/claude-sonnet-4-5'
 };
 
 /**
