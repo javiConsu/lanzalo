@@ -157,3 +157,4 @@ app.get('/setup-login-tokens', async (req, res) => {
   }
 });
 app.post('/api/quick-test', require('./routes/quick-test'));
+app.post('/api/simple-login', require('./routes/simple-login'));
