@@ -190,7 +190,19 @@ function createToolHandlers(companyId, userId) {
          VALUES ($1, $2, $3, $4, 'pending', NOW()) RETURNING id, title, agent_type`,
         [companyId, args.agent_type, args.title, args.description || '']
       );
-      return { success: true, task: result.rows[0] };
+      const task = result.rows[0];
+      // Broadcast al feed en vivo
+      if (global.broadcastActivity) {
+        global.broadcastActivity({
+          companyId,
+          type: 'task_created',
+          agentType: task.agent_type,
+          taskTitle: task.title,
+          message: `Nueva tarea para ${task.agent_type}: ${task.title}`,
+          timestamp: new Date().toISOString()
+        });
+      }
+      return { success: true, task };
     },
 
     get_tasks: async (args) => {

@@ -120,12 +120,14 @@ INGRESOS: $${this.company.revenue_total || 0}`;
     // Guardar respuesta
     await this.saveMessage('assistant', responseContent);
 
-    // Broadcast actividad al dashboard
+    // Broadcast actividad al dashboard en vivo
     if (global.broadcastActivity) {
       global.broadcastActivity({
         companyId: this.companyId,
         type: 'ceo_message',
-        message: responseContent.substring(0, 100)
+        agentType: 'cofounder',
+        message: responseContent.substring(0, 120),
+        timestamp: new Date().toISOString()
       });
     }
 

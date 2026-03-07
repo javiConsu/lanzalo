@@ -1,7 +1,23 @@
 import { Outlet, Link, useLocation } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import LiveFeed from '../components/LiveFeed.jsx'
+import { apiUrl } from '../api.js'
 
 export default function Dashboard({ user, onLogout }) {
   const location = useLocation()
+  const [activeCompanyId, setActiveCompanyId] = useState(null)
+
+  // Cargar primera empresa del usuario para el LiveFeed
+  useEffect(() => {
+    const token = localStorage.getItem('token')
+    if (!token) return
+    fetch(apiUrl('/api/user/companies'), {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+      .then(r => r.json())
+      .then(d => { if (d.companies?.[0]) setActiveCompanyId(d.companies[0].id) })
+      .catch(() => {})
+  }, [])
 
   const isActive = (path) => {
     if (path === '/') return location.pathname === '/' || location.pathname === '/chat'
@@ -27,7 +43,7 @@ export default function Dashboard({ user, onLogout }) {
             }`}
           >
             <span className="text-xl">💬</span>
-            <span className="font-medium">Chat con CEO</span>
+            <span className="font-medium">Co-Founder Agent</span>
           </Link>
 
           <Link
@@ -66,6 +82,13 @@ export default function Dashboard({ user, onLogout }) {
             <span className="font-medium">Métricas</span>
           </Link>
         </nav>
+
+        {/* Live Feed en sidebar */}
+        {activeCompanyId && (
+          <div className="p-3 border-t border-gray-700">
+            <LiveFeed companyId={activeCompanyId} />
+          </div>
+        )}
 
         <div className="p-4 border-t border-gray-700">
           <div className="flex items-center gap-3 mb-4">
