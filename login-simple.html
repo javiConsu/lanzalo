@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login — Lanzalo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background: #111;
+            color: #fff;
+        }
+        .card {
+            background: #1a1a2e;
+            padding: 40px;
+            border-radius: 10px;
+            width: 100%;
+            max-width: 400px;
+        }
+        h1 { text-align: center; color: #fff; margin-bottom: 30px; }
+        .input-group { margin-bottom: 20px; }
+        input {
+            width: 100%;
+            padding: 12px;
+            box-sizing: border-box;
+            background: #2d2d44;
+            border: 1px solid #4a4a6a;
+            color: #fff;
+            border-radius: 5px;
+        }
+        button {
+            width: 100%;
+            padding: 12px;
+            background: #4a90e2;
+            border: none;
+            color: #fff;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+        button:hover { background: #357abd; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        .error {
+            background: #4a1a1a;
+            color: #ff6b6b;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .success {
+            background: #1a4a1a;
+            color: #6bff6b;
+            padding: 10px;
+            border-radius: 5px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>🚀 Lanzalo</h1>
+        <div id="error" class="error" style="display:none;"></div>
+        <div id="success" class="success" style="display:none;"></div>
+
+        <div class="input-group">
+            <input type="email" id="email" placeholder="Email" value="javi@saleshackers.es">
+        </div>
+        <div class="input-group">
+            <input type="password" id="password" placeholder="Password" value="Lanzalo2026!">
+        </div>
+        <button onclick="login()" id="btn">Entrar</button>
+    </div>
+
+    <script>
+        async function login() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const errorDiv = document.getElementById('error');
+            const successDiv = document.getElementById('success');
+            const btn = document.getElementById('btn');
+
+            errorDiv.style.display = 'none';
+            successDiv.style.display = 'none';
+            btn.disabled = true;
+            btn.textContent = 'Enviando...';
+
+            try {
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    localStorage.setItem('token', data.token);
+                    localStorage.setItem('user', JSON.stringify(data.user));
+                    successDiv.textContent = '✅ ¡Bienvenido!';
+                    successDiv.style.display = 'block';
+                    setTimeout(() => window.location.href = '/', 1500);
+                } else {
+                    errorDiv.textContent = '❌ Error: ' + (data.error || 'Credenciales incorrectas');
+                    errorDiv.style.display = 'block';
+                    btn.disabled = false;
+                    btn.textContent = 'Entrar';
+                }
+            } catch (e) {
+                errorDiv.textContent = '❌ Error de conexión: ' + e.message;
+                errorDiv.style.display = 'block';
+                btn.disabled = false;
+                btn.textContent = 'Entrar';
+            }
+        }
+    </script>
+</body>
+</html>
