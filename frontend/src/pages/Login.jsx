@@ -2,6 +2,7 @@ import { apiUrl } from '../api.js'
 import { useState } from 'react'
 
 export default function Login({ onLogin }) {
+  const [mode, setMode] = useState('login') // 'login' | 'register'
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -13,7 +14,8 @@ export default function Login({ onLogin }) {
     setLoading(true)
 
     try {
-      const res = await fetch(apiUrl('/api/auth/login`, {
+      const endpoint = mode === 'login' ? '/api/auth/login' : '/api/onboarding/register'
+      const res = await fetch(apiUrl(endpoint), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password })
@@ -21,10 +23,13 @@ export default function Login({ onLogin }) {
 
       const data = await res.json()
 
-      if (res.ok) {
+      if (res.ok && data.token) {
         onLogin(data.token, data.user)
+      } else if (data.error === 'Email already registered') {
+        setMode('login')
+        setError('Ya tienes cuenta. Inicia sesión.')
       } else {
-        setError(data.error || 'Error de login')
+        setError(data.error || 'Error. Intenta de nuevo.')
       }
     } catch (err) {
       setError('Error de conexión')
@@ -42,34 +47,40 @@ export default function Login({ onLogin }) {
         </div>
 
         <div className="bg-gray-800 rounded-lg shadow-xl p-8 border border-gray-700">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                Email
-              </label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="admin@lanzalo.local"
-                required
-              />
-            </div>
+          {/* Tabs */}
+          <div className="flex gap-2 mb-6">
+            <button
+              onClick={() => { setMode('login'); setError('') }}
+              className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${mode === 'login' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}
+            >
+              Iniciar sesión
+            </button>
+            <button
+              onClick={() => { setMode('register'); setError('') }}
+              className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${mode === 'register' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}
+            >
+              Crear cuenta
+            </button>
+          </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                Password
-              </label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="••••••••"
-                required
-              />
-            </div>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Tu email"
+              required
+            />
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Contraseña (mínimo 8 caracteres)"
+              minLength={8}
+              required
+            />
 
             {error && (
               <div className="bg-red-900/50 border border-red-700 text-red-200 px-4 py-3 rounded-lg text-sm">
@@ -80,25 +91,19 @@ export default function Login({ onLogin }) {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg transition-colors disabled:opacity-50"
             >
-              {loading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
+              {loading
+                ? 'Cargando...'
+                : mode === 'login' ? 'Entrar' : 'Crear cuenta gratis (14 días)'}
             </button>
           </form>
 
-          <div className="mt-6 pt-6 border-t border-gray-700">
-            <p className="text-sm text-gray-400 text-center">
-              Demo credentials:
+          {mode === 'register' && (
+            <p className="text-xs text-gray-500 text-center mt-4">
+              14 días gratis • Sin tarjeta • $39/mes después
             </p>
-            <p className="text-xs text-gray-500 text-center mt-2">
-              admin@lanzalo.local / admin123
-            </p>
-          </div>
-        </div>
-
-        <div className="mt-8 text-center text-gray-500 text-sm">
-          <p>6 agentes autónomos funcionando 24/7</p>
-          <p className="mt-1">Code • Research • Browser • Twitter • Email • Data</p>
+          )}
         </div>
       </div>
     </div>
