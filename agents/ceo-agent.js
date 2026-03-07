@@ -43,12 +43,35 @@ class CEOAgent {
     // Guardar mensaje del usuario
     await this.saveMessage('user', userMessage);
 
-    // Construir contexto de memoria (simple, sin llamadas al LLM)
-    const memoryContext = `EMPRESA: ${this.company.name}
+    // Construir contexto de memoria — base de DB, sin LLM
+    let memoryContext = `EMPRESA: ${this.company.name}
 INDUSTRIA: ${this.company.industry || 'No especificada'}
 DESCRIPCIÓN: ${this.company.description || 'Sin descripción'}
 ESTADO: ${this.company.status}
 INGRESOS: $${this.company.revenue_total || 0}`;
+
+    // Enriquecer con memoria persistente (Layer 1 y 2) si existe
+    try {
+      const memRows = await pool.query(
+        'SELECT layer, content FROM memory WHERE company_id = $1 AND layer IN (1, 2)',
+        [this.companyId]
+      );
+      for (const row of memRows.rows) {
+        const data = typeof row.content === 'string' ? JSON.parse(row.content) : row.content;
+        if (row.layer === 1) {
+          if (data.targetAudience) memoryContext += `\nAUDIENCIA: ${data.targetAudience}`;
+          if (data.keyFeatures?.length) memoryContext += `\nFEATURES: ${data.keyFeatures.join(', ')}`;
+          if (data.techStack?.length) memoryContext += `\nSTACK: ${data.techStack.join(', ')}`;
+          if (data.lastLearning) memoryContext += `\nÚLTIMO APRENDIZAJE: ${data.lastLearning}`;
+        }
+        if (row.layer === 2) {
+          if (data.communicationStyle) memoryContext += `\nESTILO: ${data.communicationStyle}`;
+          if (data.priorities?.length) memoryContext += `\nPRIORIDADES: ${data.priorities.join(', ')}`;
+        }
+      }
+    } catch (e) {
+      // Silencioso — la memoria es un plus, no un requisito
+    }
 
     // System prompt con contexto
     const systemPrompt = getSystemPrompt('ceo', this.company.name, memoryContext);
@@ -92,10 +115,50 @@ INGRESOS: $${this.company.revenue_total || 0}`;
       });
     }
 
+    // Actualizar memoria Layer 1 con lo aprendido (async, no bloquea respuesta)
+    this.updateMemoryFromConversation(userMessage, responseContent).catch(() => {});
+
     return {
       message: responseContent,
       turns: response.turns || 1
     };
+  }
+
+  /**
+   * Actualizar memoria Layer 1 con lo aprendido en la conversación
+   * Se ejecuta async, no bloquea la respuesta al usuario
+   */
+  async updateMemoryFromConversation(userMessage, agentResponse) {
+    try {
+      // Detectar si hay info relevante para guardar en memoria
+      const keywords = {
+        audience: ['cliente', 'usuario', 'audiencia', 'público', 'target', 'para quien'],
+        features: ['feature', 'funcionalidad', 'quiero que', 'necesito que', 'debe tener'],
+        stack: ['react', 'vue', 'node', 'python', 'postgres', 'mysql', 'tailwind', 'next'],
+        monetization: ['cobrar', 'precio', 'suscripción', 'freemium', 'pago']
+      };
+
+      const text = (userMessage + ' ' + agentResponse).toLowerCase();
+      const updates = {};
+
+      if (keywords.audience.some(k => text.includes(k))) {
+        // Extraer una frase corta sobre audiencia del mensaje del usuario
+        updates.targetAudience = userMessage.substring(0, 200);
+      }
+
+      if (Object.keys(updates).length === 0) return;
+
+      // Guardar en memoria Layer 1
+      await pool.query(
+        `INSERT INTO memory (id, company_id, layer, content, updated_at)
+         VALUES (gen_random_uuid(), $1, 1, $2, NOW())
+         ON CONFLICT(company_id, layer)
+         DO UPDATE SET content = memory.content || $2, updated_at = NOW()`,
+        [this.companyId, JSON.stringify(updates)]
+      );
+    } catch (e) {
+      // Silencioso
+    }
   }
 
   async saveMessage(role, content) {
