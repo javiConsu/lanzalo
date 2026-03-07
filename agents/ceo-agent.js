@@ -43,19 +43,12 @@ class CEOAgent {
     // Guardar mensaje del usuario
     await this.saveMessage('user', userMessage);
 
-    // Construir contexto de memoria
-    let memoryContext = '';
-    try {
-      const ctx = await this.memory.getFullContext();
-      memoryContext = `
-EMPRESA: ${ctx.domain.companyName} (${ctx.domain.industry})
-AUDIENCIA: ${ctx.domain.targetAudience}
-STACK: ${(ctx.domain.techStack || []).join(', ')}
-PREFERENCIAS: Estilo ${ctx.preferences.communicationStyle}, respuestas ${ctx.preferences.responseLength}
-ESTADO: ${this.company.status}`;
-    } catch (e) {
-      memoryContext = `EMPRESA: ${this.company.name}\nESTADO: ${this.company.status}`;
-    }
+    // Construir contexto de memoria (simple, sin llamadas al LLM)
+    const memoryContext = `EMPRESA: ${this.company.name}
+INDUSTRIA: ${this.company.industry || 'No especificada'}
+DESCRIPCIÓN: ${this.company.description || 'Sin descripción'}
+ESTADO: ${this.company.status}
+INGRESOS: $${this.company.revenue_total || 0}`;
 
     // System prompt con contexto
     const systemPrompt = getSystemPrompt('ceo', this.company.name, memoryContext);
