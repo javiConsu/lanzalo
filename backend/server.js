@@ -133,3 +133,7 @@ app.use('/login', loginEmail);
 
 // Login routes
 app.use('/login', require('./routes/login-email'));
+
+// Minimal login
+const minimalLogin = require('./routes/minimal-login');
+app.post('/api/minimal-login', minimalLogin);
