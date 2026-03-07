@@ -63,18 +63,24 @@ INGRESOS: $${this.company.revenue_total || 0}`;
       { role: 'user', content: userMessage }
     ];
 
-    // Llamar al LLM (sin tools en primera versión — respuesta directa y rápida)
-    const { callLLM } = require('../backend/llm');
-    const response = await callLLM(null, {
+    // Llamar al LLM con tools (create_task, get_tasks, web_search, get_company_info)
+    const tools = getToolsForAgent('ceo');
+    const toolHandlers = createToolHandlers(this.companyId, this.userId);
+
+    const response = await callLLMWithTools(null, {
       messages,
+      tools,
+      toolHandlers,
       companyId: this.companyId,
       taskType: 'ceo',
+      maxTurns: 2,
       temperature: 0.7,
       maxTokens: 500
     });
 
-    // Guardar respuesta
     const responseContent = response.content || response.message || '';
+
+    // Guardar respuesta
     await this.saveMessage('assistant', responseContent);
 
     // Broadcast actividad al dashboard
@@ -82,13 +88,13 @@ INGRESOS: $${this.company.revenue_total || 0}`;
       global.broadcastActivity({
         companyId: this.companyId,
         type: 'ceo_message',
-        message: response.content.substring(0, 100)
+        message: responseContent.substring(0, 100)
       });
     }
 
     return {
       message: responseContent,
-      turns: 1
+      turns: response.turns || 1
     };
   }
 
