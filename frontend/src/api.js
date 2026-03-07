@@ -1,5 +1,5 @@
-// URL base del backend — se configura con VITE_API_URL en Vercel
-export const API_URL = import.meta.env.VITE_API_URL || ''
+// URL base del backend
+export const API_URL = import.meta.env.VITE_API_URL || 'https://lanzalo-production.up.railway.app'
 
 export function apiUrl(path) {
   return `${API_URL}${path}`
