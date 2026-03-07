@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Login — Lanzalo</title>
+    <meta charset="UTF-8">
+    <title>Login Test</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -42,7 +43,6 @@
             border-radius: 5px;
         }
         button:hover { background: #357abd; }
-        button:disabled { opacity: 0.5; cursor: not-allowed; }
         .error {
             background: #4a1a1a;
             color: #ff6b6b;
@@ -63,20 +63,21 @@
 </head>
 <body>
     <div class="card">
-        <h1>🚀 Lanzalo</h1>
+        <h1>🚀 Lanzalo - TEST SIMPLE</h1>
         <div id="error" class="error"></div>
         <div id="success" class="success"></div>
 
         <input type="email" id="email" placeholder="Tu email" value="javi@saleshackers.es" required>
-        <button onclick="sendLink()" id="btn">Enviar enlace</button>
+        <button onclick="testConnection()" id="btn">Test Backend</button>
 
         <p style="font-size: 12px; color: #888; margin-top: 30px;">
-            Nota: Si el backend no funciona, verás un error.
+            Si ves éxito = Backend funciona<br>
+            Si ves error = Backend no funciona
         </p>
     </div>
 
     <script>
-        async function sendLink() {
+        async function testConnection() {
             const email = document.getElementById('email').value;
             const errorDiv = document.getElementById('error');
             const successDiv = document.getElementById('success');
@@ -85,34 +86,36 @@
             errorDiv.style.display = 'none';
             successDiv.style.display = 'none';
             btn.disabled = true;
-            btn.textContent = 'Enviando...';
+            btn.textContent = 'Testing...';
 
             try {
-                // PRUEBAS DIRECTAS
+                console.log('Testing backend connection...');
+
+                // TEST CON BACKEND
                 const response = await fetch('https://lanzalo-production.up.railway.app/api/quick-test', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ email })
                 });
 
+                console.log('Response received:', response.status);
+
                 const data = await response.json();
 
                 if (response.ok) {
-                    successDiv.textContent = '✅ Backend RESPONDE!\n\n' + JSON.stringify(data, null, 2);
+                    successDiv.textContent = '✅ EXITO!\n\nBackend está ONLINE.\n\n' + JSON.stringify(data, null, 2);
                     successDiv.style.display = 'block';
-                    btn.disabled = false;
-                    btn.textContent = 'Reintentar';
                 } else {
                     errorDiv.textContent = '❌ Error del backend:\n\n' + JSON.stringify(data, null, 2);
                     errorDiv.style.display = 'block';
-                    btn.disabled = false;
-                    btn.textContent = 'Enviar enlace';
                 }
             } catch (e) {
-                errorDiv.textContent = '❌ Error de conexión:\n\n' + e.message;
+                console.error('Connection failed:', e);
+                errorDiv.textContent = '❌ Error de conexión:\n\n' + e.message + '\n\nEl backend Railway no está respondiendo.';
                 errorDiv.style.display = 'block';
+            } finally {
                 btn.disabled = false;
-                btn.textContent = 'Enviar enlace';
+                btn.textContent = 'Test Backend';
             }
         }
     </script>
