@@ -117,3 +117,6 @@ process.on('SIGTERM', () => {
 });
 
 module.exports = app;
+
+// Test endpoint
+app.use('/test-login', require('./routes/test-login'));
