@@ -73,7 +73,7 @@ INGRESOS: $${this.company.revenue_total || 0}`;
       toolHandlers,
       companyId: this.companyId,
       taskType: 'ceo',
-      maxTurns: 2,
+      maxTurns: 1,
       temperature: 0.7,
       maxTokens: 500
     });
