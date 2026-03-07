@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login — Lanzalo</title>
+    <title>Accede a Lanzalo</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -21,12 +21,13 @@
             border-radius: 10px;
             width: 100%;
             max-width: 400px;
+            text-align: center;
         }
-        h1 { text-align: center; color: #fff; margin-bottom: 30px; }
-        .input-group { margin-bottom: 20px; }
+        h1 { color: #fff; margin-bottom: 30px; }
         input {
             width: 100%;
             padding: 12px;
+            margin: 15px 0;
             box-sizing: border-box;
             background: #2d2d44;
             border: 1px solid #4a4a6a;
@@ -45,41 +46,44 @@
         }
         button:hover { background: #357abd; }
         button:disabled { opacity: 0.5; cursor: not-allowed; }
+        .error {
+            background: #4a1a1a;
+            color: #ff6b6b;
+            padding: 12px;
+            border-radius: 5px;
+            margin: 15px 0;
+            display: none;
+        }
+        .success {
+            background: #1a4a1a;
+            color: #6bff6b;
+            padding: 12px;
+            border-radius: 5px;
+            margin: 15px 0;
+            display: none;
+        }
     </style>
 </head>
 <body>
     <div class="card">
         <h1>🚀 Lanzalo</h1>
-        <div id="error" class="error" style="display:none; background: #4a1a1a; color: #ff6b6b; padding: 10px; border-radius: 5px; text-align: center; margin-bottom: 20px;"></div>
-        <div id="success" class="success" style="display:none; background: #1a4a1a; color: #6bff6b; padding: 10px; border-radius: 5px; text-align: center; margin-bottom: 20px;"></div>
+        <div id="error" class="error"></div>
+        <div id="success" class="success"></div>
 
-        <form id="login-form" class="input-group">
-            <input type="email" id="email" placeholder="Email" value="javi@saleshackers.es" required>
-        </form>
-        <form id="password-form" class="input-group">
-            <input type="password" id="password" placeholder="Password" value="Lanzalo2026!" required>
-        </form>
-        <button type="submit" id="login-btn" class="btn">Entrar</button>
+        <input type="email" id="email" placeholder="Tu email" value="javi@saleshackers.es" required>
+        <button onclick="sendLink()" id="btn">Enviar enlace mágico</button>
+
+        <p style="font-size: 12px; color: #888; margin-top: 30px;">
+            Seleccionaremos un email válido (2026-03-07@gmail.com si te lo pedí antes).
+        </p>
     </div>
 
     <script>
-        // Prevenir que el formulario envíe
-        document.getElementById('login-form').addEventListener('submit', function(e) {
-            e.preventDefault();
-        });
-
-        document.getElementById('password-form').addEventListener('submit', function(e) {
-            e.preventDefault();
-        });
-
-        document.getElementById('login-btn').addEventListener('click', async function(e) {
-            e.preventDefault();
-
+        async function sendLink() {
             const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
             const errorDiv = document.getElementById('error');
             const successDiv = document.getElementById('success');
-            const btn = this;
+            const btn = document.getElementById('btn');
 
             errorDiv.style.display = 'none';
             successDiv.style.display = 'none';
@@ -87,33 +91,32 @@
             btn.textContent = 'Enviando...';
 
             try {
-                const response = await fetch('/api/auth/login', {
+                const response = await fetch('/login/send-link', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email, password })
+                    body: JSON.stringify({ email })
                 });
 
                 const data = await response.json();
 
                 if (response.ok) {
-                    localStorage.setItem('token', data.token);
-                    localStorage.setItem('user', JSON.stringify(data.user));
-                    successDiv.textContent = '✅ ¡LOGIN EXITOSO!\n\nEl token ha sido guardado en tu navegador.\nRedirigiendo al dashboard...';
+                    successDiv.textContent = '✅ Email enviado!\n\nRevisa tu bandeja de entrada.\n\nSi no lo ves en 5 minutos, puedes reintentar.';
                     successDiv.style.display = 'block';
-                    setTimeout(() => window.location.href = '/', 2000);
+                    btn.disabled = false;
+                    btn.textContent = 'Reintentar';
                 } else {
-                    errorDiv.textContent = '❌ ERROR:\n\n' + (data.error || 'Credenciales incorrectas');
+                    errorDiv.textContent = '❌ Error: ' + (data.error || 'Error al enviar el email');
                     errorDiv.style.display = 'block';
                     btn.disabled = false;
-                    btn.textContent = 'Entrar';
+                    btn.textContent = 'Enviar enlace mágico';
                 }
             } catch (e) {
-                errorDiv.textContent = '❌ Error de conexión:\n\n' + e.message;
+                errorDiv.textContent = '❌ Error de conexión: ' + e.message;
                 errorDiv.style.display = 'block';
                 btn.disabled = false;
-                btn.textContent = 'Entrar';
+                btn.textContent = 'Enviar enlace mágico';
             }
-        });
+        }
     </script>
 </body>
 </html>
