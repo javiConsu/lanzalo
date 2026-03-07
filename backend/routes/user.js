@@ -348,6 +348,19 @@ router.get('/dashboard', async (req, res) => {
 });
 
 /**
+ * Estado de gamificación de una empresa
+ */
+router.get('/companies/:companyId/gamestate', requireAuth, requireCompanyAccess, async (req, res) => {
+  try {
+    const { getGameState } = require('../../backend/services/gamification');
+    const state = await getGameState(req.params.companyId);
+    res.json(state || { xp: 0, level: { level: 1, name: 'Idea', icon: '💡', progress: 0 }, tasksCompleted: 0 });
+  } catch (error) {
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
+/**
  * Chat con Co-Founder Agent
  */
 router.post('/companies/:companyId/chat', requireAuth, requireCompanyAccess, async (req, res) => {

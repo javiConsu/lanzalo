@@ -22,6 +22,7 @@ const migrationFiles = [
   { name: '010_add_onboarding_fields.sql', file: path.join(__dirname, '..', 'database', 'migrations', '010_add_onboarding_fields.sql') },
   { name: '011_add_discovery_fields.sql', file: path.join(__dirname, '..', 'database', 'migrations', '011_add_discovery_fields.sql') },
   { name: '013_fix_missing_columns.sql', file: path.join(__dirname, '..', 'database', 'migrations', '013_fix_missing_columns.sql') },
+  { name: '014_add_gamification.sql', file: path.join(__dirname, '..', 'database', 'migrations', '014_add_gamification.sql') },
 ];
 
 async function runMigrations() {

@@ -43,6 +43,16 @@ class CEOAgent {
     // Guardar mensaje del usuario
     await this.saveMessage('user', userMessage);
 
+    // Gamificación: primer mensaje
+    try {
+      const { awardXp, unlockAchievement } = require('../backend/services/gamification');
+      const isFirst = this.conversationHistory.length === 0;
+      if (isFirst) {
+        await unlockAchievement(this.companyId, 'first_message');
+        await awardXp(this.companyId, 'first_message', 10, 'Primera conversación con el Co-Founder');
+      }
+    } catch(e) {}
+
     // Construir contexto de memoria — base de DB, sin LLM
     let memoryContext = `EMPRESA: ${this.company.name}
 INDUSTRIA: ${this.company.industry || 'No especificada'}

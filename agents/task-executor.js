@@ -115,6 +115,31 @@ class TaskExecutor {
         [result.output || 'Task completed', taskId]
       );
       console.log(`[Task Executor] ✅ Task ${taskId} completed`);
+
+      // Gamificación: XP por tarea completada
+      try {
+        const { awardXp, unlockAchievement } = require('./services/gamification').default || require('../backend/services/gamification');
+        await awardXp(task.company_id, 'task_completed', 25, `Tarea completada: ${task.title}`);
+        // Logros por número de tareas
+        const countResult = await pool.query(
+          `SELECT COUNT(*) as n FROM tasks WHERE company_id = $1 AND status = 'completed'`,
+          [task.company_id]
+        );
+        const n = parseInt(countResult.rows[0].n);
+        if (n === 10) await unlockAchievement(task.company_id, 'tasks_10');
+        if (n === 50) await unlockAchievement(task.company_id, 'tasks_50');
+        // Broadcast feed
+        if (global.broadcastActivity) {
+          global.broadcastActivity({
+            companyId: task.company_id,
+            type: 'task_completed',
+            agentType: task.tag || task.agent_type,
+            taskTitle: task.title,
+            message: `Tarea completada: ${task.title}`,
+            timestamp: new Date().toISOString()
+          });
+        }
+      } catch (e) { /* silencioso */ }
     } catch (error) {
       console.error(`[Task Executor] ❌ Task ${taskId} failed:`, error.message);
       const retryCount = task.retry_count || 0;

@@ -1,6 +1,7 @@
 import { Outlet, Link, useLocation } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import LiveFeed from '../components/LiveFeed.jsx'
+import GameState from '../components/GameState.jsx'
 import { apiUrl } from '../api.js'
 
 export default function Dashboard({ user, onLogout }) {
@@ -83,9 +84,10 @@ export default function Dashboard({ user, onLogout }) {
           </Link>
         </nav>
 
-        {/* Live Feed en sidebar */}
+        {/* Gamificación + Live Feed en sidebar */}
         {activeCompanyId && (
-          <div className="p-3 border-t border-gray-700">
+          <div className="p-3 border-t border-gray-700 space-y-2">
+            <GameState companyId={activeCompanyId} />
             <LiveFeed companyId={activeCompanyId} />
           </div>
         )}
