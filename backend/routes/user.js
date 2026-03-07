@@ -347,4 +347,42 @@ router.get('/dashboard', async (req, res) => {
   }
 });
 
+/**
+ * Chat con Co-Founder Agent
+ */
+router.post('/companies/:id/chat', requireAuth, requireCompanyAccess, async (req, res) => {
+  try {
+    const companyId = req.params.id;
+    const { message } = req.body;
+    if (!message?.trim()) return res.status(400).json({ error: 'Mensaje requerido' });
+
+    const CEOAgent = require('../../agents/ceo-agent');
+    const ceo = new CEOAgent(companyId, req.user.id);
+    await ceo.initialize();
+    const response = await ceo.processMessage(message);
+    res.json({ success: true, ...response });
+  } catch (error) {
+    console.error('[Co-Founder] Error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * Historial de chat
+ */
+router.get('/companies/:id/chat/history', requireAuth, requireCompanyAccess, async (req, res) => {
+  try {
+    const companyId = req.params.id;
+    const limit = parseInt(req.query.limit) || 50;
+    const result = await pool.query(
+      `SELECT id, role, content, created_at FROM chat_messages
+       WHERE company_id = $1 ORDER BY created_at DESC LIMIT $2`,
+      [companyId, limit]
+    );
+    res.json({ messages: result.rows.reverse() });
+  } catch (error) {
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
 module.exports = router;

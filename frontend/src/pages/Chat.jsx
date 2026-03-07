@@ -152,7 +152,7 @@ export default function Chat() {
 
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-            <span className="text-sm text-gray-400">6 agentes activos</span>
+            <span className="text-sm text-gray-400">Co-Founder Agent</span>
           </div>
         </div>
       </div>
@@ -194,7 +194,7 @@ export default function Chat() {
                 <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"></div>
                 <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce delay-100"></div>
                 <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce delay-200"></div>
-                <span className="text-gray-400 ml-2">CEO Agent pensando...</span>
+                <span className="text-gray-400 ml-2">Co-Founder pensando...</span>
               </div>
             </div>
           </div>
