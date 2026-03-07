@@ -28,75 +28,21 @@ function generateToken() {
  * Muestra formulario de email
  */
 router.get('/email', (req, res) => {
-  res.send(`
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="UTF-8">
-      <title>Accede a Lanzalo</title>
-      <style>
-        body {
-          font-family: Arial, sans-serif;
-          display: flex;
-          justify-content: center;
-          align-items: center;
-          min-height: 100vh;
-          margin: 0;
-          background: #111;
-          color: #fff;
-        }
-        .card {
-          background: #1a1a2e;
-          padding: 40px;
-          border-radius: 10px;
-          text-align: center;
-        }
-        input {
-          width: 100%;
-          padding: 12px;
-          margin: 20px 0;
-          box-sizing: border-box;
-          background: #2d2d44;
-          border: 1px solid #4a4a6a;
-          color: #fff;
-          border-radius: 5px;
-        }
-        button {
-          width: 100%;
-          padding: 12px;
-          background: #4a90e2;
-          border: none;
-          color: #fff;
-          font-size: 16px;
-          cursor: pointer;
-          border-radius: 5px;
-        }
-        button:hover { background: #357abd; }
-        button:disabled { opacity: 0.5; cursor: not-allowed; }
-      </style>
-    </head>
-    <body>
-      <div class="card">
-        <h1>🚀 Lanzalo</h1>
-        <p>Introduce tu email y te enviaremos un enlace para acceder</p>
-        <form action="/login/send-link" method="POST">
-          <input type="email" name="email" placeholder="tu@email.com" required>
-          <button type="submit">Enviar enlace</button>
-        </form>
-      </div>
-    </body>
-    </html>
-  `);
+  res.sendFile('/home/javi/.openclaw/workspace/lanzalo/backend/login.html', { root: __dirname });
 });
 
 /**
- * POST /login/send-link
+ * POST /api/login/send-link
  * Envía email con link de acceso
  */
-router.post('/send-link', async (req, res) => {
+router.post('/api/login/send-link', async (req, res) => {
   try {
+    console.log('📨 recibiendo email:', req.body.email);
     const { email } = req.body;
+    console.log('🔑 generando token...');
+
     const token = generateToken();
+    console.log('💾 guardando token en BD...');
 
     // Guardar token en la base de datos con expiración de 24h
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
@@ -109,6 +55,8 @@ router.post('/send-link', async (req, res) => {
          expires_at = $3`,
       [email.toLowerCase(), token, expiresAt]
     );
+
+    console.log('📧 enviando email...');
 
     // Enviar email
     const frontendUrl = process.env.FRONTEND_URL || 'https://www.lanzalo.pro';
@@ -133,6 +81,8 @@ router.post('/send-link', async (req, res) => {
       `
     });
 
+    console.log('✅ email enviado con éxito');
+
     res.json({
       success: true,
       message: 'Email enviado correctamente',
@@ -140,7 +90,7 @@ router.post('/send-link', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error sending email:', error);
+    console.error('❌ Error sending email:', error);
     res.status(500).json({ error: 'Error al enviar el email. Por favor, inténtalo de nuevo.' });
   }
 });
