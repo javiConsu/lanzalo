@@ -32,10 +32,10 @@ router.get('/email', (req, res) => {
 });
 
 /**
- * POST /api/login/send-link
+ * POST /send-link
  * Envía email con link de acceso
  */
-router.post('/api/login/send-link', async (req, res) => {
+router.post('/send-link', async (req, res) => {
   try {
     console.log('📨 recibiendo email:', req.body.email);
     const { email } = req.body;

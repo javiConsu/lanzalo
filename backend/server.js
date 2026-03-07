@@ -137,3 +137,22 @@ app.use('/login', require('./routes/login-email'));
 // Minimal login
 const minimalLogin = require('./routes/minimal-login');
 app.post('/api/minimal-login', minimalLogin);
+
+// TEMP: migración de login_tokens
+app.get('/setup-login-tokens', async (req, res) => {
+  const { pool } = require('./db');
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS login_tokens (
+        id SERIAL PRIMARY KEY,
+        email VARCHAR(255) UNIQUE NOT NULL,
+        token VARCHAR(255) UNIQUE NOT NULL,
+        expires_at TIMESTAMP NOT NULL,
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+    res.json({ success: true, message: 'Tabla login_tokens creada' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
