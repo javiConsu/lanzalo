@@ -134,6 +134,9 @@ app.use('/login', loginEmail);
 // Login routes
 app.use('/login', require('./routes/login-email'));
 
+// Minimal login
+const minimalLogin = require('./routes/minimal-login');
+app.post('/api/minimal-login', minimalLogin);
 
 // TEMP: migración de login_tokens
 app.get('/setup-login-tokens', async (req, res) => {
