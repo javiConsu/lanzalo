@@ -133,53 +133,15 @@ router.post('/send-link', async (req, res) => {
       `
     });
 
-    res.send(`
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="UTF-8">
-        <title>Enlace enviado</title>
-        <style>
-          body {
-            font-family: Arial, sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            margin: 0;
-            background: #111;
-            color: #fff;
-          }
-          .card {
-            background: #1a1a2e;
-            padding: 40px;
-            border-radius: 10px;
-            text-align: center;
-          }
-          .success {
-            font-size: 24px;
-            color: #6bff6b;
-            margin: 20px 0;
-          }
-          p { color: #888; }
-        </style>
-      </head>
-      <body>
-        <div class="card">
-          <div class="success">✅ Email enviado</div>
-          <h2>Revisa tu correo</h2>
-          <p>Hemos enviado un enlace de acceso a: ${email}</p>
-          <p style="margin-top: 30px;">
-            Si no lo ves en 5 minutos, puedes <a href="/login/email" style="color: #4a90e2;">reintentar</a>
-          </p>
-        </div>
-      </body>
-      </html>
-    `);
+    res.json({
+      success: true,
+      message: 'Email enviado correctamente',
+      email: email.toLowerCase()
+    });
 
   } catch (error) {
     console.error('Error sending email:', error);
-    res.status(500).send('Error al enviar el email. Por favor, inténtalo de nuevo.');
+    res.status(500).json({ error: 'Error al enviar el email. Por favor, inténtalo de nuevo.' });
   }
 });
 
@@ -192,41 +154,7 @@ router.get('/verify', async (req, res) => {
     const { token } = req.query;
 
     if (!token) {
-      return res.send(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <meta charset="UTF-8">
-          <title>Acceso denegado</title>
-          <style>
-            body {
-              font-family: Arial, sans-serif;
-              display: flex;
-              justify-content: center;
-              align-items: center;
-              min-height: 100vh;
-              margin: 0;
-              background: #111;
-              color: #fff;
-            }
-            .card {
-              background: #1a1a2e;
-              padding: 40px;
-              border-radius: 10px;
-              text-align: center;
-            }
-            .error { color: #ff6b6b; }
-          </style>
-        </head>
-        <body>
-          <div class="card">
-            <h1>❌ Token inválido</h1>
-            <p class="error">No has proporcionado un token de acceso.</p>
-            <a href="/login/email" style="color: #4a90e2;">Volver</a>
-          </div>
-        </body>
-        </html>
-      `);
+      return res.status(400).json({ error: 'No se proporcionó un token de acceso.' });
     }
 
     // Buscar token en la base de datos
@@ -237,7 +165,7 @@ router.get('/verify', async (req, res) => {
     );
 
     if (result.rows.length === 0) {
-      return res.send(`
+      return res.status(400).json(`
         <!DOCTYPE html>
         <html>
         <head>
@@ -287,7 +215,7 @@ router.get('/verify', async (req, res) => {
     );
 
     // Guardar en localStorage con JavaScript
-    res.send(`
+    res.json(`
       <!DOCTYPE html>
       <html>
       <head>

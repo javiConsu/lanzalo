@@ -79,12 +79,7 @@
     <script>
         async function sendMagicLink() {
             const email = document.getElementById('email').value;
-            const errorDiv = document.getElementById('error');
-            const successDiv = document.getElementById('success');
             const btn = document.getElementById('btn');
-
-            if (errorDiv) errorDiv.remove();
-            if (successDiv) successDiv.remove();
 
             btn.disabled = true;
             btn.textContent = 'Enviando...';
@@ -102,22 +97,17 @@
                     const successDiv = document.createElement('div');
                     successDiv.className = 'w-full px-4 py-3 bg-green-900/50 border border-green-700 text-green-200 rounded-lg mb-4';
                     successDiv.textContent = '✅ Email enviado! Revisa tu bandeja de entrada.';
-                    document.querySelector('.max-w-4xl').insertBefore(successDiv, document.querySelector('.max-w-4xl').children[1]);
+                    const form = document.querySelector('.bg-gray-800');
+                    form.insertBefore(successDiv, form.children[1]);
                     btn.disabled = false;
                     btn.textContent = 'Reneviar enlace';
                 } else {
-                    const errorDiv = document.createElement('div');
-                    errorDiv.className = 'w-full px-4 py-3 bg-red-900/50 border border-red-700 text-red-200 rounded-lg mb-4';
-                    errorDiv.textContent = '❌ Error: ' + (data.error || 'No se pudo enviar el email');
-                    document.querySelector('.max-w-4xl').insertBefore(errorDiv, document.querySelector('.max-w-4xl').children[1]);
+                    alert('❌ Error: ' + (data.error || 'No se pudo enviar el email'));
                     btn.disabled = false;
                     btn.textContent = 'Enviar enlace mágico';
                 }
             } catch (e) {
-                const errorDiv = document.createElement('div');
-                errorDiv.className = 'w-full px-4 py-3 bg-red-900/50 border border-red-700 text-red-200 rounded-lg mb-4';
-                errorDiv.textContent = '❌ Error de conexión: ' + e.message;
-                document.querySelector('.max-w-4xl').insertBefore(errorDiv, document.querySelector('.max-w-4xl').children[1]);
+                alert('❌ Error de conexión: ' + e.message);
                 btn.disabled = false;
                 btn.textContent = 'Enviar enlace mágico';
             }
