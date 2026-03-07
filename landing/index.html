@@ -1,888 +1,127 @@
 <!DOCTYPE html>
-<html lang="es">
+<html>
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Lanzalo — Tu Co-Fundador IA que Construye Negocios</title>
-  <meta name="description" content="Describe tu idea por la mañana. Tienes negocio funcionando por la noche. O elige una idea validada con demanda real.">
-  <script src="https://cdn.tailwindcss.com"></script>
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
-    body { font-family: 'Inter', sans-serif; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lanzalo — Tu Co-Fundador IA autónomo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+    </style>
 </head>
 <body class="bg-gray-900 text-gray-100">
 
-  <!-- Header -->
-  <header class="border-b border-gray-800 bg-gray-900/50 backdrop-blur">
-    <div class="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-      <div class="text-2xl font-bold">🚀 Lanzalo</div>
-      <div class="flex gap-4">
-        <a href="#ideas" class="text-gray-400 hover:text-white transition">Ideas</a>
-        <a href="#pricing" class="text-gray-400 hover:text-white transition">Precio</a>
-        <a href="#faq" class="text-gray-400 hover:text-white transition">FAQ</a>
-      </div>
-    </div>
-  </header>
+    <!-- Header -->
+    <header class="border-b border-gray-800 bg-gray-900/50 backdrop-blur">
+        <div class="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
+            <div class="text-2xl font-bold">🚀 Lanzalo</div>
+            <div class="flex gap-4">
+                <a href="/test" class="text-blue-400 hover:text-blue-300 transition">Login</a>
+            </div>
+        </div>
+    </header>
 
-  <!-- Hero Section -->
-  <section class="max-w-4xl mx-auto px-6 py-20 text-center">
-    <h1 class="text-5xl md:text-6xl font-bold mb-6 leading-tight">
-      Tu equipo de IA autónomo<br>
-      <span class="text-blue-400">que trabaja contigo</span>
-    </h1>
-    
-    <p class="text-xl text-gray-400 mb-12 max-w-2xl mx-auto">
-      7 agentes especializados construyen y venden tu negocio<br>
-      mientras tú decides qué hacer después
-    </p>
+    <!-- Hero Section -->
+    <section class="max-w-4xl mx-auto px-6 py-20 text-center">
+        <h1 class="text-5xl md:text-6xl font-bold mb-6 leading-tight">
+            Tu equipo de IA autónomo<br>
+            <span class="text-blue-400">que trabaja contigo</span>
+        </h1>
 
-    <!-- Input Form -->
-    <div class="bg-gray-800 border border-gray-700 rounded-xl p-8 mb-6">
-      <div class="flex gap-2 mb-4">
-        <button type="button" onclick="switchForm('login')" id="btn-login" class="flex-1 py-2 rounded-lg text-sm font-medium transition-colors bg-blue-600 text-white">
-          Entrar
-        </button>
-        <button type="button" onclick="switchForm('register')" id="btn-register" class="flex-1 py-2 rounded-lg text-sm font-medium transition-colors bg-gray-700 text-gray-400 hover:bg-gray-600">
-          Crear cuenta
-        </button>
-      </div>
+        <p class="text-xl text-gray-400 mb-12 max-w-2xl mx-auto">
+            7 agentes especializados construyen y venden tu negocio<br>
+            mientras tú decides qué hacer después
+        </p>
 
-      <form id="auth-form" class="space-y-4">
-        <input
-          type="email"
-          id="email-input"
-          placeholder="Tu email"
-          required
-          class="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
+        <!-- Simple Email Login -->
+        <div class="bg-gray-800 border border-gray-700 rounded-xl p-8 mb-6">
+            <h2 class="text-2xl font-bold mb-4">Accede ahora</h2>
 
-        <input
-          type="password"
-          id="password-input"
-          placeholder="Contraseña"
-          required
-          minlength="8"
-          class="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
+            <input
+                type="email"
+                id="email"
+                placeholder="Tu email"
+                value="javi@saleshackers.es"
+                class="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 mb-3"
+            />
 
-        <textarea
-          id="idea-input"
-          placeholder="¿Cómo te ayudamos hoy? (opcional)"
-          class="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-          rows="2"
-        ></textarea>
+            <button
+                onclick="sendMagicLink()"
+                id="btn"
+                class="w-full px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition text-lg"
+            >
+                🔮 Enviar enlace mágico
+            </button>
 
-        <div id="form-error" class="hidden text-red-400 text-sm text-center py-2 px-4 bg-red-900/20 rounded-lg"></div>
-        <button
-          type="submit"
-          id="submit-btn"
-          class="w-full px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition text-lg"
-        >
-          Entrar
-        </button>
-      </form>
+            <p class="text-sm text-gray-500 mt-4">
+                Te enviaremos un enlace único a tu email
+            </p>
+        </div>
 
-      <style>
-        #idea-input {
-          display: ${currentMode === 'register' ? 'block' : 'none'};
-        }
-      </style>
+        <!-- Divider -->
+        <div class="text-gray-500 mb-12">
+            ━━━━━━━━━━ O ━━━━━━━━━━
+        </div>
 
-      <p class="text-sm text-gray-500 mt-4 text-center">
-        14 días gratis trial • Sin tarjeta • $39/mes después
-      </p>
-    </div>
+        <!-- CTA Section -->
+        <div class="text-center mb-12">
+            <h2 class="text-2xl font-semibold mb-3">¿No sabes qué construir?</h2>
+            <p class="text-gray-400 max-w-2xl mx-auto">
+                Nosotros tampoco al principio.<br><br>
+                Por eso tenemos una IA que escanea Reddit, Twitter y Hacker News buscando problemas reales.<br><br>
+                Cuando 100+ personas piden lo mismo, lo validamos. Eso es demanda probada.
+            </p>
+        </div>
+    </section>
 
+    <!-- Scripts -->
     <script>
-      let currentMode = 'login';
-
-      function switchForm(mode) {
-        currentMode = mode;
-        const loginBtn = document.getElementById('btn-login');
-        const registerBtn = document.getElementById('btn-register');
-        const submitBtn = document.getElementById('submit-btn');
-        const ideaInput = document.getElementById('idea-input');
-
-        if (mode === 'login') {
-          loginBtn.className = 'flex-1 py-2 rounded-lg text-sm font-medium transition-colors bg-blue-600 text-white';
-          registerBtn.className = 'flex-1 py-2 rounded-lg text-sm font-medium transition-colors bg-gray-700 text-gray-400 hover:bg-gray-600';
-          submitBtn.textContent = 'Entrar';
-          submitBtn.disabled = false;
-          document.getElementById('form-error').classList.add('hidden');
-          if (ideaInput) ideaInput.style.display = 'none';
-        } else {
-          loginBtn.className = 'flex-1 py-2 rounded-lg text-sm font-medium transition-colors bg-gray-700 text-gray-400 hover:bg-gray-600';
-          registerBtn.className = 'flex-1 py-2 rounded-lg text-sm font-medium transition-colors bg-blue-600 text-white';
-          submitBtn.textContent = 'Crear cuenta gratis (14 días)';
-          submitBtn.disabled = false;
-          document.getElementById('form-error').classList.add('hidden');
-          if (ideaInput) ideaInput.style.display = 'block';
-        }
-      }
-    </script>
-
-    <div class="text-gray-500 mb-8">
-      ━━━━━━━━━━ O ━━━━━━━━━━
-    </div>
-
-    <div class="text-center mb-12">
-      <h2 class="text-2xl font-semibold mb-3">¿No sabes qué construir?</h2>
-      <p class="text-gray-400 max-w-2xl mx-auto">
-        Nosotros tampoco al principio.<br><br>
-        Por eso tenemos una IA que escanea Reddit, Twitter y Hacker News buscando problemas reales.<br><br>
-        Cuando 100+ personas piden lo mismo, lo validamos. Eso es demanda probada.
-      </p>
-    </div>
-  </section>
-
-  <!-- Ideas Section -->
-  <section id="ideas" class="max-w-6xl mx-auto px-6 py-16">
-    <h2 class="text-4xl font-bold text-center mb-4">
-      💡 Ideas que la gente está pidiendo AHORA
-    </h2>
-    <p class="text-center text-gray-400 mb-12">
-      Regístrate y te mandamos 5 ideas nuevas cada semana.<br>
-      Peores son los emails de tu banco.
-    </p>
-
-    <div class="grid md:grid-cols-2 gap-8 mb-12">
-      <!-- Idea 1 -->
-      <div class="bg-gray-800 border border-gray-700 rounded-xl p-8 hover:border-gray-600 transition">
-        <div class="flex items-start justify-between mb-6">
-          <span class="text-5xl font-bold text-green-400">95</span>
-          <span class="text-5xl">🛒</span>
-        </div>
-        
-        <h3 class="text-2xl font-bold mb-4">
-          Plataforma de Mentorías para Developers Junior
-        </h3>
-        
-        <div class="mb-6">
-          <p class="text-sm text-gray-500 mb-2">📊 La gente lo pide:</p>
-          <ul class="text-gray-300 space-y-1 text-sm">
-            <li>• 150+ tweets pidiendo mentor</li>
-            <li>• 20 threads en r/learnprogramming</li>
-            <li>• Múltiples posts en HN</li>
-            <li>• "I wish there was a platform..."</li>
-          </ul>
-        </div>
-        
-        <div class="flex items-center gap-4 mb-6">
-          <span class="px-3 py-1 bg-green-900/50 text-green-300 text-sm font-medium rounded-full border border-green-700">
-            💰 $2K-5K/mes
-          </span>
-          <span class="px-3 py-1 bg-blue-900/50 text-blue-300 text-sm font-medium rounded-full border border-blue-700">
-            ⚡ Fácil de montar
-          </span>
-        </div>
-      </div>
-
-      <!-- Idea 2 -->
-      <div class="bg-gray-800 border border-gray-700 rounded-xl p-8 hover:border-gray-600 transition">
-        <div class="flex items-start justify-between mb-6">
-          <span class="text-5xl font-bold text-blue-400">88</span>
-          <span class="text-5xl">💻</span>
-        </div>
-        
-        <h3 class="text-2xl font-bold mb-4">
-          Cold Email con IA que no parece spam
-        </h3>
-        
-        <div class="mb-6">
-          <p class="text-sm text-gray-500 mb-2">📊 La gente lo pide:</p>
-          <ul class="text-gray-300 space-y-1 text-sm">
-            <li>• 40+ mentions en Twitter</li>
-            <li>• 15 posts en Hacker News</li>
-            <li>• "Why doesn't this exist yet?"</li>
-            <li>• Sales teams buscando solución</li>
-          </ul>
-        </div>
-        
-        <div class="flex items-center gap-4 mb-6">
-          <span class="px-3 py-1 bg-green-900/50 text-green-300 text-sm font-medium rounded-full border border-green-700">
-            💰 $5K-15K/mes
-          </span>
-          <span class="px-3 py-1 bg-yellow-900/50 text-yellow-300 text-sm font-medium rounded-full border border-yellow-700">
-            📊 Dificultad media
-          </span>
-        </div>
-      </div>
-    </div>
-
-    <div class="text-center">
-      <button
-        onclick="document.getElementById('email-input').focus()"
-        class="px-8 py-4 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-white font-semibold rounded-lg transition inline-flex items-center gap-2"
-      >
-        Ver más ideas <span class="text-gray-400">(20+ con demanda probada)</span>
-      </button>
-    </div>
-  </section>
-
-  <!-- How it Works -->
-  <section class="max-w-4xl mx-auto px-6 py-16">
-    <h2 class="text-4xl font-bold text-center mb-4">
-      Cómo funciona
-    </h2>
-    <p class="text-center text-gray-400 mb-12">
-      Preguntamos primero. Construimos después.
-    </p>
-
-    <div class="space-y-8">
-      <div class="flex gap-6">
-        <div class="text-4xl font-bold text-blue-500">1</div>
-        <div>
-          <h3 class="text-xl font-semibold mb-2">Describes tu idea</h3>
-          <p class="text-gray-400">"Plataforma de X para Y..."</p>
-        </div>
-      </div>
-
-      <div class="flex gap-6">
-        <div class="text-4xl font-bold text-blue-500">2</div>
-        <div>
-          <h3 class="text-xl font-semibold mb-2">Te decimos la verdad (30 segundos)</h3>
-          <div class="space-y-2 mt-3">
-            <div class="flex items-center gap-2">
-              <span class="text-2xl">✅</span>
-              <span class="text-gray-400">VERDE: "Buena idea, adelante"</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <span class="text-2xl">🟡</span>
-              <span class="text-gray-400">AMARILLO: "Tiene potencial con ajustes"</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <span class="text-2xl">🔴</span>
-              <span class="text-gray-400">ROJO: "Problemas serios, te explico"</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="flex gap-6">
-        <div class="text-4xl font-bold text-blue-500">3</div>
-        <div>
-          <h3 class="text-xl font-semibold mb-2">Tú decides</h3>
-          <p class="text-gray-400">Continuar (informado), ajustar (con sugerencias), o pivotar (a idea mejor)</p>
-        </div>
-      </div>
-
-      <div class="flex gap-6">
-        <div class="text-4xl font-bold text-blue-500">2</div>
-        <div>
-          <h3 class="text-xl font-semibold mb-2">Nuestra IA monta el negocio mientras duermes:</h3>
-          <ul class="text-gray-400 space-y-1 mt-2">
-            <li>• Landing page que no da vergüenza enseñar</li>
-            <li>• Análisis de mercado (quién te va a comprar)</li>
-            <li>• Primeros emails de marketing escritos</li>
-            <li>• Tweets programados (sin emojis corporativos)</li>
-          </ul>
-        </div>
-      </div>
-
-      <div class="flex gap-6">
-        <div class="text-4xl font-bold text-blue-500">3</div>
-        <div>
-          <h3 class="text-xl font-semibold mb-2">Por la mañana tienes URL funcionando.</h3>
-          <p class="text-gray-400">tunegocio.lanzalo.app</p>
-        </div>
-      </div>
-
-      <div class="flex gap-6">
-        <div class="text-4xl font-bold text-blue-500">4</div>
-        <div>
-          <h3 class="text-xl font-semibold mb-2">Si continúas, construimos TODO</h3>
-          <ul class="text-gray-400 space-y-1 mt-2">
-            <li>• Landing page profesional</li>
-            <li>• <strong>Meta Ads:</strong> Facebook + Instagram automáticas</li>
-            <li>• <strong>Cold Email:</strong> Outreach personalizado</li>
-            <li>• <strong>Twitter:</strong> Tweets con tu voz</li>
-            <li>• <strong>Analytics:</strong> Métricas en tiempo real</li>
-          </ul>
-          <p class="text-sm text-gray-500 mt-3">
-            Pero ahora sabes en qué te metes.
-          </p>
-        </div>
-      </div>
-    </div>
-
-    <div class="mt-12 text-center p-6 bg-gray-800/50 rounded-lg border border-gray-700">
-      <p class="text-xl text-gray-400 mb-2">
-        Otros construyen primero, preguntan después.
-      </p>
-      <p class="text-xl font-semibold text-white">
-        Nosotros preguntamos primero, construimos después.
-      </p>
-    </div>
-  </section>
-
-  <!-- Team of Agents -->
-  <section class="max-w-4xl mx-auto px-6 py-16 bg-gray-800/30 rounded-xl my-16">
-    <h2 class="text-4xl font-bold text-center mb-4">
-      7 agentes. 1 equipo. 0 excusas.
-    </h2>
-    <p class="text-center text-gray-400 mb-12">
-      Cada uno hace lo que mejor sabe hacer
-    </p>
-
-    <div class="grid md:grid-cols-2 gap-6">
-      <div class="bg-gray-900/50 border border-gray-700 rounded-lg p-6">
-        <div class="text-3xl mb-3">🧠</div>
-        <h3 class="text-lg font-bold mb-2">CEO Agent</h3>
-        <p class="text-gray-400 text-sm">Coordina todo el equipo. Y sí, te llevará la contraria cuando haga falta.</p>
-      </div>
-
-      <div class="bg-gray-900/50 border border-gray-700 rounded-lg p-6">
-        <div class="text-3xl mb-3">💻</div>
-        <h3 class="text-lg font-bold mb-2">Code Agent</h3>
-        <p class="text-gray-400 text-sm">Escribe código, genera landing pages, despliega a producción.</p>
-      </div>
-
-      <div class="bg-gray-900/50 border border-gray-700 rounded-lg p-6">
-        <div class="text-3xl mb-3">🔍</div>
-        <h3 class="text-lg font-bold mb-2">Research Agent</h3>
-        <p class="text-gray-400 text-sm">Investiga mercado, competencia, y valida tu idea ANTES de construir.</p>
-      </div>
-
-      <div class="bg-gray-900/50 border border-gray-700 rounded-lg p-6">
-        <div class="text-3xl mb-3">📧</div>
-        <h3 class="text-lg font-bold mb-2">Email Agent</h3>
-        <p class="text-gray-400 text-sm">Cold emails, newsletters, follow-ups. Sin spam, con personalización.</p>
-      </div>
-
-      <div class="bg-gray-900/50 border border-gray-700 rounded-lg p-6">
-        <div class="text-3xl mb-3">🐦</div>
-        <h3 class="text-lg font-bold mb-2">Twitter Agent</h3>
-        <p class="text-gray-400 text-sm">Tweets, threads, engagement. Con tu voz, sin sonar a bot.</p>
-      </div>
-
-      <div class="bg-gray-900/50 border border-gray-700 rounded-lg p-6">
-        <div class="text-3xl mb-3">📊</div>
-        <h3 class="text-lg font-bold mb-2">Data Agent</h3>
-        <p class="text-gray-400 text-sm">Analytics, métricas, dashboards. Sabe qué está funcionando (y qué no).</p>
-      </div>
-
-      <div class="bg-gray-900/50 border border-gray-700 rounded-lg p-6">
-        <div class="text-3xl mb-3">🎯</div>
-        <h3 class="text-lg font-bold mb-2">Trend Scout</h3>
-        <p class="text-gray-400 text-sm">Descubre ideas validadas en Reddit, HN, Twitter. Demanda real, no inventada.</p>
-      </div>
-
-      <div class="bg-gray-900/50 border border-gray-700 rounded-lg p-6">
-        <div class="text-3xl mb-3">🌐</div>
-        <h3 class="text-lg font-bold mb-2">Browser Agent</h3>
-        <p class="text-gray-400 text-sm">Automatiza tareas web. Testing, scraping, research, lo que haga falta.</p>
-      </div>
-    </div>
-
-    <div class="text-center mt-12 p-6 bg-gray-900/50 rounded-lg border border-gray-700">
-      <p class="text-xl text-gray-300">
-        Todos trabajan 24/7.<br>
-        Ninguno pide vacaciones.
-      </p>
-    </div>
-  </section>
-
-  <!-- Full Stack Marketing -->
-  <section class="max-w-4xl mx-auto px-6 py-16">
-    <h2 class="text-4xl font-bold text-center mb-4">
-      Y sí, también construimos y vendemos
-    </h2>
-    <p class="text-center text-gray-400 mb-12">
-      Pero solo después de validar que tiene sentido
-    </p>
-
-    <div class="grid md:grid-cols-2 gap-8 mb-12">
-      <!-- Meta Ads -->
-      <div class="bg-gray-800 border border-gray-700 rounded-lg p-6">
-        <div class="text-4xl mb-4">📱</div>
-        <h3 class="text-xl font-bold mb-3">Meta Ads Automáticas</h3>
-        <p class="text-gray-400 mb-4">
-          Facebook + Instagram ads que no parecen hechas por tu primo.
-        </p>
-        <ul class="text-sm text-gray-300 space-y-2">
-          <li>✓ Copy optimizado con IA</li>
-          <li>✓ Imágenes generadas</li>
-          <li>✓ A/B testing automático</li>
-          <li>✓ Budget controlado (tú decides cuánto)</li>
-          <li>✓ ROI tracking en tiempo real</li>
-        </ul>
-      </div>
-
-      <!-- Email Marketing -->
-      <div class="bg-gray-800 border border-gray-700 rounded-lg p-6">
-        <div class="text-4xl mb-4">📧</div>
-        <h3 class="text-xl font-bold mb-3">Email Marketing</h3>
-        <p class="text-gray-400 mb-4">
-          Cold emails que funcionan. Newsletters que la gente lee.
-        </p>
-        <ul class="text-sm text-gray-300 space-y-2">
-          <li>✓ Cold outreach personalizado</li>
-          <li>✓ Follow-ups automáticos (3-5 secuencia)</li>
-          <li>✓ Newsletters con contenido IA</li>
-          <li>✓ No spam (rate limiting inteligente)</li>
-          <li>✓ Founder-to-founder tone</li>
-        </ul>
-      </div>
-
-      <!-- Twitter/X -->
-      <div class="bg-gray-800 border border-gray-700 rounded-lg p-6">
-        <div class="text-4xl mb-4">🐦</div>
-        <h3 class="text-xl font-bold mb-3">Twitter/X Orgánico</h3>
-        <p class="text-gray-400 mb-4">
-          Tweets que no dan vergüenza. Sin emojis corporativos.
-        </p>
-        <ul class="text-sm text-gray-300 space-y-2">
-          <li>✓ Dark humor (o el tono que quieras)</li>
-          <li>✓ Threads con valor real</li>
-          <li>✓ Programación inteligente (2/día max)</li>
-          <li>✓ Engagement tracking</li>
-          <li>✓ Tu voz, amplificada</li>
-        </ul>
-      </div>
-
-      <!-- Analytics -->
-      <div class="bg-gray-800 border border-gray-700 rounded-lg p-6">
-        <div class="text-4xl mb-4">📊</div>
-        <h3 class="text-xl font-bold mb-3">Analytics + BI</h3>
-        <p class="text-gray-400 mb-4">
-          Métricas que importan. Sin vanity metrics.
-        </p>
-        <ul class="text-sm text-gray-300 space-y-2">
-          <li>✓ Dashboard en tiempo real</li>
-          <li>✓ Reportes semanales</li>
-          <li>✓ Recommendations automáticas</li>
-          <li>✓ CAC, LTV, churn tracking</li>
-          <li>✓ SQL queries cuando necesites</li>
-        </ul>
-      </div>
-    </div>
-
-    <div class="p-6 bg-blue-900/20 border border-blue-800 rounded-lg text-center">
-      <p class="text-lg mb-2">
-        <strong>En resumen:</strong> Producto + Marketing + Analytics
-      </p>
-      <p class="text-gray-400">
-        Es como tener un co-founder técnico, un growth marketer, y un analista de datos.<br>
-        Por $29/mes. Sin equity.
-      </p>
-    </div>
-  </section>
-
-  <!-- Anti-Features -->
-  <section class="max-w-4xl mx-auto px-6 py-16 bg-gray-800/50 rounded-xl my-16">
-    <h2 class="text-3xl font-bold text-center mb-4">
-      Lo que NO hacemos
-    </h2>
-    <p class="text-center text-gray-400 mb-8">
-      (porque un co-fundador real tampoco lo haría)
-    </p>
-
-    <div class="space-y-4 mb-8">
-      <div class="flex items-start gap-3">
-        <span class="text-2xl">❌</span>
-        <span class="text-gray-300">Decirte que todas tus ideas son geniales</span>
-      </div>
-      <div class="flex items-start gap-3">
-        <span class="text-2xl">❌</span>
-        <span class="text-gray-300">Construir cualquier cosa sin cuestionarla</span>
-      </div>
-      <div class="flex items-start gap-3">
-        <span class="text-2xl">❌</span>
-        <span class="text-gray-300">Dejarte perder tiempo y dinero en ideas malas</span>
-      </div>
-      <div class="flex items-start gap-3">
-        <span class="text-2xl">❌</span>
-        <span class="text-gray-300">Actuar como asistente sumiso</span>
-      </div>
-      <div class="flex items-start gap-3">
-        <span class="text-2xl">❌</span>
-        <span class="text-gray-300">Decir "sí" a todo</span>
-      </div>
-    </div>
-
-    <div class="h-px bg-gray-700 my-8"></div>
-
-    <h3 class="text-2xl font-bold text-center mb-6 text-white">Lo que SÍ hacemos</h3>
-
-    <div class="space-y-4">
-      <div class="flex items-start gap-3">
-        <span class="text-2xl">✅</span>
-        <span class="text-gray-300">Validar tu idea ANTES de construir</span>
-      </div>
-      <div class="flex items-start gap-3">
-        <span class="text-2xl">✅</span>
-        <span class="text-gray-300">Decirte "no" cuando hace falta</span>
-      </div>
-      <div class="flex items-start gap-3">
-        <span class="text-2xl">✅</span>
-        <span class="text-gray-300">Discutir contigo (como co-fundador)</span>
-      </div>
-      <div class="flex items-start gap-3">
-        <span class="text-2xl">✅</span>
-        <span class="text-gray-300">Darte alternativas mejores</span>
-      </div>
-      <div class="flex items-start gap-3">
-        <span class="text-2xl">✅</span>
-        <span class="text-gray-300">Construir SOLO si tiene sentido</span>
-      </div>
-    </div>
-
-    <div class="mt-8 text-center p-6 bg-blue-900/20 rounded-lg border border-blue-800">
-      <p class="text-xl font-semibold text-white mb-2">
-        Un buen co-fundador no está de acuerdo en todo.
-      </p>
-      <p class="text-gray-400">
-        Nosotros tampoco.
-      </p>
-    </div>
-  </section>
-
-  <!-- Examples -->
-  <section class="max-w-4xl mx-auto px-6 py-16">
-    <h2 class="text-3xl font-bold text-center mb-4">
-      Ejemplos de negocios reales
-    </h2>
-    <p class="text-center text-gray-400 mb-12">
-      (sí, la gente gana dinero con estas cosas)
-    </p>
-
-    <div class="space-y-4 text-gray-300">
-      <div class="bg-gray-800 border border-gray-700 rounded-lg p-6">
-        <p class="mb-1">• <strong>App de citas para granjeros</strong> → $18K/mes</p>
-        <p class="text-sm text-gray-500 ml-4">(amor entre tractores, quién lo diría)</p>
-      </div>
-
-      <div class="bg-gray-800 border border-gray-700 rounded-lg p-6">
-        <p class="mb-1">• <strong>Alquiler de gallinas ponedoras</strong> → $4K/mes</p>
-        <p class="text-sm text-gray-500 ml-4">(huevos frescos sin compromiso a largo plazo)</p>
-      </div>
-
-      <div class="bg-gray-800 border border-gray-700 rounded-lg p-6">
-        <p class="mb-1">• <strong>Software para tarotistas online</strong> → $7K/mes</p>
-        <p class="text-sm text-gray-500 ml-4">(gestión de clientes + predicciones, irónico)</p>
-      </div>
-
-      <div class="bg-gray-800 border border-gray-700 rounded-lg p-6">
-        <p class="mb-1">• <strong>Marketplace de insectos comestibles</strong> → $12K/mes</p>
-        <p class="text-sm text-gray-500 ml-4">(proteína sostenible, dicen)</p>
-      </div>
-    </div>
-
-    <div class="mt-8 p-6 bg-gray-800/50 border-l-4 border-blue-500 rounded">
-      <p class="text-lg mb-2">
-        Un señor en Alburquerque monta impresiones de frases en lápidas.
-      </p>
-      <p class="text-gray-400 mb-2">
-        Nadie puede decir que no se "ennicho" bien.
-      </p>
-      <p class="font-semibold text-blue-400 mt-4">
-        El punto: Si ellos pueden, tú también.<br>
-        Sobre todo con una IA que hace el trabajo sucio.
-      </p>
-    </div>
-  </section>
-
-  <!-- Pricing -->
-  <section id="pricing" class="max-w-3xl mx-auto px-6 py-16">
-    <h2 class="text-4xl font-bold text-center mb-4">Precio</h2>
-    <p class="text-center text-gray-400 mb-12">
-      (sin letra pequeña porque no somos banco)
-    </p>
-
-    <div class="bg-gray-800 border-2 border-blue-500 rounded-xl p-10 text-center">
-      <div class="text-5xl font-bold mb-4">$29<span class="text-2xl text-gray-400">/mes</span></div>
-      <p class="text-gray-400 mb-2">por negocio</p>
-
-      <!-- Comparación de valor -->
-      <div class="bg-gray-900/50 rounded-lg p-4 mb-8 text-left">
-        <p class="text-sm text-gray-400 mb-2">
-          Esto te costaría contratando por separado:
-        </p>
-        <ul class="text-sm text-gray-300 space-y-1">
-          <li>• Developer: $3K-8K/mes</li>
-          <li>• Growth marketer: $2K-5K/mes</li>
-          <li>• Copywriter: $1K-3K/mes</li>
-          <li>• Data analyst: $2K-4K/mes</li>
-        </ul>
-        <p class="text-base font-bold text-gray-400 mt-3">
-          Total normal: $8K-20K/mes
-        </p>
-        <p class="text-xl font-bold text-green-400 mt-2">
-          Lanzalo: $29/mes
-        </p>
-      </div>
-
-      <div class="text-left space-y-3 mb-8">
-        <div class="flex items-start gap-3">
-          <span class="text-green-400">✓</span>
-          <span>Tu IA personal 24/7</span>
-        </div>
-        <div class="flex items-start gap-3">
-          <span class="text-green-400">✓</span>
-          <span>Web funcionando</span>
-        </div>
-        <div class="flex items-start gap-3">
-          <span class="text-green-400">✓</span>
-          <span>Emails, tweets, marketing</span>
-        </div>
-        <div class="flex items-start gap-3">
-          <span class="text-green-400">✓</span>
-          <span>Análisis automático</span>
-        </div>
-        <div class="flex items-start gap-3">
-          <span class="text-green-400">✓</span>
-          <span>Ideas nuevas cada semana</span>
-        </div>
-        <div class="flex items-start gap-3">
-          <span class="text-green-400">✓</span>
-          <span>Chat con tu co-fundador IA</span>
-        </div>
-      </div>
-
-      <div class="mb-8 p-4 bg-gray-900/50 rounded-lg">
-        <p class="text-sm text-gray-300">
-          7 días gratis. Cancela cuando quieras.<br>
-          Sin preguntas. Sin "¿por qué te vas?".
-        </p>
-      </div>
-
-      <button
-        onclick="document.getElementById('email-input').focus(); window.scrollTo({top: 0, behavior: 'smooth'})"
-        class="w-full px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition text-lg"
-      >
-        Probar 7 días gratis
-      </button>
-    </div>
-  </section>
-
-  <!-- FAQ -->
-  <section id="faq" class="max-w-3xl mx-auto px-6 py-16">
-    <h2 class="text-4xl font-bold text-center mb-4">FAQ</h2>
-    <p class="text-center text-gray-400 mb-12">
-      (las preguntas que te estás haciendo)
-    </p>
-
-    <div class="space-y-6">
-      <div class="bg-gray-800 border border-gray-700 rounded-lg p-6">
-        <h3 class="font-semibold text-lg mb-2">"¿Es de verdad una IA o 3 indios en Bangalore?"</h3>
-        <p class="text-gray-400">→ Es de verdad IA (Claude Sonnet). 7 agentes autónomos.</p>
-      </div>
-
-      <div class="bg-gray-800 border border-gray-700 rounded-lg p-6">
-        <h3 class="font-semibold text-lg mb-2">"¿Funciona para mi nicho super específico?"</h3>
-        <p class="text-gray-400">→ Si hay internet y clientes, sí. Hemos visto de todo.</p>
-      </div>
-
-      <div class="bg-gray-800 border border-gray-700 rounded-lg p-6">
-        <h3 class="font-semibold text-lg mb-2">"¿Voy a tener que hablar con un comercial?"</h3>
-        <p class="text-gray-400">→ No. Odias las calls. Nosotros también.</p>
-      </div>
-
-      <div class="bg-gray-800 border border-gray-700 rounded-lg p-6">
-        <h3 class="font-semibold text-lg mb-2">"¿Qué pasa si no me gusta?"</h3>
-        <p class="text-gray-400">→ Cancelas. Punto. Sin emails de "te echamos de menos".</p>
-      </div>
-
-      <div class="bg-gray-800 border border-gray-700 rounded-lg p-6">
-        <h3 class="font-semibold text-lg mb-2">"¿Puedo lanzar varios negocios?"</h3>
-        <p class="text-gray-400">→ Sí. $29 cada uno. Lanza 10 si quieres. Valida rápido. Escala el que funcione.</p>
-      </div>
-
-      <div class="bg-gray-800 border border-gray-700 rounded-lg p-6">
-        <h3 class="font-semibold text-lg mb-2">"Esto suena demasiado fácil."</h3>
-        <p class="text-gray-400">→ Porque lo es. Ese es el punto.</p>
-      </div>
-
-      <div class="bg-gray-800 border border-gray-700 rounded-lg p-6">
-        <h3 class="font-semibold text-lg mb-2">"¿Me vais a decir que mi idea es mala?"</h3>
-        <p class="text-gray-400">→ Si es mala, sí. Con datos, evidencia, y alternativas mejores. Eso es lo que hace un co-fundador de verdad.</p>
-      </div>
-
-      <div class="bg-gray-800 border border-gray-700 rounded-lg p-6">
-        <h3 class="font-semibold text-lg mb-2">"¿Y si quiero continuar de todos modos?"</h3>
-        <p class="text-gray-400">→ Es tu decisión. Te avisamos, pero tú mandas. Solo queremos que lo sepas antes de invertir tiempo y dinero.</p>
-      </div>
-
-      <div class="bg-gray-800 border border-gray-700 rounded-lg p-6">
-        <h3 class="font-semibold text-lg mb-2">"¿De verdad hacéis marketing también?"</h3>
-        <p class="text-gray-400">→ Sí. Meta Ads, emails, Twitter, todo automatizado. Configuras budget y target audience. La IA hace el resto. No prometemos resultados mágicos, pero sí ahorrarte 20h/semana.</p>
-      </div>
-
-      <div class="bg-gray-800 border border-gray-700 rounded-lg p-6">
-        <h3 class="font-semibold text-lg mb-2">"¿Cuánto cuesta el ad spend?"</h3>
-        <p class="text-gray-400">→ Tú decides. Empezamos recomendando $5-10/día en Meta. Puedes pausar/ajustar cuando quieras. Lanzalo no se queda comisión del ad spend.</p>
-      </div>
-
-      <div class="bg-gray-800 border border-gray-700 rounded-lg p-6">
-        <h3 class="font-semibold text-lg mb-2">"¿Los emails no van a spam?"</h3>
-        <p class="text-gray-400">→ Usamos warm-up automático, rate limiting, y SPF/DKIM/DMARC. Aún así, el email frío es difícil. Pero optimizamos para deliverability máxima.</p>
-      </div>
-    </div>
-  </section>
-
-  <!-- Final CTA -->
-  <section class="max-w-3xl mx-auto px-6 py-20 text-center">
-    <h2 class="text-4xl font-bold mb-6">Vale, ¿empezamos?</h2>
-    
-    <button
-      onclick="document.getElementById('email-input').focus(); window.scrollTo({top: 0, behavior: 'smooth'})"
-      class="px-10 py-5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg transition text-xl mb-6"
-    >
-      Probar 7 días gratis
-    </button>
-
-    <div class="text-gray-400 space-y-2">
-      <p>No pedimos tarjeta. En serio.</p>
-      <p class="text-sm">Peor es irse a recoger tomates a Almería.<br>(O bueno, igual no, pero casi.)</p>
-    </div>
-  </section>
-
-  <!-- Footer -->
-  <footer class="border-t border-gray-800 mt-20">
-    <div class="max-w-6xl mx-auto px-6 py-12">
-      <div class="text-center space-y-4">
-        <div class="text-2xl font-bold">🚀 Lanzalo</div>
-        <p class="text-gray-400">Tu co-fundador IA</p>
-        <p class="text-sm text-gray-500">
-          No llamamos. No spameamos. Solo construimos.
-        </p>
-      </div>
-    </div>
-  </footer>
-
-  <!-- Form Handler -->
-  <div id="success-message" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center z-50">
-    <div class="bg-gray-800 border border-gray-700 rounded-xl p-8 max-w-md mx-4 text-center">
-      <div class="text-5xl mb-4">🎉</div>
-      <h3 class="text-2xl font-bold mb-2">¡Estás en la lista!</h3>
-      <p class="text-gray-400 mb-6">
-        Te avisaremos cuando esté listo.<br>
-        (Y te mandamos las primeras ideas validadas)
-      </p>
-      <button
-        onclick="document.getElementById('success-message').classList.add('hidden')"
-        class="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition"
-      >
-        Cerrar
-      </button>
-    </div>
-  </div>
-
-  <script>
-    const BACKEND_URL = 'https://lanzalo-production.up.railway.app';
-
-    document.getElementById('idea-form').addEventListener('submit', async (e) => {
-      e.preventDefault();
-
-      console.log('Form submit event triggered');
-
-      const emailInput = document.getElementById('email-input');
-      const passwordInput = document.getElementById('password-input');
-      const submitBtn = e.target.querySelector('button[type="submit"]');
-      const errorMsg = document.getElementById('form-error');
-
-      if (!emailInput || !passwordInput) {
-        console.error('Required fields not found:', { emailInput: !!emailInput, passwordInput: !!passwordInput });
-        alert('Error: Campos obligatorios no encontrados');
-        return;
-      }
-
-      const email = emailInput.value;
-      const password = passwordInput.value;
-      const idea = document.getElementById('idea-input') ? document.getElementById('idea-input').value || 'Sin idea' : '';
-
-      console.log('Form data:', { email, mode: currentMode, hasIdea: !!idea });
-
-      // Ocultar error anterior
-      if (errorMsg) errorMsg.classList.add('hidden');
-
-      // Disable button during submit
-      const originalText = submitBtn.textContent;
-      submitBtn.disabled = true;
-      submitBtn.textContent = 'Enviando...';
-
-      try {
-        let endpoint, body;
-
-        if (currentMode === 'login') {
-          // LOGIN
-          endpoint = `${BACKEND_URL}/api/auth/login`;
-          body = JSON.stringify({ email, password });
-          console.log('Login to:', endpoint);
-        } else {
-          // REGISTER
-          const idea = ideaInput ? ideaInput.value || 'Sin idea' : 'Sin idea';
-          endpoint = `${BACKEND_URL}/api/onboarding/register`;
-          body = JSON.stringify({ email, password, idea });
-          console.log('Register to:', endpoint);
-        }
-
-        console.log('Submitting to:', endpoint);
-
-        const response = await fetch(endpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: body
-        });
-
-        const data = await response.json();
-        console.log('Response:', data);
-
-        if (!response.ok) {
-          console.log('Request failed:', data);
-
-          if (currentMode === 'register' && data.error === 'Email already registered') {
-            // Si está intentando registrar un email que ya existe, intentar login
-            console.log('Email already registered, trying login...');
-
-            const loginRes = await fetch(`${BACKEND_URL}/api/auth/login`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ email, password })
-            });
-
-            const loginData = await loginRes.json();
-            console.log('Login response:', loginData);
-
-            if (loginData.token) {
-              console.log('Login successful, saving token...');
-              localStorage.setItem('token', loginData.token);
-              localStorage.setItem('lanzalo_user', JSON.stringify(loginData.user || { email }));
-              window.location.href = '/';
-              return;
-            } else {
-              console.error('Login failed:', loginData);
-              throw new Error('Credenciales incorrectas');
+        async function sendMagicLink() {
+            const email = document.getElementById('email').value;
+            const errorDiv = document.getElementById('error');
+            const successDiv = document.getElementById('success');
+            const btn = document.getElementById('btn');
+
+            if (errorDiv) errorDiv.remove();
+            if (successDiv) successDiv.remove();
+
+            btn.disabled = true;
+            btn.textContent = 'Enviando...';
+
+            try {
+                const response = await fetch('/login/send-link', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    const successDiv = document.createElement('div');
+                    successDiv.className = 'w-full px-4 py-3 bg-green-900/50 border border-green-700 text-green-200 rounded-lg mb-4';
+                    successDiv.textContent = '✅ Email enviado! Revisa tu bandeja de entrada.';
+                    document.querySelector('.max-w-4xl').insertBefore(successDiv, document.querySelector('.max-w-4xl').children[1]);
+                    btn.disabled = false;
+                    btn.textContent = 'Reneviar enlace';
+                } else {
+                    const errorDiv = document.createElement('div');
+                    errorDiv.className = 'w-full px-4 py-3 bg-red-900/50 border border-red-700 text-red-200 rounded-lg mb-4';
+                    errorDiv.textContent = '❌ Error: ' + (data.error || 'No se pudo enviar el email');
+                    document.querySelector('.max-w-4xl').insertBefore(errorDiv, document.querySelector('.max-w-4xl').children[1]);
+                    btn.disabled = false;
+                    btn.textContent = 'Enviar enlace mágico';
+                }
+            } catch (e) {
+                const errorDiv = document.createElement('div');
+                errorDiv.className = 'w-full px-4 py-3 bg-red-900/50 border border-red-700 text-red-200 rounded-lg mb-4';
+                errorDiv.textContent = '❌ Error de conexión: ' + e.message;
+                document.querySelector('.max-w-4xl').insertBefore(errorDiv, document.querySelector('.max-w-4xl').children[1]);
+                btn.disabled = false;
+                btn.textContent = 'Enviar enlace mágico';
             }
-          }
-          throw new Error(data.error || data.message || 'Error: ' + JSON.stringify(data));
         }
-
-        // Guardar token y redirigir
-        if (data.token) {
-          localStorage.setItem('token', data.token);
-          localStorage.setItem('lanzalo_user', JSON.stringify(data.user || { email }));
-          window.location.href = '/';
-          return;
-        }
-
-        // Si no hay token, mostrar mensaje de exito
-        document.getElementById('success-message').classList.remove('hidden');
-        e.target.reset();
-
-      } catch (error) {
-        console.error('Error:', error);
-        // Mostrar error en el DOM (no alert)
-        if (errorMsg) {
-          errorMsg.textContent = error.message || 'Error al enviar. Por favor intenta de nuevo.';
-          errorMsg.classList.remove('hidden');
-        }
-      } finally {
-        submitBtn.disabled = false;
-        submitBtn.textContent = originalText;
-      }
-    });
-  </script>
+    </script>
 </body>
 </html>
