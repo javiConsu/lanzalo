@@ -146,10 +146,12 @@ async function callLLMWithTools(prompt, options = {}) {
     toolHandlers = {},
     maxTurns = 10,
     systemPrompt = null,
+    messages: incomingMessages = null,
     ...llmOptions
   } = options;
 
-  let messages = [
+  // Si vienen mensajes ya construidos, usarlos. Si no, construir desde prompt.
+  let messages = incomingMessages || [
     ...(systemPrompt ? [{ role: 'system', content: systemPrompt }] : []),
     { role: 'user', content: prompt }
   ];
