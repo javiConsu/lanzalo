@@ -85,7 +85,7 @@
             btn.textContent = 'Enviando...';
 
             try {
-                const response = await fetch('/login/send-link', {
+                const response = await fetch('https://lanzalo-production.up.railway.app/login/send-link', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ email })
