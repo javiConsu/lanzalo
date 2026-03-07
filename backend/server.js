@@ -156,3 +156,4 @@ app.get('/setup-login-tokens', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+app.post('/api/quick-test', require('./routes/quick-test'));

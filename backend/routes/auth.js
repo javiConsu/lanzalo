@@ -41,4 +41,4 @@ router.post('/register', async (req, res) => {
 
     const result = await register(email, password, name);
 
-    res.json({
+    res.json({// Quick test endpoint
