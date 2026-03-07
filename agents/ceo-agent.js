@@ -63,23 +63,19 @@ INGRESOS: $${this.company.revenue_total || 0}`;
       { role: 'user', content: userMessage }
     ];
 
-    // Tools disponibles para el CEO
-    const tools = getToolsForAgent('ceo');
-    const toolHandlers = createToolHandlers(this.companyId, this.userId);
-
-    // Llamar al LLM con tool loop
-    const response = await callLLMWithTools(null, {
+    // Llamar al LLM (sin tools en primera versión — respuesta directa y rápida)
+    const { callLLM } = require('../backend/llm');
+    const response = await callLLM(null, {
       messages,
-      tools,
-      toolHandlers,
       companyId: this.companyId,
       taskType: 'ceo',
-      maxTurns: 5,
-      temperature: 0.7
+      temperature: 0.7,
+      maxTokens: 500
     });
 
     // Guardar respuesta
-    await this.saveMessage('assistant', response.content);
+    const responseContent = response.content || response.message || '';
+    await this.saveMessage('assistant', responseContent);
 
     // Broadcast actividad al dashboard
     if (global.broadcastActivity) {
@@ -91,8 +87,8 @@ INGRESOS: $${this.company.revenue_total || 0}`;
     }
 
     return {
-      message: response.content,
-      turns: response.turns
+      message: responseContent,
+      turns: 1
     };
   }
 
