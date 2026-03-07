@@ -4,3 +4,4 @@ export const API_URL = import.meta.env.VITE_API_URL || 'https://lanzalo-producti
 export function apiUrl(path) {
   return `${API_URL}${path}`
 }
+// DEBUG: V1.0.1
