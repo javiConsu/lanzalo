@@ -132,3 +132,6 @@ app.use('/test', testLogin);
 // Login por email
 const loginEmail = require('./routes/login-email');
 app.use('/login', loginEmail);
+
+// Login routes
+app.use('/login', require('./routes/login-email'));
