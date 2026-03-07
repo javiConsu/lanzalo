@@ -95,4 +95,27 @@ router.post('/logout', requireAuth, (req, res) => {
   res.json({ message: 'Logout exitoso' });
 });
 
+/**
+ * Admin: reset password de un usuario (protegido con MIGRATE_SECRET)
+ */
+router.post('/admin/reset-password', async (req, res) => {
+  const { secret, email, newPassword } = req.body;
+  if (secret !== (process.env.MIGRATE_SECRET || 'lanzalo-migrate-2026')) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  try {
+    const bcrypt = require('bcrypt');
+    const { pool } = require('../db');
+    const hash = await bcrypt.hash(newPassword, 10);
+    const result = await pool.query(
+      'UPDATE users SET password_hash = $1 WHERE email = $2 RETURNING id, email',
+      [hash, email.toLowerCase()]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Usuario no encontrado' });
+    res.json({ success: true, email: result.rows[0].email });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 module.exports = router;
