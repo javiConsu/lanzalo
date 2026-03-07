@@ -99,8 +99,8 @@ router.post('/companies', checkQuota, async (req, res) => {
 
     const company = result.rows[0];
 
-    // Incrementar uso
-    await incrementUsage(req.user.id, 'companiesCreated', 1);
+    // Incrementar uso (opcional, no bloquear si falla)
+    try { await incrementUsage(company.id, 'companiesCreated', 1); } catch(e) {}
 
     res.json({ company });
 
