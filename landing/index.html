@@ -66,14 +66,12 @@
           class="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
 
-        ${currentMode === 'register' ? `
-          <textarea
-            id="idea-input"
-            placeholder="¿Cómo te ayudamos hoy? (opcional)"
-            class="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-            rows="2"
-          ></textarea>
-        ` : ''}
+        <textarea
+          id="idea-input"
+          placeholder="¿Cómo te ayudamos hoy? (opcional)"
+          class="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+          rows="2"
+        ></textarea>
 
         <div id="form-error" class="hidden text-red-400 text-sm text-center py-2 px-4 bg-red-900/20 rounded-lg"></div>
         <button
@@ -84,6 +82,12 @@
           Entrar
         </button>
       </form>
+
+      <style>
+        #idea-input {
+          display: ${currentMode === 'register' ? 'block' : 'none'};
+        }
+      </style>
 
       <p class="text-sm text-gray-500 mt-4 text-center">
         14 días gratis trial • Sin tarjeta • $39/mes después
@@ -98,6 +102,7 @@
         const loginBtn = document.getElementById('btn-login');
         const registerBtn = document.getElementById('btn-register');
         const submitBtn = document.getElementById('submit-btn');
+        const ideaInput = document.getElementById('idea-input');
 
         if (mode === 'login') {
           loginBtn.className = 'flex-1 py-2 rounded-lg text-sm font-medium transition-colors bg-blue-600 text-white';
@@ -105,12 +110,14 @@
           submitBtn.textContent = 'Entrar';
           submitBtn.disabled = false;
           document.getElementById('form-error').classList.add('hidden');
+          if (ideaInput) ideaInput.style.display = 'none';
         } else {
           loginBtn.className = 'flex-1 py-2 rounded-lg text-sm font-medium transition-colors bg-gray-700 text-gray-400 hover:bg-gray-600';
           registerBtn.className = 'flex-1 py-2 rounded-lg text-sm font-medium transition-colors bg-blue-600 text-white';
           submitBtn.textContent = 'Crear cuenta gratis (14 días)';
           submitBtn.disabled = false;
           document.getElementById('form-error').classList.add('hidden');
+          if (ideaInput) ideaInput.style.display = 'block';
         }
       }
     </script>
@@ -768,14 +775,24 @@
     document.getElementById('idea-form').addEventListener('submit', async (e) => {
       e.preventDefault();
 
+      console.log('Form submit event triggered');
+
       const emailInput = document.getElementById('email-input');
-      const ideaInput = document.getElementById('idea-input');
+      const passwordInput = document.getElementById('password-input');
       const submitBtn = e.target.querySelector('button[type="submit"]');
       const errorMsg = document.getElementById('form-error');
 
+      if (!emailInput || !passwordInput) {
+        console.error('Required fields not found:', { emailInput: !!emailInput, passwordInput: !!passwordInput });
+        alert('Error: Campos obligatorios no encontrados');
+        return;
+      }
+
       const email = emailInput.value;
-      const password = document.getElementById('password-input').value;
-      const idea = ideaInput.value || 'Sin idea (explorando)';
+      const password = passwordInput.value;
+      const idea = document.getElementById('idea-input') ? document.getElementById('idea-input').value || 'Sin idea' : '';
+
+      console.log('Form data:', { email, mode: currentMode, hasIdea: !!idea });
 
       // Ocultar error anterior
       if (errorMsg) errorMsg.classList.add('hidden');
@@ -792,11 +809,13 @@
           // LOGIN
           endpoint = `${BACKEND_URL}/api/auth/login`;
           body = JSON.stringify({ email, password });
+          console.log('Login to:', endpoint);
         } else {
           // REGISTER
-          const idea = document.getElementById('idea-input')?.value || 'Sin idea';
+          const idea = ideaInput ? ideaInput.value || 'Sin idea' : 'Sin idea';
           endpoint = `${BACKEND_URL}/api/onboarding/register`;
           body = JSON.stringify({ email, password, idea });
+          console.log('Register to:', endpoint);
         }
 
         console.log('Submitting to:', endpoint);
