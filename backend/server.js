@@ -126,8 +126,6 @@ const testLogin = require('./test-login-route');
 app.use('/test', testLogin);
 
 // Test endpoint
-const testLogin = require('./test-login-route');
-app.use('/test', testLogin);
 
 // Login por email
 const loginEmail = require('./routes/login-email');
