@@ -72,7 +72,7 @@ router.get('/email', (req, res) => {
           border-radius: 5px;
         }
         button:hover { background: #357abd; }
-        p { color: #888; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
       </style>
     </head>
     <body>
@@ -165,41 +165,7 @@ router.get('/verify', async (req, res) => {
     );
 
     if (result.rows.length === 0) {
-      return res.status(400).json(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <meta charset="UTF-8">
-          <title>Acceso denegado</title>
-          <style>
-            body {
-              font-family: Arial, sans-serif;
-              display: flex;
-              justify-content: center;
-              align-items: center;
-              min-height: 100vh;
-              margin: 0;
-              background: #111;
-              color: #fff;
-            }
-            .card {
-              background: #1a1a2e;
-              padding: 40px;
-              border-radius: 10px;
-              text-align: center;
-            }
-            .error { color: #ff6b6b; }
-          </style>
-        </head>
-        <body>
-          <div class="card">
-            <h1>❌ Enlace expirado</h1>
-            <p class="error">El enlace de acceso ha expirado o no es válido.</p>
-            <a href="/login/email" style="color: #4a90e2;">Volver</a>
-          </div>
-        </body>
-        </html>
-      `);
+      return res.status(400).json({ error: 'El enlace de acceso ha expirado o no es válido.' });
     }
 
     // Token válido → Login exitoso
@@ -215,7 +181,7 @@ router.get('/verify', async (req, res) => {
     );
 
     // Guardar en localStorage con JavaScript
-    res.json(`
+    res.send(`
       <!DOCTYPE html>
       <html>
       <head>
