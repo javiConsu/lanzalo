@@ -15,8 +15,21 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Middleware
+const ALLOWED_ORIGINS = [
+  'https://www.lanzalo.pro',
+  'https://lanzalo.pro',
+  process.env.CORS_ORIGIN,
+].filter(Boolean);
+
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || '*',
+  origin: (origin, cb) => {
+    // Permitir requests sin origin (mobile, curl, etc.)
+    if (!origin) return cb(null, true);
+    if (ALLOWED_ORIGINS.some(o => origin === o || origin.endsWith('.vercel.app'))) {
+      return cb(null, true);
+    }
+    cb(null, true); // En producción aceptamos todo por ahora — restringir en v2
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
