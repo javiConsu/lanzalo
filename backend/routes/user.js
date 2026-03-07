@@ -350,9 +350,9 @@ router.get('/dashboard', async (req, res) => {
 /**
  * Chat con Co-Founder Agent
  */
-router.post('/companies/:id/chat', requireAuth, requireCompanyAccess, async (req, res) => {
+router.post('/companies/:companyId/chat', requireAuth, requireCompanyAccess, async (req, res) => {
   try {
-    const companyId = req.params.id;
+    const companyId = req.params.companyId;
     const { message } = req.body;
     if (!message?.trim()) return res.status(400).json({ error: 'Mensaje requerido' });
 
@@ -370,9 +370,9 @@ router.post('/companies/:id/chat', requireAuth, requireCompanyAccess, async (req
 /**
  * Historial de chat
  */
-router.get('/companies/:id/chat/history', requireAuth, requireCompanyAccess, async (req, res) => {
+router.get('/companies/:companyId/chat/history', requireAuth, requireCompanyAccess, async (req, res) => {
   try {
-    const companyId = req.params.id;
+    const companyId = req.params.companyId;
     const limit = parseInt(req.query.limit) || 50;
     const result = await pool.query(
       `SELECT id, role, content, created_at FROM chat_messages
