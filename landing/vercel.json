@@ -1,8 +1,12 @@
 {
   "rewrites": [
     {
-      "source": "/:path*",
-      "destination": "https://lanzalo-production.up.railway.app/:path*"
+      "source": "/",
+      "destination": "https://lanzalo-production.up.railway.app/"
+    },
+    {
+      "source": "/:path(.*)",
+      "destination": "https://lanzalo-production.up.railway.app/:path"
     }
   ]
 }
