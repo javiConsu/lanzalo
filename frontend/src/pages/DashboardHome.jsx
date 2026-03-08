@@ -1,12 +1,12 @@
 /**
  * DashboardHome — Todo en un vistazo (estilo Polsia)
- * Chat del Co-Founder a la izquierda, widgets a la derecha
+ * Widgets a la izquierda, Chat del Co-Founder a la derecha (altura limitada)
  */
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { apiUrl, API_URL } from '../api.js'
 
-// ─── Inline Chat ───────────────────────────────────────────
+// ─── Inline Chat (altura limitada, no infinito) ──────────────────
 function InlineChat({ companyId }) {
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
@@ -76,9 +76,9 @@ function InlineChat({ companyId }) {
   }
 
   return (
-    <div className="flex flex-col h-full bg-gray-900/50 rounded-2xl border border-gray-700/50 overflow-hidden">
+    <div className="flex flex-col bg-gray-900/50 rounded-2xl border border-gray-700/50 overflow-hidden" style={{ maxHeight: 'calc(100vh - 6rem)' }}>
       {/* Chat header */}
-      <div className="flex items-center gap-3 px-5 py-3.5 border-b border-gray-700/50 bg-gray-900/80">
+      <div className="flex items-center gap-3 px-5 py-3.5 border-b border-gray-700/50 bg-gray-900/80 flex-shrink-0">
         <div className="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center">
           <span className="text-sm">🧠</span>
         </div>
@@ -92,10 +92,10 @@ function InlineChat({ companyId }) {
         </div>
       </div>
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
+      {/* Messages — scrollable, limited height */}
+      <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3 min-h-0">
         {messages.length === 0 && !loading && (
-          <div className="flex items-center justify-center h-full">
+          <div className="flex items-center justify-center h-32">
             <p className="text-gray-500 text-sm">Tu Co-Founder está listo. ¿Qué necesitas?</p>
           </div>
         )}
@@ -125,7 +125,7 @@ function InlineChat({ companyId }) {
       </div>
 
       {/* Input */}
-      <div className="px-4 py-3 border-t border-gray-700/50 bg-gray-900/80">
+      <div className="px-4 py-3 border-t border-gray-700/50 bg-gray-900/80 flex-shrink-0">
         <form onSubmit={handleSend} className="flex gap-2">
           <input
             type="text"
@@ -248,17 +248,40 @@ function StatsWidget({ company }) {
   )
 }
 
-// ─── Links Widget ──────────────────────────────────────────
-function LinksWidget({ company }) {
+// ─── Links & Documents Widget ──────────────────────────────
+function LinksWidget({ company, companyId }) {
+  const [documents, setDocuments] = useState([])
+  const token = localStorage.getItem('token')
+
+  useEffect(() => {
+    if (!companyId) return
+    fetch(apiUrl(`/api/user/companies/${companyId}/documents`), {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+      .then(r => r.json())
+      .then(d => setDocuments(d.documents || []))
+      .catch(() => {})
+  }, [companyId, token])
+
   const subdomain = company?.subdomain
+
+  const DOC_ICONS = {
+    research: '📊',
+    marketing: '📣',
+    code: '💻',
+    data: '📈',
+    email: '📧'
+  }
+
   return (
     <div className="bg-gray-900/50 rounded-2xl border border-gray-700/50 overflow-hidden">
       <div className="px-4 py-3 border-b border-gray-700/50">
         <span className="text-sm font-semibold text-white flex items-center gap-2">
-          <span className="text-xs">🔗</span> Links
+          <span className="text-xs">🔗</span> Links y documentos
         </span>
       </div>
       <div className="p-3 space-y-2">
+        {/* User's website */}
         {subdomain && (
           <a
             href={`https://${subdomain}.lanzalo.pro`}
@@ -276,19 +299,29 @@ function LinksWidget({ company }) {
             <span className="text-xs text-gray-600">↗</span>
           </a>
         )}
-        <a
-          href="https://lanzalo.pro"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-3 px-3 py-2.5 bg-gray-800/50 rounded-xl hover:bg-gray-800 transition-colors group"
-        >
-          <span className="text-sm">🚀</span>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm text-gray-200 group-hover:text-emerald-400 transition-colors">Lánzalo</p>
-            <p className="text-xs text-gray-500">Plataforma</p>
+
+        {/* Generated documents from completed tasks */}
+        {documents.map(doc => (
+          <div
+            key={doc.id}
+            className="flex items-center gap-3 px-3 py-2.5 bg-gray-800/50 rounded-xl hover:bg-gray-800 transition-colors group cursor-default"
+          >
+            <span className="text-sm">{DOC_ICONS[doc.tag] || '📄'}</span>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm text-gray-200 truncate">{doc.title}</p>
+              <p className="text-xs text-gray-500">
+                {doc.tag || 'documento'} · {new Date(doc.completed_at || doc.created_at).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}
+              </p>
+            </div>
           </div>
-          <span className="text-xs text-gray-600">↗</span>
-        </a>
+        ))}
+
+        {/* Empty state */}
+        {!subdomain && documents.length === 0 && (
+          <div className="px-3 py-4 text-center">
+            <p className="text-gray-600 text-xs">Los documentos generados por tus agentes aparecerán aquí</p>
+          </div>
+        )}
       </div>
     </div>
   )
@@ -411,17 +444,17 @@ export default function DashboardHome() {
 
   return (
     <div className="flex-1 flex flex-col lg:flex-row gap-4 p-4 overflow-hidden">
-      {/* Left: Chat (60%) */}
-      <div className="flex-1 lg:w-3/5 min-h-0 flex flex-col">
-        <InlineChat companyId={company.id} />
-      </div>
-
-      {/* Right: Widgets (40%) */}
+      {/* Left: Widgets (40%) */}
       <div className="lg:w-2/5 flex flex-col gap-3 overflow-y-auto min-h-0">
         <StatsWidget company={company} />
         <TasksWidget companyId={company.id} />
-        <LinksWidget company={company} />
+        <LinksWidget company={company} companyId={company.id} />
         <ActivityWidget companyId={company.id} />
+      </div>
+
+      {/* Right: Chat (60%) — limited height */}
+      <div className="flex-1 lg:w-3/5 min-h-0">
+        <InlineChat companyId={company.id} />
       </div>
     </div>
   )

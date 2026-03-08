@@ -516,4 +516,28 @@ router.get('/companies/:companyId/chat/history', requireAuth, requireCompanyAcce
   }
 });
 
+/**
+ * Documentos / reportes completados de una empresa
+ * Devuelve tareas completadas tipo research, marketing, code que generaron output
+ */
+router.get('/companies/:companyId/documents', requireAuth, requireCompanyAccess, async (req, res) => {
+  try {
+    const companyId = req.params.companyId;
+    const result = await pool.query(
+      `SELECT id, title, tag, output, created_at, completed_at
+       FROM tasks
+       WHERE company_id = $1
+         AND status = 'completed'
+         AND output IS NOT NULL
+         AND output != ''
+       ORDER BY completed_at DESC NULLS LAST, created_at DESC
+       LIMIT 10`,
+      [companyId]
+    );
+    res.json({ documents: result.rows });
+  } catch (error) {
+    res.json({ documents: [] });
+  }
+});
+
 module.exports = router;
