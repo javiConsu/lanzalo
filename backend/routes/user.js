@@ -18,11 +18,38 @@ router.use(requireAuth);
 router.get('/profile', async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT id, email, name, role, plan, created_at FROM users WHERE id = $1',
+      'SELECT id, email, name, role, plan, subscription_tier, trial_ends_at, created_at FROM users WHERE id = $1',
       [req.user.id]
     );
 
-    res.json({ user: result.rows[0] });
+    const user = result.rows[0];
+    if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
+
+    // Calcular estado del trial
+    const now = new Date();
+    const trialEndsAt = user.trial_ends_at ? new Date(user.trial_ends_at) : null;
+    const isTrialActive = user.plan === 'trial' && trialEndsAt && trialEndsAt > now;
+    const trialDaysLeft = isTrialActive ? Math.ceil((trialEndsAt - now) / (1000 * 60 * 60 * 24)) : 0;
+    const isTrialExpired = user.plan === 'trial' && trialEndsAt && trialEndsAt <= now;
+    const isPro = user.subscription_tier === 'pro' || user.plan === 'pro';
+
+    // Obtener créditos
+    let credits = { total: 0, monthly: 0, bonus: 0, used: 0 };
+    try {
+      const { getCredits } = require('../middleware/credits');
+      credits = await getCredits(user.id);
+    } catch (e) { /* tabla puede no existir aún */ }
+
+    res.json({
+      user: {
+        ...user,
+        isTrialActive,
+        trialDaysLeft,
+        isTrialExpired,
+        isPro,
+        credits
+      }
+    });
   } catch (error) {
     console.error('Error obteniendo perfil:', error);
     res.status(500).json({ error: 'Error del servidor' });
