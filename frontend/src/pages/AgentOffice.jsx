@@ -8,7 +8,7 @@ import { apiUrl, API_URL } from '../api.js'
 
 // ─── Agent definitions ─────────────────────────────────────
 const AGENT_DEFS = {
-  ceo:       { name: 'CEO',       emoji: '🧠', color: '#10b981', role: 'Coordina todo' },
+  ceo:       { name: 'Co-Founder', emoji: '🧠', color: '#10b981', role: 'Tu socio IA' },
   code:      { name: 'Code',      emoji: '💻', color: '#3b82f6', role: 'Escribe código' },
   marketing: { name: 'Marketing', emoji: '📣', color: '#ec4899', role: 'Estrategia y contenido' },
   email:     { name: 'Email',     emoji: '📧', color: '#f59e0b', role: 'Cold outreach' },
@@ -89,7 +89,7 @@ function getRandomBubble(state) {
 }
 
 // ─── Pixel Art Canvas Component ────────────────────────────
-function OfficeCanvas({ agents, width, height }) {
+function OfficeCanvas({ agents, width, height, companyName }) {
   const canvasRef = useRef(null)
   const animFrameRef = useRef(null)
   const bgImageRef = useRef(null)
@@ -360,7 +360,8 @@ function OfficeCanvas({ agents, width, height }) {
       ctx.fillText('⭐', plaqueX + 16, plaqueY + plaqueH / 2)
       ctx.fillText('⭐', plaqueX + plaqueW - 16, plaqueY + plaqueH / 2)
       ctx.fillStyle = '#e2e8f0'
-      ctx.fillText('Oficina de Agentes — Lánzalo', width / 2, plaqueY + plaqueH / 2)
+      const companyLabel = companyName || 'Tu empresa'
+      ctx.fillText(`Oficina de Agentes — ${companyLabel}`, width / 2, plaqueY + plaqueH / 2)
 
       animFrameRef.current = requestAnimationFrame(draw)
     }
@@ -639,6 +640,8 @@ export default function AgentOffice() {
   }
 
   const agentCount = Object.keys(agents).length
+  const company = companies.find(c => c.id === companyId)
+  const allIdle = Object.values(agents).every(a => a.state === 'idle')
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
@@ -647,7 +650,7 @@ export default function AgentOffice() {
         <div className="flex items-center gap-3">
           <span className="text-sm font-semibold text-white flex items-center gap-2">
             <span className="text-base">🏢</span>
-            Oficina de Agentes
+            Oficina de Agentes {company ? `— ${company.name}` : ''}
           </span>
           <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">
             {stats.totalInProgress > 0 ? `${stats.totalInProgress} trabajando` : `${agentCount} agentes`}
@@ -667,6 +670,21 @@ export default function AgentOffice() {
         )}
       </div>
 
+      {/* Nudge when all agents are idle */}
+      {allIdle && (
+        <div className="mx-4 mt-2 px-4 py-3 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-center gap-3">
+          <span className="text-lg">💤</span>
+          <div className="flex-1">
+            <p className="text-sm text-amber-200">
+              Tus agentes están descansando. Si quieres que se ganen el sueldo, habla con tu Co-Founder para crearles tareas.
+            </p>
+          </div>
+          <a href="/" className="text-xs px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition-colors whitespace-nowrap">
+            Ir al Chat
+          </a>
+        </div>
+      )}
+
       {/* Main layout */}
       <div className="flex-1 flex flex-col lg:flex-row gap-4 p-4 overflow-hidden">
         {/* Left: Office Canvas (60%) */}
@@ -676,6 +694,7 @@ export default function AgentOffice() {
               agents={agents}
               width={canvasSize.w}
               height={canvasSize.h}
+              companyName={company?.name}
             />
           ) : (
             <div className="text-gray-500 text-sm">Cargando agentes...</div>

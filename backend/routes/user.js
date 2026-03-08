@@ -590,7 +590,7 @@ router.get('/companies/:companyId/agents/status', requireAuth, requireCompanyAcc
     
     // Define all agent types with display info
     const AGENTS = {
-      ceo: { name: 'CEO', emoji: '🧠', color: '#10b981' },
+      ceo: { name: 'Co-Founder', emoji: '🧠', color: '#10b981' },
       code: { name: 'Code', emoji: '💻', color: '#3b82f6' },
       marketing: { name: 'Marketing', emoji: '📣', color: '#ec4899' },
       email: { name: 'Email', emoji: '📧', color: '#f59e0b' },
