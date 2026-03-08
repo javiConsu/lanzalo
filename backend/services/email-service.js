@@ -137,6 +137,82 @@ async function sendDailySync(user, company, sync) {
 }
 
 /**
+ * Send post-onboarding email: Co-Founder already working on your idea
+ * Polsia-style: personalized, shows work done, with brand voice
+ */
+async function sendCoFounderFirstEmail(user, company, intakeContext) {
+  if (!resend) {
+    console.log('[Email] Resend not configured, skipping co-founder email');
+    return { success: false, reason: 'not_configured' };
+  }
+
+  try {
+    // Generate personalized email content with LLM
+    const { callLLM } = require('../llm');
+    
+    const prompt = `Eres el Co-Founder IA de Lanzalo. Acabas de crear la empresa de tu socio y ya estás trabajando.
+
+DATOS DEL SOCIO:
+- Nombre: ${user.name || 'Emprendedor'}
+- Email: ${user.email}
+${intakeContext || ''}
+
+DATOS DE LA EMPRESA:
+- Nombre: ${company.name}
+- Descripción: ${company.description}
+- Audiencia: ${company.audience || 'Por definir'}
+
+ESCRIBE UN EMAIL DE BIENVENIDA POST-ONBOARDING.
+
+ESTILO (IMPORTANTE):
+- Como Polsia pero en español y más gamberro
+- Demuestra que has LEÍDO lo que escribió el fundador (referencia datos concretos de su aboutMe o lookingFor)
+- Dile QUÉ ya estás haciendo ("ya estoy analizando tu mercado", "estoy investigando competidores...")
+- Menciona que va a recibir un análisis de mercado y plan de negocio con valoración de su idea
+- NO seas un coach motivacional. Sé un socio que ya está currando.
+- Tono: directo, un poco borde pero con cariño, nada corporativo
+- Usa el nombre del usuario si lo tienes
+- 4-8 frases de cuerpo. Nada de párrafos enormes.
+
+FORMATO: Devuelve SOLO el texto del email (sin HTML, sin subject). Cada párrafo separado por línea en blanco.
+No uses saludo tipo "Querido" ni "Estimado". Empieza directo con el nombre o un "Bueno,".
+Termina con algo tipo "Tu Co-Founder, que ya está currando" o similar.`;
+
+    const response = await callLLM(prompt, {
+      taskType: 'ceo_chat',
+      temperature: 0.8,
+      maxTokens: 600
+    });
+
+    const emailBody = response.content || '';
+    if (!emailBody) {
+      console.warn('[Email] LLM returned empty body for co-founder email');
+      return { success: false, reason: 'empty_body' };
+    }
+
+    const htmlBody = renderCoFounderFirstEmail(user, company, emailBody);
+
+    const { data, error } = await resend.emails.send({
+      from: FROM_EMAIL,
+      to: user.email,
+      subject: `${company.name} — ya estoy trabajando en tu idea`,
+      html: htmlBody
+    });
+
+    if (error) {
+      console.error('[Email] Error sending co-founder email:', error);
+      return { success: false, error };
+    }
+
+    console.log(`[Email] Co-Founder first email sent to ${user.email}`);
+    return { success: true, data };
+  } catch (error) {
+    console.error('[Email] Exception sending co-founder email:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
  * Send task completed notification
  */
 async function sendTaskCompleted(user, company, task) {
@@ -403,6 +479,124 @@ function renderTaskCompletedEmail(company, task) {
   `;
 }
 
+function renderCoFounderFirstEmail(user, company, bodyText) {
+  // Convert plain text paragraphs to HTML
+  const htmlParagraphs = bodyText
+    .split('\n\n')
+    .filter(p => p.trim())
+    .map(p => `<p style="margin: 0 0 16px 0;">${p.replace(/\n/g, '<br>')}</p>`)
+    .join('');
+
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <style>
+        body { 
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; 
+          line-height: 1.7; 
+          color: #e5e7eb; 
+          background-color: #0a0a0a;
+          margin: 0; 
+          padding: 0; 
+        }
+        .container {
+          max-width: 600px; 
+          margin: 0 auto; 
+          padding: 40px 24px;
+        }
+        .logo {
+          font-size: 20px;
+          font-weight: 800;
+          color: #10b981;
+          margin-bottom: 32px;
+          letter-spacing: -0.5px;
+        }
+        .body-text {
+          font-size: 15px;
+          color: #d1d5db;
+        }
+        .body-text p {
+          margin: 0 0 16px 0;
+        }
+        .status-box {
+          background: #111827;
+          border: 1px solid #1f2937;
+          border-left: 3px solid #10b981;
+          border-radius: 8px;
+          padding: 20px;
+          margin: 24px 0;
+        }
+        .status-box h3 {
+          color: #10b981;
+          font-size: 13px;
+          text-transform: uppercase;
+          letter-spacing: 1px;
+          margin: 0 0 12px 0;
+        }
+        .status-item {
+          color: #9ca3af;
+          font-size: 14px;
+          padding: 4px 0;
+        }
+        .status-item .check {
+          color: #10b981;
+          margin-right: 8px;
+        }
+        .status-item .pending {
+          color: #f59e0b;
+          margin-right: 8px;
+        }
+        .cta {
+          display: inline-block;
+          background: #10b981;
+          color: #000000;
+          padding: 14px 28px;
+          text-decoration: none;
+          border-radius: 8px;
+          font-weight: 600;
+          font-size: 15px;
+          margin: 24px 0;
+        }
+        .footer {
+          color: #4b5563;
+          font-size: 13px;
+          margin-top: 40px;
+          padding-top: 20px;
+          border-top: 1px solid #1f2937;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="logo">Lanzalo.pro</div>
+        
+        <div class="body-text">
+          ${htmlParagraphs}
+        </div>
+
+        <div class="status-box">
+          <h3>Lo que ya estoy haciendo</h3>
+          <div class="status-item"><span class="check">✓</span> Empresa creada: ${company.name}</div>
+          <div class="status-item"><span class="pending">○</span> Análisis de mercado y competencia en curso</div>
+          <div class="status-item"><span class="pending">○</span> Plan de negocio con valoración de la idea</div>
+          <div class="status-item"><span class="pending">○</span> Veredicto del Co-Founder en tu chat</div>
+        </div>
+
+        <a href="https://lanzalo.pro/login" class="cta">Abrir tu dashboard →</a>
+
+        <div class="footer">
+          <p><strong style="color: #9ca3af;">Lanzalo</strong> — Tu equipo de IA que no duerme</p>
+          <p style="margin-top: 8px; font-style: italic;">PD: Si esto fuera un co-founder humano, te estaría cobrando equity. A mí me vale con $39/mes.</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+}
+
 function renderDowngradeEmail(user) {
   return `
     <!DOCTYPE html>
@@ -441,6 +635,7 @@ function renderDowngradeEmail(user) {
 
 module.exports = {
   sendWelcomeEmail,
+  sendCoFounderFirstEmail,
   sendTrialReminder,
   sendValidationComplete,
   sendDailySync,

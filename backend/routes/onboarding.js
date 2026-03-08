@@ -341,6 +341,17 @@ IMPORTANTE:
       'UPDATE users SET onboarding_completed = TRUE WHERE id = $1',
       [req.user.id]
     );
+
+    // Send personalized Co-Founder email (async, don't block response)
+    const { sendCoFounderFirstEmail } = require('../services/email-service');
+    const userRow = (await pool.query('SELECT name, email FROM users WHERE id = $1', [req.user.id])).rows[0];
+    sendCoFounderFirstEmail(
+      { name: userRow?.name, email: userRow?.email || req.user.email },
+      { name: companyData.name, description: companyData.description, audience: companyData.audience },
+      intakeContext
+    ).catch(err => {
+      console.error('[Onboarding] Failed to send Co-Founder email:', err.message);
+    });
     
     res.json({
       success: true,
