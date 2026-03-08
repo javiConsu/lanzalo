@@ -8,6 +8,7 @@
  * - TikTok (vía Brave Search): tendencias virales, necesidades de la gente
  * - Gumroad (vía Brave Search): qué productos digitales se venden bien
  * - Product Hunt (vía Brave Search): lanzamientos recientes, qué escala
+ * - Twitter/X (vía Brave Search): conversaciones, quejas, pain points virales
  */
 
 const { callLLM } = require('../../backend/llm');
@@ -38,7 +39,8 @@ class TrendScoutExecutor {
   - YouTube: ${signals.youtube.length}
   - TikTok (web): ${signals.tiktok.length}
   - Gumroad (web): ${signals.gumroad.length}
-  - Product Hunt (web): ${signals.productHunt.length}`);
+  - Product Hunt (web): ${signals.productHunt.length}
+  - Twitter/X (web): ${signals.twitter.length}`);
 
     if (totalSignals === 0) {
       return { output: 'Sin señales esta semana. Las fuentes no devolvieron datos.', summary: 'Sin datos' };
@@ -69,13 +71,14 @@ class TrendScoutExecutor {
 
   async scanAllSources() {
     // Run all sources in parallel — each one handles its own errors
-    const [reddit, hackerNews, youtube, tiktok, gumroad, productHunt] = await Promise.allSettled([
+    const [reddit, hackerNews, youtube, tiktok, gumroad, productHunt, twitter] = await Promise.allSettled([
       this.scanReddit(),
       this.scanHackerNews(),
       this.scanYouTube(),
       this.scanTikTokTrends(),
       this.scanGumroad(),
-      this.scanProductHunt()
+      this.scanProductHunt(),
+      this.scanTwitter()
     ]);
 
     return {
@@ -84,7 +87,8 @@ class TrendScoutExecutor {
       youtube: youtube.status === 'fulfilled' ? youtube.value : [],
       tiktok: tiktok.status === 'fulfilled' ? tiktok.value : [],
       gumroad: gumroad.status === 'fulfilled' ? gumroad.value : [],
-      productHunt: productHunt.status === 'fulfilled' ? productHunt.value : []
+      productHunt: productHunt.status === 'fulfilled' ? productHunt.value : [],
+      twitter: twitter.status === 'fulfilled' ? twitter.value : []
     };
   }
 
@@ -408,6 +412,41 @@ class TrendScoutExecutor {
     return results;
   }
 
+  // ─── TWITTER/X (via web search) ─────────────────────────────
+
+  async scanTwitter() {
+    if (!BRAVE_API_KEY) {
+      console.log('  ⏭️ Twitter/X: Brave API key no configurada');
+      return [];
+    }
+
+    console.log('🐦 [Trend Scout] Escaneando Twitter/X...');
+
+    const queries = [
+      'site:x.com "looking for a tool" OR "I need a" OR "wish there was"',
+      'site:x.com "pain point" OR "frustrated with" startup business',
+      'site:x.com "building in public" OR "just launched" saas indie',
+      'site:x.com "side hustle" OR "passive income" ideas 2026',
+      'site:x.com "anyone know a" OR "is there an app" OR "necesito una herramienta"',
+      'twitter business ideas viral thread entrepreneur'
+    ];
+
+    const results = [];
+
+    for (const query of queries) {
+      try {
+        const res = await this.braveSearch(query, 8);
+        results.push(...res.map(r => ({ ...r, source: 'twitter_web', query })));
+        await this.sleep(500);
+      } catch (error) {
+        console.warn(`  ⚠️ Twitter "${query}": ${error.message}`);
+      }
+    }
+
+    console.log(`  ✅ Twitter/X (web): ${results.length} resultados`);
+    return results;
+  }
+
   // ─── BRAVE SEARCH HELPER ─────────────────────────────────────
 
   async braveSearch(query, count = 5) {
@@ -460,6 +499,10 @@ class TrendScoutExecutor {
       .map(p => `${p.title}\n  ${p.description?.substring(0, 100)}`)
       .join('\n');
 
+    const twitterSample = signals.twitter.slice(0, 15)
+      .map(t => `${t.title}\n  ${t.description?.substring(0, 150)}`)
+      .join('\n');
+
     const prompt = `Eres un experto en detectar oportunidades de negocio digital analizando señales del mercado.
 
 SEÑALES RECOPILADAS HOY:
@@ -482,6 +525,9 @@ ${gumroadSample || '(sin datos)'}
 ═══ PRODUCT HUNT (${signals.productHunt.length} señales) ═══
 ${phSample || '(sin datos)'}
 
+═══ TWITTER/X (${signals.twitter.length} conversaciones) ═══
+${twitterSample || '(sin datos)'}
+
 INSTRUCCIONES:
 1. Cruza datos entre fuentes: si Reddit menciona un problema Y YouTube tiene vídeos sobre ello = señal fuerte
 2. Detecta pain points recurrentes que la gente tiene AHORA
@@ -501,7 +547,7 @@ RESPONDE EN JSON (SOLO JSON, sin texto antes ni después):
       "difficulty": "easy|medium|hard",
       "potential_revenue": "$X-Y/mes estimado (MRR)",
       "category": "saas|tool|template|marketplace|service|content",
-      "sources": ["reddit", "youtube", "tiktok", "hackernews", "gumroad", "producthunt"],
+      "sources": ["reddit", "youtube", "tiktok", "hackernews", "gumroad", "producthunt", "twitter"],
       "cross_validated": true/false
     }
   ]
@@ -635,6 +681,7 @@ Generado: ${new Date().toLocaleString('es-ES', { dateStyle: 'full', timeStyle: '
 - **Señales analizadas**: ${Object.values(signals).reduce((sum, arr) => sum + arr.length, 0)}
   - Reddit: ${signals.reddit.length} | HN: ${signals.hackerNews.length} | YouTube: ${signals.youtube.length}
   - TikTok: ${signals.tiktok.length} | Gumroad: ${signals.gumroad.length} | Product Hunt: ${signals.productHunt.length}
+  - Twitter/X: ${signals.twitter.length}
 - **Oportunidades detectadas**: ${ideas.length}
 - **Cross-validated** (2+ fuentes): ${crossValidated.length}
 - **Score promedio**: ${ideas.length > 0 ? Math.round(ideas.reduce((sum, i) => sum + i.score, 0) / ideas.length) : 0}/100

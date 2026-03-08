@@ -11,6 +11,8 @@ const SOURCE_CONFIG = {
   producthunt: { icon: '🟧', color: 'text-orange-300', bg: 'bg-orange-500/10 border-orange-500/20' },
   gumroad:     { icon: '💰', color: 'text-pink-300',   bg: 'bg-pink-500/10 border-pink-500/20' },
   hackernews:  { icon: '🟡', color: 'text-yellow-400', bg: 'bg-yellow-500/10 border-yellow-500/20' },
+  twitter:     { icon: '🐦', color: 'text-sky-400',    bg: 'bg-sky-500/10 border-sky-500/20' },
+  'x':         { icon: '🐦', color: 'text-sky-400',    bg: 'bg-sky-500/10 border-sky-500/20' },
   udemy:       { icon: '📚', color: 'text-purple-400', bg: 'bg-purple-500/10 border-purple-500/20' },
   default:     { icon: '🔍', color: 'text-gray-400',   bg: 'bg-gray-500/10 border-gray-500/20' }
 }
