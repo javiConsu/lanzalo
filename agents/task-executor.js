@@ -140,6 +140,13 @@ class TaskExecutor {
           });
         }
       } catch (e) { /* silencioso */ }
+
+      // Post-completion hook: send Co-Founder chat message for key tasks
+      try {
+        await this.postCompletionHook(task, result);
+      } catch (e) {
+        console.warn('[Task Executor] Post-completion hook error:', e.message);
+      }
     } catch (error) {
       console.error(`[Task Executor] ❌ Task ${taskId} failed:`, error.message);
       const retryCount = task.retry_count || 0;
@@ -161,6 +168,81 @@ class TaskExecutor {
 
   sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  /**
+   * Post-completion hook: notify via Co-Founder chat when important tasks finish
+   */
+  async postCompletionHook(task, result) {
+    // Only trigger for research tasks that are the initial analysis
+    const isMarketAnalysis = task.tag === 'research' && 
+      (task.title || '').toLowerCase().includes('lisis de mercado');
+    if (!isMarketAnalysis) return;
+    if (!result.output || result.output.length < 100) return;
+
+    console.log('[Task Executor] Sending Co-Founder chat message for completed analysis');
+
+    const { callLLM } = require('../backend/llm');
+    const { getSystemPrompt } = require('./system-prompts');
+
+    // Get company info
+    const companyResult = await pool.query(
+      'SELECT name, description FROM companies WHERE id = $1',
+      [task.company_id]
+    );
+    const company = companyResult.rows[0];
+    if (!company) return;
+
+    const systemPrompt = getSystemPrompt('ceo', company.name, '');
+
+    // Generate a concise chat message from the Co-Founder about the analysis results
+    const reportPreview = result.output.substring(0, 3000);
+    const prompt = `INSTRUCCION INTERNA (no repitas esto):
+Acabas de completar el analisis de mercado y plan de negocio para ${company.name}.
+Aqui esta el documento completo que generaste:
+
+---
+${reportPreview}
+---
+
+Ahora escribe un MENSAJE DE CHAT (no el documento) para tu socio fundador.
+
+REGLAS:
+- 3-5 frases maximo. Es un mensaje de chat, no un email.
+- Resume el VEREDICTO principal (adelante, con reservas, o replantear?)
+- Menciona 1-2 hallazgos clave que el fundador DEBE saber
+- Dile que el analisis completo esta disponible en la seccion "Links y documentos" del dashboard
+- Termina proponiendo el siguiente paso concreto
+- Tono: socio que te dice la verdad, no consultor que te vende humo`;
+
+    const response = await callLLM(prompt, {
+      systemPrompt,
+      taskType: 'ceo_chat',
+      temperature: 0.7,
+      maxTokens: 400
+    });
+
+    const chatMessage = response.content || '';
+    if (!chatMessage) return;
+
+    // Save as Co-Founder chat message
+    await pool.query(
+      `INSERT INTO chat_messages (company_id, role, content, created_at)
+       VALUES ($1, 'assistant', $2, NOW())`,
+      [task.company_id, chatMessage]
+    );
+
+    console.log('[Task Executor] Co-Founder chat message sent for analysis completion');
+
+    // Broadcast to live feed
+    if (global.broadcastActivity) {
+      global.broadcastActivity({
+        companyId: task.company_id,
+        type: 'ceo_message',
+        message: 'Co-Founder: Analisis de mercado completado',
+        timestamp: new Date().toISOString()
+      });
+    }
   }
 
   getStats() {

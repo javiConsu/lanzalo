@@ -244,31 +244,95 @@ router.post('/create-company', authenticate, async (req, res) => {
     
     console.log(`[Onboarding] Company created: ${companyData.name} (${companyId})`);
     
-    // Create initial task: Validate idea (Research Agent)
+    // Get user intake data for richer analysis
+    let intakeContext = '';
+    try {
+      const userData = await pool.query(
+        'SELECT survey_data, name FROM users WHERE id = $1',
+        [req.user.id]
+      );
+      const surveyData = userData.rows[0]?.survey_data || {};
+      if (surveyData.aboutMe) intakeContext += `\nSOBRE EL FUNDADOR: ${surveyData.aboutMe}`;
+      if (surveyData.lookingFor) intakeContext += `\nQUÉ BUSCA: ${surveyData.lookingFor}`;
+      if (surveyData.surveyAnswers) {
+        const a = surveyData.surveyAnswers;
+        if (a.experience_level) intakeContext += `\nEXPERIENCIA: ${a.experience_level}`;
+        if (a.primary_motivation) intakeContext += `\nMOTIVACIÓN: ${a.primary_motivation}`;
+        if (a.timeline) intakeContext += `\nTIMELINE: ${a.timeline}`;
+        if (a.biggest_challenge) intakeContext += `\nMAYOR RETO: ${a.biggest_challenge}`;
+      }
+    } catch(e) {}
+
+    // Create initial task: Full market analysis + business plan + idea rating
+    // Status 'todo' so TaskExecutor picks it up automatically
     const taskId = crypto.randomUUID();
     
     await pool.query(
       `INSERT INTO tasks 
        (id, company_id, tag, title, description, status, priority, created_at)
-       VALUES ($1, $2, 'research', $3, $4, 'pending', 'high', NOW())`,
+       VALUES ($1, $2, 'research', $3, $4, 'todo', 'critical', NOW())`,
       [
         taskId,
         companyId,
-        'Validar idea de negocio',
-        `Analiza esta idea de negocio:
+        'Análisis de mercado y plan de negocio',
+        `ANÁLISIS COMPLETO DE IDEA DE NEGOCIO
 
+=== DATOS DEL PROYECTO ===
 Nombre: ${companyData.name}
 Descripción: ${companyData.description}
-Audiencia: ${companyData.audience}
+Audiencia objetivo: ${companyData.audience}
+${intakeContext}
 
-Investiga:
-1. Demanda de mercado (búsquedas, trends)
-2. Competencia (saturación, jugadores)
-3. Revenue potential
-4. Riesgos principales
-5. Dificultad de ejecución
+=== TU MISIÓN ===
+Eres el Co-Founder analítico de esta startup. Tu socio acaba de contarte su idea.
+Tienes que hacer un análisis EXHAUSTIVO y HONESTO — no eres un coach motivacional,
+eres un socio que pone su dinero y su tiempo. Sé directo.
 
-Genera reporte completo con veredicto: Verde/Amarillo/Rojo.`
+GENERA UN DOCUMENTO COMPLETO EN MARKDOWN CON ESTAS SECCIONES:
+
+# 📊 Análisis de Mercado y Plan de Negocio: ${companyData.name}
+
+## 1. VALORACIÓN DE LA IDEA
+- Puntuación general (1-10) con justificación
+- Veredicto: 🟢 ADELANTE / 🟡 CON RESERVAS / 🔴 REPLANTEAR
+- Qué es lo mejor de la idea (sin humo)
+- Qué es lo peor de la idea (sin suavizar)
+
+## 2. ANÁLISIS DE MERCADO
+- Tamaño del mercado (TAM/SAM/SOM estimados)
+- Tendencias del sector
+- Demanda real vs percibida
+- ¿Existe gente buscando/pagando por esto ya?
+
+## 3. COMPETENCIA
+- Competidores directos (mínimo 3 si existen)
+- Competidores indirectos
+- Qué hacen bien / qué hacen mal
+- Diferenciación posible
+
+## 4. MODELO DE NEGOCIO PROPUESTO
+- Revenue model (cómo cobrar)
+- Pricing sugerido
+- Canales de adquisición
+- Unit economics estimados (CAC, LTV)
+
+## 5. PLAN DE ACCIÓN (primeros 30 días)
+- 5 pasos concretos priorizados
+- Qué validar primero
+- MVP mínimo viable
+- Métricas clave a trackear
+
+## 6. RIESGOS Y MITIGACIÓN
+- Top 3 riesgos
+- Cómo mitigar cada uno
+- Señales de que hay que pivotar
+
+IMPORTANTE:
+- Escribe en español
+- Sé ESPECÍFICO (números, nombres de competidores reales, datos concretos)
+- No uses lenguaje corporativo vacío
+- Si la idea es mala, dilo claramente pero propón alternativas
+- El documento debe ser útil para tomar una DECISIÓN real`
       ]
     );
     
