@@ -10,6 +10,7 @@ const orchestrator = require('../agents/orchestrator');
 const taskExecutor = require('../agents/task-executor').instance;
 const { scheduleDailySyncs } = require('../agents/daily-sync');
 const { scheduleTrialChecks, scheduleTrialReminders } = require('../agents/trial-manager');
+const { scheduleDripSequence } = require('./services/drip-sequence');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -84,6 +85,10 @@ const server = app.listen(PORT, () => {
   console.log('[Server] Scheduling Trial Manager...');
   scheduleTrialChecks();
   scheduleTrialReminders();
+  
+  // Schedule drip sequence (daily at 10:30 AM)
+  console.log('[Server] Scheduling Drip Sequence...');
+  scheduleDripSequence();
   
   console.log('✅ All systems running');
 });

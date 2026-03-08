@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { apiUrl } from '../api.js'
 
 export default function Ideas() {
   const [ideas, setIdeas] = useState([])
@@ -27,7 +28,7 @@ export default function Ideas() {
       params.append('minScore', filters.minScore)
       params.append('limit', 20)
 
-      const res = await fetch(`/api/ideas?${params}`)
+      const res = await fetch(apiUrl(`/api/ideas?${params}`))
       const data = await res.json()
       setIdeas(data.ideas || [])
     } catch (error) {
@@ -47,7 +48,7 @@ export default function Ideas() {
     setLaunching(ideaId)
 
     try {
-      const res = await fetch(`/api/ideas/${ideaId}/launch`, {
+      const res = await fetch(apiUrl(`/api/ideas/${ideaId}/launch`), {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
