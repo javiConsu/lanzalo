@@ -13,6 +13,7 @@ const GrowthAgent = require('../agents/growth-agent');
 const { scheduleTrialChecks, scheduleTrialReminders } = require('../agents/trial-manager');
 const { scheduleDripSequence } = require('./services/drip-sequence');
 const { scheduleWeeklyIdeasDigest } = require('./services/weekly-ideas-digest');
+const { scheduleCofounderDaily } = require('./services/cofounder-daily');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -114,6 +115,10 @@ const server = app.listen(PORT, () => {
   console.log('[Server] Starting Growth Agent...');
   const growthAgent = new GrowthAgent();
   growthAgent.start();
+
+  // Schedule Co-Founder daily briefing (L-V 08:00 CET)
+  console.log('[Server] Scheduling Co-Founder Daily Briefing...');
+  scheduleCofounderDaily();
   
   console.log('✅ All systems running');
 });

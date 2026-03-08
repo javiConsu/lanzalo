@@ -96,14 +96,23 @@ INGRESOS: $${this.company.revenue_total || 0}`;
       { role: 'user', content: userMessage }
     ];
 
-    // Intent classification: use cheap LLM to decide if tools are needed
-    const needsTools = await this.classifyIntent(userMessage);
+    // SIEMPRE dar acceso a tools — el Co-Founder es un CEO que orquesta, no un chatbot
+    // El LLM decide cuándo usar tools basándose en el contexto
+    const tools = getToolsForAgent('ceo');
+    const toolHandlers = createToolHandlers(this.companyId, this.userId);
+
+    // Detectar si es una confirmación para dar más contexto al LLM
+    const isConfirmation = /^\s*(s[ií]|ok|dale|adelante|va|venga|me gusta|hecho|perfecto|genial|a|b|c|todas|todo|la? [abc]|arranca|lanza|hazlo|m[áa]ndalo)\s*[.!]?\s*$/i.test(userMessage.trim());
+    if (isConfirmation && this.conversationHistory.length > 0) {
+      // Inyectar instrucción explícita para que cree tareas
+      messages.push({
+        role: 'system',
+        content: 'El usuario acaba de CONFIRMAR tu propuesta anterior. USA create_task AHORA para crear las tareas que propusiste. Crea una tarea por cada paso del plan. Después confirma brevemente qué has mandado al equipo.'
+      });
+    }
 
     let response;
-    if (needsTools) {
-      // Modelo potente para tool use (claude-3.5-sonnet)
-      const tools = getToolsForAgent('ceo');
-      const toolHandlers = createToolHandlers(this.companyId, this.userId);
+    try {
       response = await callLLMWithTools(null, {
         messages,
         tools,
@@ -114,15 +123,16 @@ INGRESOS: $${this.company.revenue_total || 0}`;
         temperature: 0.7,
         maxTokens: 800
       });
-    } else {
-      // Chat rápido y barato (gpt-4o-mini) — 20x más económico
+    } catch (toolError) {
+      // Fallback to chat without tools if tool use fails
+      console.warn('[CEO] Tool use failed, falling back to chat:', toolError.message);
       const { callLLM } = require('../backend/llm');
       response = await callLLM(null, {
-        messages,
+        messages: messages.filter(m => m.role !== 'system' || !m.content.includes('CONFIRMAR')),
         companyId: this.companyId,
         taskType: 'ceo_chat',
         temperature: 0.7,
-        maxTokens: 500
+        maxTokens: 600
       });
     }
 
