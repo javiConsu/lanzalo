@@ -23,25 +23,26 @@ router.get('/ideas', async (req, res) => {
 
     let query = `
       SELECT * FROM discovered_ideas 
-      WHERE is_active = 1
+      WHERE is_active = true
     `;
     const params = [];
+    let paramIndex = 1;
 
     if (category) {
-      query += ` AND category = ?`;
+      query += ` AND category = $${paramIndex++}`;
       params.push(category);
     }
 
     if (difficulty) {
-      query += ` AND difficulty = ?`;
+      query += ` AND difficulty = $${paramIndex++}`;
       params.push(difficulty);
     }
 
-    query += ` AND score >= ?`;
+    query += ` AND score >= $${paramIndex++}`;
     params.push(parseInt(minScore));
 
     query += ` ORDER BY score DESC, discovered_at DESC`;
-    query += ` LIMIT ? OFFSET ?`;
+    query += ` LIMIT $${paramIndex++} OFFSET $${paramIndex++}`;
     params.push(parseInt(limit), parseInt(offset));
 
     const result = await pool.query(query, params);
@@ -97,7 +98,7 @@ router.get('/ideas/:ideaId', async (req, res) => {
 router.post('/ideas/:ideaId/launch', requireAuth, async (req, res) => {
   try {
     const { ideaId } = req.params;
-    const { customizations } = req.body; // Usuario puede personalizar
+    const { customizations } = req.body;
 
     // Obtener idea
     const ideaResult = await pool.query(
@@ -113,7 +114,7 @@ router.post('/ideas/:ideaId/launch', requireAuth, async (req, res) => {
 
     // Crear empresa basada en la idea
     const companyId = crypto.randomUUID();
-    const subdomain = this.generateSubdomain(idea.title);
+    const subdomain = generateSubdomain(idea.title);
 
     await pool.query(
       `INSERT INTO companies (
@@ -187,7 +188,7 @@ router.get('/ideas/stats', requireAuth, async (req, res) => {
         category,
         COUNT(*) as count_by_category
       FROM discovered_ideas
-      WHERE is_active = 1
+      WHERE is_active = true
       GROUP BY category
     `);
 
