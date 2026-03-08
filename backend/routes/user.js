@@ -404,7 +404,97 @@ router.post('/companies/:companyId/chat', requireAuth, requireCompanyAccess, asy
     res.json({ success: true, ...response });
   } catch (error) {
     console.error('[Co-Founder] Error:', error);
-    res.status(500).json({ error: error.message });
+    const userMsg = error.message?.includes('Cuota')
+      ? 'Has alcanzado el límite de uso este mes.'
+      : 'Algo salió mal. Inténtalo de nuevo.';
+    res.status(500).json({ error: userMsg });
+  }
+});
+
+/**
+ * Welcome message — primer mensaje personalizado del Co-Founder
+ */
+router.post('/companies/:companyId/chat/welcome', requireAuth, requireCompanyAccess, async (req, res) => {
+  try {
+    const companyId = req.params.companyId;
+
+    // Si ya hay mensajes, no generar bienvenida
+    const existing = await pool.query(
+      'SELECT COUNT(*) as count FROM chat_messages WHERE company_id = $1',
+      [companyId]
+    );
+    if (parseInt(existing.rows[0].count) > 0) {
+      return res.json({ success: true, skipped: true });
+    }
+
+    // Leer intake data del usuario
+    const userData = await pool.query(
+      'SELECT survey_data, name FROM users WHERE id = $1',
+      [req.user.id]
+    );
+    const surveyData = userData.rows[0]?.survey_data || {};
+    const userName = userData.rows[0]?.name || '';
+
+    // Leer datos de la empresa
+    const companyRow = await pool.query(
+      'SELECT name, description, industry FROM companies WHERE id = $1',
+      [companyId]
+    );
+    const company = companyRow.rows[0];
+
+    // Construir contexto
+    let intakeContext = '';
+    if (surveyData.aboutMe) intakeContext += `\nSOBRE EL FUNDADOR: ${surveyData.aboutMe}`;
+    if (surveyData.lookingFor) intakeContext += `\nQUÉ BUSCA: ${surveyData.lookingFor}`;
+    if (surveyData.surveyAnswers) {
+      const a = surveyData.surveyAnswers;
+      if (a.experience_level) intakeContext += `\nEXPERIENCIA: ${a.experience_level}`;
+      if (a.primary_motivation) intakeContext += `\nMOTIVACIÓN: ${a.primary_motivation}`;
+      if (a.timeline) intakeContext += `\nTIMELINE: ${a.timeline}`;
+      if (a.biggest_challenge) intakeContext += `\nMAYOR RETO: ${a.biggest_challenge}`;
+    }
+
+    const { callLLM } = require('../llm');
+    const { getSystemPrompt } = require('../../agents/system-prompts');
+    const systemPrompt = getSystemPrompt('ceo', company?.name || 'tu empresa', intakeContext);
+
+    const welcomePrompt = `INSTRUCCIÓN INTERNA (no repitas esto):
+Genera tu PRIMER mensaje de bienvenida para este fundador. Acaba de registrarse.
+
+Datos disponibles:
+- Nombre: ${userName || 'No proporcionado'}
+- Empresa: ${company?.name || 'Sin nombre aún'}
+- Descripción: ${company?.description || 'Sin descripción'}
+${intakeContext}
+
+REGLAS para el mensaje:
+- 2-4 frases máximo. Nada de párrafos.
+- Demuestra que has LEÍDO lo que escribió (referencia algo concreto de aboutMe o lookingFor)
+- Propón UNA acción concreta como siguiente paso (validar idea, definir audiencia, montar landing...)
+- Tono: colega emprendedor, no asistente. Sin "¡Bienvenido!" ni "¡Qué emoción!"
+- Si no hay datos de intake, saluda brevemente y pregunta qué tiene en mente.
+- Termina con una pregunta directa que invite a responder.`;
+
+    const response = await callLLM(welcomePrompt, {
+      systemPrompt,
+      taskType: 'ceo_chat',
+      temperature: 0.8,
+      maxTokens: 300
+    });
+
+    const welcomeMessage = response.content || '';
+    if (welcomeMessage) {
+      await pool.query(
+        `INSERT INTO chat_messages (company_id, role, content, created_at)
+         VALUES ($1, 'assistant', $2, NOW())`,
+        [companyId, welcomeMessage]
+      );
+    }
+
+    res.json({ success: true, message: welcomeMessage });
+  } catch (error) {
+    console.error('Error en welcome message:', error);
+    res.json({ success: true, skipped: true });
   }
 });
 
