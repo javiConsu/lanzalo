@@ -8,7 +8,7 @@ frontend/node_modules/
 .env.production
 
 # Build
-dist/
+# dist/ — se commitea para deploy en Railway
 build/
 .next/
 out/

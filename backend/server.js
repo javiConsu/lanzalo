@@ -65,6 +65,18 @@ app.use('/api', require('./routes/ceo-chat')); // Co-Founder Agent chat
 app.use('/api/credits', require('./routes/credits')); // Sistema de créditos
 app.use('/api/changes', require('./routes/change-requests')); // Cambios en assets (gratis)
 
+// Servir frontend React (producción)
+const path = require('path');
+const frontendDist = path.join(__dirname, '..', 'frontend', 'dist');
+app.use(express.static(frontendDist));
+// SPA fallback: todas las rutas no-API devuelven index.html
+app.get('*', (req, res, next) => {
+  if (req.path.startsWith('/api/') || req.path.startsWith('/sites/') || req.path === '/health') {
+    return next();
+  }
+  res.sendFile(path.join(frontendDist, 'index.html'));
+});
+
 // Start HTTP server
 const server = app.listen(PORT, () => {
   console.log(`🚀 Lanzalo API running on port ${PORT}`);
