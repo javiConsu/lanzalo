@@ -44,11 +44,12 @@ router.post('/register', async (req, res) => {
     res.json({
       status: 'ok',
       message: 'Usuario registrado correctamente',
+      token: result.token,
       user: {
-        id: result.id,
-        email: result.email,
-        name: result.name,
-        role: result.role
+        id: result.user.id,
+        email: result.user.email,
+        name: result.user.name,
+        role: result.user.role
       }
     });
   } catch (error) {

@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
+import { apiUrl } from './api.js'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import Chat from './pages/Chat'
@@ -19,8 +20,7 @@ function App() {
   useEffect(() => {
     if (token) {
       // Verificar token válido
-      import { apiUrl } from '../api.js'
-      fetch(apiUrl('/api/user/profile', {
+      fetch(apiUrl('/api/user/profile'), {
         headers: { 'Authorization': `Bearer ${token}` }
       })
         .then(res => res.json())

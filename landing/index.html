@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -31,34 +31,66 @@
             mientras tú decides qué hacer después
         </p>
 
-        <!-- Simple Email Login -->
-        <div class="bg-gray-800 border border-gray-700 rounded-xl p-8 mb-6">
-            <h2 class="text-2xl font-bold mb-4">Accede ahora</h2>
+        <!-- Login / Register Form -->
+        <div class="bg-gray-800 border border-gray-700 rounded-xl p-8 mb-6 max-w-md mx-auto">
+            <!-- Tabs -->
+            <div class="flex gap-2 mb-6">
+                <button
+                    id="tab-login"
+                    onclick="switchMode('login')"
+                    class="flex-1 py-2 rounded-lg text-sm font-medium transition-colors bg-blue-600 text-white"
+                >
+                    Iniciar sesión
+                </button>
+                <button
+                    id="tab-register"
+                    onclick="switchMode('register')"
+                    class="flex-1 py-2 rounded-lg text-sm font-medium transition-colors bg-gray-700 text-gray-400 hover:bg-gray-600"
+                >
+                    Crear cuenta
+                </button>
+            </div>
 
-            <input
-                type="email"
-                id="email"
-                placeholder="Tu email"
-                value="javi@saleshackers.es"
-                class="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 mb-3"
-            />
+            <form id="auth-form" onsubmit="handleSubmit(event)" class="space-y-4">
+                <input
+                    type="email"
+                    id="email"
+                    placeholder="Tu email"
+                    class="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required
+                />
+                <input
+                    type="password"
+                    id="password"
+                    placeholder="Contraseña (mínimo 8 caracteres)"
+                    minlength="8"
+                    class="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required
+                />
 
-            <button
-                onclick="sendLink()"
-                id="btn"
-                class="w-full px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition text-lg"
-            >
-                🔮 Enviar enlace mágico
-            </button>
+                <!-- Error message -->
+                <div id="error-msg" class="hidden bg-red-900/50 border border-red-700 text-red-200 px-4 py-3 rounded-lg text-sm"></div>
 
-            <p class="text-sm text-gray-500 mt-4">
-                Te enviaremos un enlace único a tu email
+                <!-- Success message -->
+                <div id="success-msg" class="hidden bg-green-900/50 border border-green-700 text-green-200 px-4 py-3 rounded-lg text-sm"></div>
+
+                <button
+                    type="submit"
+                    id="btn-submit"
+                    class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg transition-colors disabled:opacity-50"
+                >
+                    Entrar
+                </button>
+            </form>
+
+            <p id="register-hint" class="hidden text-xs text-gray-500 text-center mt-4">
+                14 días gratis · Sin tarjeta · $39/mes después
             </p>
         </div>
 
         <!-- Divider -->
         <div class="text-gray-500 mb-12">
-            ━━━━━━━━━━ O ━━━━━━━━━━
+            ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         </div>
 
         <!-- CTA Section -->
@@ -74,38 +106,155 @@
 
     <!-- Scripts -->
     <script>
-        async function sendLink() {
-            const email = document.getElementById('email').value;
-            const btn = document.getElementById('btn');
+        var BACKEND_URL = 'https://lanzalo-production.up.railway.app';
+        var currentMode = 'login';
 
-            btn.disabled = true;
-            btn.textContent = 'Enviando...';
+        function switchMode(mode) {
+            currentMode = mode;
+            var tabLogin = document.getElementById('tab-login');
+            var tabRegister = document.getElementById('tab-register');
+            var btnSubmit = document.getElementById('btn-submit');
+            var registerHint = document.getElementById('register-hint');
 
-            try {
-                console.log('Enviando email:', email);
-                const response = await fetch('https://lanzalo-production.up.railway.app/api/minimal-login', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email })
-                });
+            hideMessages();
 
-                console.log('Response status:', response.status);
-                const data = await response.json();
-                console.log('Response data:', data);
-
-                if (response.ok) {
-                    alert('✅ Email enviado! Revisa tu email.');
-                } else {
-                    alert('❌ Error: ' + JSON.stringify(data));
-                }
-            } catch (e) {
-                console.error('Error:', e);
-                alert('❌ Error: ' + e.message);
-            } finally {
-                btn.disabled = false;
-                btn.textContent = 'Enviar enlace mágico';
+            if (mode === 'login') {
+                tabLogin.className = 'flex-1 py-2 rounded-lg text-sm font-medium transition-colors bg-blue-600 text-white';
+                tabRegister.className = 'flex-1 py-2 rounded-lg text-sm font-medium transition-colors bg-gray-700 text-gray-400 hover:bg-gray-600';
+                btnSubmit.textContent = 'Entrar';
+                registerHint.classList.add('hidden');
+            } else {
+                tabRegister.className = 'flex-1 py-2 rounded-lg text-sm font-medium transition-colors bg-blue-600 text-white';
+                tabLogin.className = 'flex-1 py-2 rounded-lg text-sm font-medium transition-colors bg-gray-700 text-gray-400 hover:bg-gray-600';
+                btnSubmit.textContent = 'Crear cuenta gratis (14 días)';
+                registerHint.classList.remove('hidden');
             }
         }
+
+        function showError(msg) {
+            var el = document.getElementById('error-msg');
+            el.textContent = msg;
+            el.classList.remove('hidden');
+            document.getElementById('success-msg').classList.add('hidden');
+        }
+
+        function showSuccess(msg) {
+            var el = document.getElementById('success-msg');
+            el.textContent = msg;
+            el.classList.remove('hidden');
+            document.getElementById('error-msg').classList.add('hidden');
+        }
+
+        function hideMessages() {
+            document.getElementById('error-msg').classList.add('hidden');
+            document.getElementById('success-msg').classList.add('hidden');
+        }
+
+        async function handleSubmit(e) {
+            e.preventDefault();
+            hideMessages();
+
+            var email = document.getElementById('email').value.trim();
+            var password = document.getElementById('password').value;
+            var btn = document.getElementById('btn-submit');
+
+            if (!email || !password) {
+                showError('Email y contraseña son requeridos.');
+                return;
+            }
+
+            if (password.length < 8) {
+                showError('La contraseña debe tener al menos 8 caracteres.');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.textContent = 'Cargando...';
+
+            try {
+                var endpoint = currentMode === 'login'
+                    ? '/api/auth/login'
+                    : '/api/auth/register';
+
+                var response = await fetch(BACKEND_URL + endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: email, password: password })
+                });
+
+                var data = await response.json();
+
+                if (response.ok && data.token) {
+                    // Login exitoso - guardar token y redirigir
+                    localStorage.setItem('token', data.token);
+                    if (data.user) {
+                        localStorage.setItem('user', JSON.stringify(data.user));
+                    }
+                    showSuccess('Login exitoso. Redirigiendo...');
+                    setTimeout(function() {
+                        window.location.href = '/onboarding/survey';
+                    }, 800);
+
+                } else if (response.ok && data.status === 'ok' && currentMode === 'register') {
+                    // Registro exitoso - auto-login
+                    showSuccess('Cuenta creada. Iniciando sesión...');
+                    var loginRes = await fetch(BACKEND_URL + '/api/auth/login', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email: email, password: password })
+                    });
+                    var loginData = await loginRes.json();
+
+                    if (loginRes.ok && loginData.token) {
+                        localStorage.setItem('token', loginData.token);
+                        if (loginData.user) {
+                            localStorage.setItem('user', JSON.stringify(loginData.user));
+                        }
+                        setTimeout(function() {
+                            window.location.href = '/onboarding/survey';
+                        }, 800);
+                    } else {
+                        showSuccess('Cuenta creada. Inicia sesión con tus credenciales.');
+                        switchMode('login');
+                    }
+
+                } else if (data.error && data.error.includes('ya registrado')) {
+                    switchMode('login');
+                    showError('Ya tienes cuenta. Inicia sesión con tu contraseña.');
+                } else {
+                    showError(data.error || 'Error. Intenta de nuevo.');
+                }
+            } catch (err) {
+                console.error('Error:', err);
+                showError('Error de conexión. Verifica tu internet e intenta de nuevo.');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = currentMode === 'login' ? 'Entrar' : 'Crear cuenta gratis (14 días)';
+            }
+        }
+
+        // Check if already logged in
+        (function() {
+            var token = localStorage.getItem('token');
+            if (token) {
+                fetch(BACKEND_URL + '/api/auth/verify', {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                })
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    if (data.status === 'ok') {
+                        window.location.href = '/onboarding/survey';
+                    } else {
+                        localStorage.removeItem('token');
+                        localStorage.removeItem('user');
+                    }
+                })
+                .catch(function() {
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('user');
+                });
+            }
+        })();
     </script>
 </body>
 </html>
