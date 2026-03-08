@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { apiUrl } from './api.js'
+import LandingPage from './pages/LandingPage'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import Chat from './pages/Chat'
@@ -19,6 +20,8 @@ import BusinessHub from './pages/BusinessHub'
 function App() {
   const [token, setToken] = useState(localStorage.getItem('token'))
   const [user, setUser] = useState(null)
+  const [showLogin, setShowLogin] = useState(false)
+  const [loginMode, setLoginMode] = useState('register')
 
   useEffect(() => {
     if (token) {
@@ -46,6 +49,7 @@ function App() {
     localStorage.setItem('token', newToken)
     setToken(newToken)
     setUser(userData)
+    setShowLogin(false)
   }
 
   const handleLogout = () => {
@@ -53,13 +57,30 @@ function App() {
     localStorage.removeItem('user')
     setToken(null)
     setUser(null)
+    setShowLogin(false)
     window.location.href = '/'
   }
 
-  if (!token) {
-    return <Login onLogin={handleLogin} />
+  const handleNavigateToLogin = (mode) => {
+    setLoginMode(mode || 'register')
+    setShowLogin(true)
   }
 
+  // Not authenticated: show landing or login
+  if (!token) {
+    if (showLogin) {
+      return (
+        <Login
+          onLogin={handleLogin}
+          initialMode={loginMode}
+          onBack={() => setShowLogin(false)}
+        />
+      )
+    }
+    return <LandingPage onNavigateToLogin={handleNavigateToLogin} />
+  }
+
+  // Authenticated: show app
   return (
     <Router>
       <Routes>

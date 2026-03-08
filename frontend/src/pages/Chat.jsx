@@ -13,7 +13,7 @@ export default function Chat() {
 
   // Cargar empresas
   useEffect(() => {
-    fetch(apiUrl('/api/user/companies', {
+    fetch(apiUrl('/api/user/companies'), {
       headers: { 'Authorization': `Bearer ${token}` }
     })
       .then(res => res.json())

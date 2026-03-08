@@ -1,8 +1,8 @@
 import { apiUrl } from '../api.js'
 import { useState } from 'react'
 
-export default function Login({ onLogin }) {
-  const [mode, setMode] = useState('login') // 'login' | 'register'
+export default function Login({ onLogin, initialMode, onBack }) {
+  const [mode, setMode] = useState(initialMode || 'login') // 'login' | 'register'
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -42,6 +42,17 @@ export default function Login({ onLogin }) {
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center p-4">
       <div className="max-w-md w-full">
         <div className="text-center mb-8">
+          {onBack && (
+            <button
+              onClick={onBack}
+              className="text-sm text-gray-500 hover:text-white transition-colors mb-4 inline-flex items-center gap-1"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
+              </svg>
+              Volver
+            </button>
+          )}
           <h1 className="text-4xl font-bold text-white mb-2">🚀 Lanzalo</h1>
           <p className="text-gray-400">Tu co-fundador IA autónomo</p>
         </div>
@@ -51,13 +62,13 @@ export default function Login({ onLogin }) {
           <div className="flex gap-2 mb-6">
             <button
               onClick={() => { setMode('login'); setError('') }}
-              className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${mode === 'login' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}
+              className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${mode === 'login' ? 'bg-emerald-600 text-white' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}
             >
               Iniciar sesión
             </button>
             <button
               onClick={() => { setMode('register'); setError('') }}
-              className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${mode === 'register' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}
+              className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${mode === 'register' ? 'bg-emerald-600 text-white' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}
             >
               Crear cuenta
             </button>
@@ -91,7 +102,7 @@ export default function Login({ onLogin }) {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg transition-colors disabled:opacity-50"
+              className="w-full bg-emerald-500 hover:bg-emerald-400 text-gray-950 font-semibold py-3 px-4 rounded-lg transition-colors disabled:opacity-50"
             >
               {loading
                 ? 'Cargando...'
