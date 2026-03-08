@@ -25,7 +25,7 @@ const { initCredits } = require('../middleware/credits');
  */
 router.post('/register', async (req, res) => {
   try {
-    const { email, password, name } = req.body;
+    const { email, password, name, aboutMe, lookingFor } = req.body;
     
     // Validation
     if (!email || !password) {
@@ -56,13 +56,19 @@ router.post('/register', async (req, res) => {
     // Create user
     const userId = crypto.randomUUID();
     
+    // Build registration intake data
+    const intakeData = {};
+    if (aboutMe) intakeData.aboutMe = aboutMe;
+    if (lookingFor) intakeData.lookingFor = lookingFor;
+    const hasIntake = Object.keys(intakeData).length > 0;
+
     await pool.query(
       `INSERT INTO users 
        (id, email, password_hash, name, plan, trial_started_at, trial_ends_at, 
-        onboarding_completed, created_at)
-       VALUES ($1, $2, $3, $4, 'trial', $5, $6, FALSE, NOW())`,
+        onboarding_completed, survey_data, created_at)
+       VALUES ($1, $2, $3, $4, 'trial', $5, $6, FALSE, $7, NOW())`,
       [userId, email.toLowerCase(), passwordHash, name || email.split('@')[0], 
-       trialStartedAt, trialEndsAt]
+       trialStartedAt, trialEndsAt, hasIntake ? JSON.stringify(intakeData) : null]
     );
     
     // Generate JWT (use 'id' to match auth middleware)
