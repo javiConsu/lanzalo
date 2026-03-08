@@ -84,6 +84,21 @@
     var BACKEND_URL = 'https://lanzalo-production.up.railway.app';
     var currentMode = 'login';
 
+                // Check for magic link auth params in URL
+        (function() {
+            var params = new URLSearchParams(window.location.search);
+            var authToken = params.get('auth_token');
+            var userData = params.get('user');
+            if (authToken) {
+                localStorage.setItem('token', authToken);
+                if (userData) {
+                    try { localStorage.setItem('user', decodeURIComponent(userData)); } catch(e) {}
+                }
+                // Clean URL params
+                window.history.replaceState({}, '', window.location.pathname);
+            }
+        })();
+
     function switchMode(mode) {
         currentMode = mode;
         document.getElementById('tab-login').className = mode === 'login'
