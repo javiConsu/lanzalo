@@ -11,6 +11,7 @@ const taskExecutor = require('../agents/task-executor').instance;
 const { scheduleDailySyncs } = require('../agents/daily-sync');
 const { scheduleTrialChecks, scheduleTrialReminders } = require('../agents/trial-manager');
 const { scheduleDripSequence } = require('./services/drip-sequence');
+const { scheduleWeeklyIdeasDigest } = require('./services/weekly-ideas-digest');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -52,6 +53,7 @@ app.use('/api/user', require('./routes/user'));
 app.use('/api/user', require('./routes/daily-syncs')); // Daily syncs routes
 app.use('/api/companies', require('./routes/companies'));  // Deprecated - usar /api/user/companies
 app.use('/api/tasks', require('./routes/tasks'));          // Deprecated - usar /api/user/companies/:id/tasks
+app.use('/api', require('./routes/ideas'));              // Ideas marketplace (public + auth)
 app.use('/api/analytics', require('./routes/analytics'));
 app.use('/api/payments', require('./routes/payments'));
 app.use('/sites', require('./routes/sites'));
@@ -101,6 +103,10 @@ const server = app.listen(PORT, () => {
   // Schedule drip sequence (daily at 10:30 AM)
   console.log('[Server] Scheduling Drip Sequence...');
   scheduleDripSequence();
+  
+  // Schedule weekly ideas digest (Sundays at 11:00 CET)
+  console.log('[Server] Scheduling Weekly Ideas Digest...');
+  scheduleWeeklyIdeasDigest();
   
   console.log('✅ All systems running');
 });

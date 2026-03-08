@@ -96,6 +96,33 @@ async function requireAuth(req, res, next) {
 }
 
 /**
+ * Middleware: Optional auth — sets req.user if valid token, continues otherwise
+ */
+async function optionalAuth(req, res, next) {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return next(); // No token — continue as unauthenticated
+    }
+
+    const token = authHeader.split(' ')[1];
+    const decoded = verifyToken(token);
+    if (!decoded) return next();
+
+    const result = await pool.query(
+      'SELECT id, email, name, role, plan, subscription_tier FROM users WHERE id = $1',
+      [decoded.id]
+    );
+    if (result.rows[0]) {
+      req.user = result.rows[0];
+    }
+    next();
+  } catch (error) {
+    next(); // On error, continue without auth
+  }
+}
+
+/**
  * Middleware: Requiere rol admin
  */
 function requireAdmin(req, res, next) {
@@ -250,6 +277,7 @@ module.exports = {
   hashPassword,
   verifyPassword,
   requireAuth,
+  optionalAuth,
   requireAdmin,
   requireCompanyAccess,
   register,
