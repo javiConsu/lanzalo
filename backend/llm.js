@@ -31,7 +31,9 @@ const MODEL_STRATEGY = {
   data: 'openai/gpt-4o-mini',
   analytics: 'openai/gpt-4o-mini',
   trends: 'anthropic/claude-3.5-sonnet',
-  ceo: 'anthropic/claude-sonnet-4'
+  // CEO tiered: chat rápido con gpt-4o-mini, herramientas con claude-3.5-sonnet
+  ceo_chat: 'openai/gpt-4o-mini',
+  ceo: 'anthropic/claude-3.5-sonnet'
 };
 
 /**

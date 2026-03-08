@@ -101,6 +101,7 @@ INGRESOS: $${this.company.revenue_total || 0}`;
 
     let response;
     if (needsTools) {
+      // Modelo potente para tool use (claude-3.5-sonnet)
       const tools = getToolsForAgent('ceo');
       const toolHandlers = createToolHandlers(this.companyId, this.userId);
       response = await callLLMWithTools(null, {
@@ -114,12 +115,12 @@ INGRESOS: $${this.company.revenue_total || 0}`;
         maxTokens: 500
       });
     } else {
-      // Respuesta directa sin tools — rápida
+      // Chat rápido y barato (gpt-4o-mini) — 20x más económico
       const { callLLM } = require('../backend/llm');
       response = await callLLM(null, {
         messages,
         companyId: this.companyId,
-        taskType: 'ceo',
+        taskType: 'ceo_chat',
         temperature: 0.7,
         maxTokens: 500
       });

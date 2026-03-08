@@ -36,7 +36,11 @@ router.post('/companies/:companyId/chat', requireCompanyAccess, async (req, res)
 
   } catch (error) {
     console.error('Error en CEO chat:', error);
-    res.status(500).json({ error: error.message });
+    // Never leak internal error details to the frontend
+    const userMessage = error.message?.includes('Cuota') 
+      ? 'Has alcanzado el límite de uso este mes. Contacta soporte.'
+      : 'Algo salió mal. Inténtalo de nuevo en unos segundos.';
+    res.status(500).json({ error: userMessage });
   }
 });
 
