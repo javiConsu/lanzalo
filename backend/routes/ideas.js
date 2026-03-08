@@ -334,9 +334,9 @@ router.get('/ideas/:ideaId/analysis', optionalAuth, async (req, res) => {
 
 /* ─── LLM: Generate idea analysis ─── */
 async function generateIdeaAnalysis(idea) {
-  const prompt = `Analiza esta oportunidad de negocio y da un informe detallado.
+  const prompt = `Eres el analista de Lánzalo. Tu trabajo es decirle al usuario si esta idea merece la pena o es mejor pasar. Hablas claro, con humor español, un poco borde pero con cariño. Nada de "interesante" ni "prometedor" ni lenguaje de consultor que cobra por horas. Si es buena, dilo con entusiasmo. Si es mediocre, dilo con gracia pero sin suavizar.
 
-IDEA:
+IDEA A ANALIZAR:
 - Título: ${idea.title}
 - Problema: ${idea.problem}
 - Audiencia: ${idea.target_audience}
@@ -349,22 +349,22 @@ IDEA:
 
 GENERA un análisis en JSON con esta estructura EXACTA:
 {
-  "why_it_works": "3-5 razones concretas de por qué esta idea tiene potencial real. Basado en datos, no en opiniones. Incluye métricas cuando sea posible.",
-  "market_size": "Estimación del TAM/SAM/SOM en español. Ej: 'TAM: $2.1B global. SAM: $340M mercado hispano. SOM: $8M primer año si captures 2.3% del SAM'",
+  "why_it_works": "3-5 razones CONCRETAS de por qué esto puede funcionar (o por qué no). Con datos, no con bla bla. Escríbelo como se lo dirías a tu socio fundándolo contigo. Si hay números, mételos.",
+  "market_size": "TAM/SAM/SOM con números reales. Nada de 'el mercado es grande'. Ej: 'TAM: $2.1B global. SAM: $340M mercado hispano. SOM: $8M primer año si pillas el 2.3% del SAM'. Si no hay datos fiables, dilo sin inventar.",
   "competition_level": "baja|media|alta",
-  "time_to_mvp": "Estimación realista. Ej: '3-5 semanas para un MVP funcional con landing + waitlist + core feature'",
-  "monetization_strategy": "2-3 estrategias concretas de monetización con precios sugeridos",
-  "risk_factors": "2-3 riesgos principales y cómo mitigarlos",
+  "time_to_mvp": "Cuánto tardarías en tener algo funcional. Sin flipadas. Ej: '3-5 semanas: landing + waitlist + core feature básica'",
+  "monetization_strategy": "2-3 formas de ganar pasta con esto. Con precios concretos. Nada de 'explorar modelos de monetización'.",
+  "risk_factors": "2-3 riesgos reales y cómo evitar que te revienten. Sé honesto, no vendas humo.",
   "metrics": {
-    "demand_signals": "Número o descripción de señales de demanda encontradas",
-    "monthly_searches": "Estimación de búsquedas mensuales relacionadas",
-    "growth_trend": "Tendencia: creciente/estable/decreciente",
-    "competition_count": "Número estimado de competidores directos",
+    "demand_signals": "Cuántas señales de demanda real hemos encontrado",
+    "monthly_searches": "Búsquedas mensuales estimadas (Google Trends / sentido común)",
+    "growth_trend": "creciente/estable/decreciente",
+    "competition_count": "Número de competidores directos que ya existen",
     "entry_barrier": "baja/media/alta"
   }
 }
 
-RESPONDE SOLO EN JSON VÁLIDO. Sin texto antes ni después. Todo en español.`;
+TODO EN ESPAÑOL. Tono directo y con personalidad. RESPONDE SOLO EN JSON VÁLIDO, sin texto antes ni después.`;
 
   try {
     const response = await callLLM(prompt, {

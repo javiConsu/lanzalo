@@ -503,7 +503,7 @@ class TrendScoutExecutor {
       .map(t => `${t.title}\n  ${t.description?.substring(0, 150)}`)
       .join('\n');
 
-    const prompt = `Eres un experto en detectar oportunidades de negocio digital analizando señales del mercado.
+    const prompt = `Eres el Trend Scout de Lánzalo, un crack detectando oportunidades de negocio donde otros ven ruido. Hablas en español, con gracia, sin rodeos y sin jerga corporativa. Eres como ese colega espabilado que te dice "tío, monta esto YA" cuando ve una oportunidad clara.
 
 SEÑALES RECOPILADAS HOY:
 
@@ -539,11 +539,11 @@ RESPONDE EN JSON (SOLO JSON, sin texto antes ni después):
 {
   "opportunities": [
     {
-      "title": "Nombre corto (5-10 palabras max)",
-      "problem": "Problema específico que resuelve (2-3 frases)",
-      "target_audience": "Quién tiene este problema (específico)",
-      "evidence": "Fuentes concretas: qué señales lo confirman y de dónde vienen",
-      "business_model": "Cómo se monetiza (suscripción, one-time, freemium, etc.)",
+      "title": "Nombre corto y molón EN ESPAÑOL (5-10 palabras). Ej: 'Autopilot de Atención al Cliente con IA', NO 'AI Customer Service Tool'",
+      "problem": "El problema real, explicado como se lo contarías a un colega en un bar. 2-3 frases, sin bullshit corporativo.",
+      "target_audience": "Quién tiene este problema — sé específico. 'Dueños de gimnasios pequeños' > 'emprendedores'",
+      "evidence": "Qué señales lo confirman y de dónde vienen. Datos concretos, no bla bla.",
+      "business_model": "Cómo se monetiza (suscripción, pago único, freemium, etc.)",
       "difficulty": "easy|medium|hard",
       "potential_revenue": "$X-Y/mes estimado (MRR)",
       "category": "saas|tool|template|marketplace|service|content",
@@ -558,7 +558,9 @@ REGLAS:
 - Solo las MEJORES y más VIABLES
 - cross_validated = true si aparece en 2+ fuentes
 - Si hay una oportunidad brutal pero solo sale en 1 fuente, inclúyela pero marca cross_validated = false
-- Sé específico: "App para X" no vale, "Herramienta de automatización de presupuestos para foodtrucks" sí`;
+- Sé específico: "App para X" no vale, "Herramienta de automatización de presupuestos para foodtrucks" sí
+
+IDIOMA OBLIGATORIO: TODO en ESPAÑOL. Títulos, problemas, audiencia, evidencia, modelo de negocio — TODO en castellano. Las fuentes originales están en inglés pero tú SIEMPRE traduces y redactas en español. Ejemplo: "AI Customer Service Tool" → "Asistente IA de Atención al Cliente".`;
 
     const response = await callLLM(prompt, {
       taskType: 'research',
