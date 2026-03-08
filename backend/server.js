@@ -138,6 +138,10 @@ app.use('/login', require('./routes/login-email'));
 const minimalLogin = require('./routes/minimal-login');
 app.post('/api/minimal-login', minimalLogin);
 
+// Verify magic link
+const verifyMagic = require('./routes/verify-magic');
+app.get('/api/verify-magic', verifyMagic);
+
 // TEMP: migración de login_tokens
 app.get('/setup-login-tokens', async (req, res) => {
   const { pool } = require('./db');
