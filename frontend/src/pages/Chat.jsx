@@ -26,18 +26,52 @@ export default function Chat() {
       .catch(console.error)
   }, [token])
 
-  // Cargar historial cuando cambia empresa
+  // Cargar historial cuando cambia empresa + auto-welcome si es primera vez
   useEffect(() => {
-    if (selectedCompany) {
-      fetch(apiUrl(`/api/user/companies/${selectedCompany}/chat/history?limit=50`), {
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
-        .then(res => res.json())
-        .then(data => {
-          setMessages(data.messages || [])
+    if (!selectedCompany) return
+
+    const loadHistory = async () => {
+      try {
+        const res = await fetch(apiUrl(`/api/user/companies/${selectedCompany}/chat/history?limit=50`), {
+          headers: { 'Authorization': `Bearer ${token}` }
         })
-        .catch(console.error)
+        const data = await res.json()
+        const history = data.messages || []
+
+        if (history.length === 0) {
+          // Primera vez — generar welcome message del Co-Founder
+          setLoading(true)
+          try {
+            const welcomeRes = await fetch(apiUrl(`/api/user/companies/${selectedCompany}/chat/welcome`), {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+              }
+            })
+            const welcomeData = await welcomeRes.json()
+            if (welcomeData.message && !welcomeData.skipped) {
+              setMessages([{
+                id: Date.now(),
+                role: 'assistant',
+                content: welcomeData.message,
+                created_at: new Date().toISOString()
+              }])
+            }
+          } catch (e) {
+            // Silencioso — welcome es optional
+          } finally {
+            setLoading(false)
+          }
+        } else {
+          setMessages(history)
+        }
+      } catch (e) {
+        console.error('Error loading chat:', e)
+      }
     }
+
+    loadHistory()
   }, [selectedCompany, token])
 
   // Auto-scroll
