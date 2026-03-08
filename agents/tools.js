@@ -201,34 +201,40 @@ function createToolHandlers(companyId, userId) {
 
   return {
     create_task: async (args) => {
+      const crypto = require('crypto');
+      const taskId = crypto.randomUUID();
+      const tag = args.agent_type || 'research';
+      const priority = args.priority || 'medium';
+      
       const result = await pool.query(
-        `INSERT INTO tasks (company_id, agent_type, title, description, status, created_at)
-         VALUES ($1, $2, $3, $4, 'pending', NOW()) RETURNING id, title, agent_type`,
-        [companyId, args.agent_type, args.title, args.description || '']
+        `INSERT INTO tasks (id, company_id, created_by, title, description, tag, priority, status, created_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, 'todo', NOW()) RETURNING id, title, tag, priority, status`,
+        [taskId, companyId, userId || 'cofounder', args.title, args.description || '', tag, priority]
       );
       const task = result.rows[0];
+      console.log(`[CEO Tools] Tarea creada: [${task.tag}/${task.priority}] ${task.title}`);
       // Broadcast al feed en vivo
       if (global.broadcastActivity) {
         global.broadcastActivity({
           companyId,
           type: 'task_created',
-          agentType: task.agent_type,
+          agentType: task.tag,
           taskTitle: task.title,
-          message: `Nueva tarea para ${task.agent_type}: ${task.title}`,
+          message: `Nueva tarea para ${task.tag}: ${task.title}`,
           timestamp: new Date().toISOString()
         });
       }
-      return { success: true, task };
+      return { success: true, taskId: task.id, title: task.title, agent: task.tag, priority: task.priority, status: task.status };
     },
 
     get_tasks: async (args) => {
       const status = args.status || 'all';
       const limit = args.limit || 10;
-      let query = 'SELECT id, title, agent_type, status, created_at FROM tasks WHERE company_id = $1';
+      let query = 'SELECT id, title, tag, priority, status, created_at, completed_at FROM tasks WHERE company_id = $1';
       const params = [companyId];
       if (status !== 'all') {
         query += ' AND status = $2';
-        params.push(status);
+        params.push(status === 'pending' ? 'todo' : status);
       }
       query += ` ORDER BY created_at DESC LIMIT ${limit}`;
       const result = await pool.query(query, params);

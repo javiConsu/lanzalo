@@ -119,10 +119,13 @@ INGRESOS: $${this.company.revenue_total || 0}`;
         toolHandlers,
         companyId: this.companyId,
         taskType: 'ceo',
-        maxTurns: 3,
+        maxTurns: 5,
         temperature: 0.7,
-        maxTokens: 800
+        maxTokens: 800,
+        // Forzar tool use cuando el usuario confirma una propuesta
+        toolChoice: isConfirmation ? 'required' : 'auto'
       });
+      console.log(`[CEO] Response turns: ${response.turns}, has content: ${!!response.content}`);
     } catch (toolError) {
       // Fallback to chat without tools if tool use fails
       console.warn('[CEO] Tool use failed, falling back to chat:', toolError.message);

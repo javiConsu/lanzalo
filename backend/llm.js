@@ -48,6 +48,7 @@ async function callLLM(prompt, options = {}) {
     maxTokens = 4000,
     systemPrompt = null,
     tools = null,
+    toolChoice = null,
     messages = null
   } = options;
 
@@ -77,7 +78,7 @@ async function callLLM(prompt, options = {}) {
   // Añadir tools si se proporcionan
   if (tools && tools.length > 0) {
     body.tools = tools;
-    body.tool_choice = 'auto';
+    body.tool_choice = toolChoice || 'auto';
   }
 
   try {
@@ -148,6 +149,7 @@ async function callLLMWithTools(prompt, options = {}) {
     toolHandlers = {},
     maxTurns = 10,
     systemPrompt = null,
+    toolChoice: initialToolChoice = null,
     messages: incomingMessages = null,
     ...llmOptions
   } = options;
@@ -164,10 +166,14 @@ async function callLLMWithTools(prompt, options = {}) {
   while (turn < maxTurns) {
     turn++;
 
+    // En la primera llamada, usar toolChoice del caller. Después, auto.
+    const currentToolChoice = turn === 1 ? initialToolChoice : null;
+
     const response = await callLLM(null, {
       ...llmOptions,
       messages,
       tools,
+      toolChoice: currentToolChoice,
       systemPrompt: null // ya incluido en messages
     });
 
