@@ -3,476 +3,229 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lanzalo — Tu Co-Fundador IA autónomo</title>
+    <title>Lanzalo — Tu Co-Fundador IA autonomo</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
         body { font-family: 'Inter', sans-serif; }
         .fade-in { animation: fadeIn 0.3s ease-in; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     </style>
 </head>
 <body class="bg-gray-900 text-gray-100">
 
-    <!-- Header -->
     <header class="border-b border-gray-800 bg-gray-900/50 backdrop-blur">
         <div class="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
             <div class="text-2xl font-bold">🚀 Lanzalo</div>
-            <button id="header-logout" onclick="doLogout()" class="hidden text-sm text-gray-400 hover:text-white transition-colors">
-                Cerrar sesión
-            </button>
+            <button id="header-logout" onclick="doLogout()" class="hidden text-sm text-gray-400 hover:text-white transition-colors">Cerrar sesion</button>
         </div>
     </header>
 
     <!-- LOGIN VIEW -->
-    <div id="view-login">
+    <div id="login-view">
         <section class="max-w-4xl mx-auto px-6 py-20 text-center">
             <h1 class="text-5xl md:text-6xl font-bold mb-6 leading-tight">
-                Tu equipo de IA autónomo<br>
+                Tu equipo de IA autonomo<br>
                 <span class="text-blue-400">que trabaja contigo</span>
             </h1>
-
             <p class="text-xl text-gray-400 mb-12 max-w-2xl mx-auto">
                 7 agentes especializados construyen y venden tu negocio<br>
-                mientras tú decides qué hacer después
+                mientras tu decides que hacer despues
             </p>
 
-            <!-- Login / Register Form -->
+            <!-- Login Form -->
             <div class="bg-gray-800 border border-gray-700 rounded-xl p-8 mb-6 max-w-md mx-auto">
-                <!-- Tabs -->
                 <div class="flex gap-2 mb-6">
-                    <button
-                        id="tab-login"
-                        onclick="switchMode('login')"
-                        class="flex-1 py-2 rounded-lg text-sm font-medium transition-colors bg-blue-600 text-white"
-                    >
-                        Iniciar sesión
-                    </button>
-                    <button
-                        id="tab-register"
-                        onclick="switchMode('register')"
-                        class="flex-1 py-2 rounded-lg text-sm font-medium transition-colors bg-gray-700 text-gray-400 hover:bg-gray-600"
-                    >
-                        Crear cuenta
-                    </button>
+                    <button id="tab-login" onclick="switchMode('login')" class="flex-1 py-2 rounded-lg text-sm font-medium transition-colors bg-blue-600 text-white">Iniciar sesion</button>
+                    <button id="tab-register" onclick="switchMode('register')" class="flex-1 py-2 rounded-lg text-sm font-medium transition-colors bg-gray-700 text-gray-400">Crear cuenta</button>
                 </div>
 
-                <form id="auth-form" onsubmit="handleSubmit(event)" class="space-y-4">
-                    <input
-                        type="email"
-                        id="email"
-                        placeholder="Tu email"
-                        class="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        required
-                    />
-                    <input
-                        type="password"
-                        id="password"
-                        placeholder="Contraseña (mínimo 8 caracteres)"
-                        minlength="8"
-                        class="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        required
-                    />
+                <div id="error-msg" class="hidden bg-red-900/50 border border-red-700 text-red-300 px-4 py-2 rounded-lg mb-4 text-sm"></div>
+                <div id="success-msg" class="hidden bg-green-900/50 border border-green-700 text-green-300 px-4 py-2 rounded-lg mb-4 text-sm"></div>
 
-                    <!-- Error message -->
-                    <div id="error-msg" class="hidden bg-red-900/50 border border-red-700 text-red-200 px-4 py-3 rounded-lg text-sm"></div>
+                <input type="email" id="email" placeholder="Tu email" class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 mb-3">
+                <input type="password" id="password" placeholder="Contrasena (minimo 8 caracteres)" class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4">
 
-                    <!-- Success message -->
-                    <div id="success-msg" class="hidden bg-green-900/50 border border-green-700 text-green-200 px-4 py-3 rounded-lg text-sm"></div>
+                <button id="btn" onclick="handleAuth()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition-colors">Entrar</button>
 
-                    <button
-                        type="submit"
-                        id="btn-submit"
-                        class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg transition-colors disabled:opacity-50"
-                    >
-                        Entrar
-                    </button>
-                </form>
+                <div class="my-4 flex items-center gap-3">
+                    <div class="flex-1 h-px bg-gray-600"></div>
+                    <span class="text-gray-500 text-sm">O</span>
+                    <div class="flex-1 h-px bg-gray-600"></div>
+                </div>
 
-                <p id="register-hint" class="hidden text-xs text-gray-500 text-center mt-4">
-                    14 días gratis · Sin tarjeta · $39/mes después
-                </p>
-            </div>
-
-            <!-- CTA Section -->
-            <div class="text-gray-500 mb-12">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</div>
-            <div class="text-center mb-12">
-                <h2 class="text-2xl font-semibold mb-3">¿No sabes qué construir?</h2>
-                <p class="text-gray-400 max-w-2xl mx-auto">
-                    Nosotros tampoco al principio.<br><br>
-                    Por eso tenemos una IA que escanea Reddit, Twitter y Hacker News buscando problemas reales.<br><br>
-                    Cuando 100+ personas piden lo mismo, lo validamos. Eso es demanda probada.
-                </p>
+                <button id="magic-btn" onclick="sendMagicLink()" class="w-full bg-gray-700 hover:bg-gray-600 text-gray-300 font-medium py-3 rounded-lg transition-colors text-sm">
+                    🔮 Enviar enlace magico por email
+                </button>
             </div>
         </section>
     </div>
 
     <!-- DASHBOARD VIEW (after login) -->
-    <div id="view-dashboard" class="hidden fade-in">
-        <section class="max-w-5xl mx-auto px-6 py-12">
-            <!-- Welcome -->
-            <div class="mb-8">
-                <h1 class="text-3xl font-bold mb-2">Bienvenido, <span id="user-name">usuario</span> 👋</h1>
-                <p class="text-gray-400">Tu equipo de IA está listo para trabajar contigo.</p>
-            </div>
-
-            <!-- Agent Grid -->
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
-                <div class="bg-gray-800 border border-gray-700 rounded-xl p-6 hover:border-blue-500/50 transition-colors">
-                    <div class="text-2xl mb-3">🎯</div>
-                    <h3 class="text-lg font-semibold mb-2">CEO Agent</h3>
-                    <p class="text-sm text-gray-400">Estrategia general y toma de decisiones del negocio.</p>
-                    <span class="inline-block mt-3 text-xs bg-green-900/50 text-green-400 px-2 py-1 rounded">Activo</span>
-                </div>
-                <div class="bg-gray-800 border border-gray-700 rounded-xl p-6 hover:border-blue-500/50 transition-colors">
-                    <div class="text-2xl mb-3">📊</div>
-                    <h3 class="text-lg font-semibold mb-2">Data Agent</h3>
-                    <p class="text-sm text-gray-400">Análisis de datos e investigación de mercado.</p>
-                    <span class="inline-block mt-3 text-xs bg-green-900/50 text-green-400 px-2 py-1 rounded">Activo</span>
-                </div>
-                <div class="bg-gray-800 border border-gray-700 rounded-xl p-6 hover:border-blue-500/50 transition-colors">
-                    <div class="text-2xl mb-3">💰</div>
-                    <h3 class="text-lg font-semibold mb-2">Financial Agent</h3>
-                    <p class="text-sm text-gray-400">Gestión financiera y proyecciones de ingresos.</p>
-                    <span class="inline-block mt-3 text-xs bg-green-900/50 text-green-400 px-2 py-1 rounded">Activo</span>
-                </div>
-                <div class="bg-gray-800 border border-gray-700 rounded-xl p-6 hover:border-blue-500/50 transition-colors">
-                    <div class="text-2xl mb-3">🔍</div>
-                    <h3 class="text-lg font-semibold mb-2">Trend Scout</h3>
-                    <p class="text-sm text-gray-400">Búsqueda de oportunidades y tendencias emergentes.</p>
-                    <span class="inline-block mt-3 text-xs bg-green-900/50 text-green-400 px-2 py-1 rounded">Activo</span>
-                </div>
-                <div class="bg-gray-800 border border-gray-700 rounded-xl p-6 hover:border-blue-500/50 transition-colors">
-                    <div class="text-2xl mb-3">🐦</div>
-                    <h3 class="text-lg font-semibold mb-2">Twitter Agent</h3>
-                    <p class="text-sm text-gray-400">Monitoreo social y engagement automático.</p>
-                    <span class="inline-block mt-3 text-xs bg-yellow-900/50 text-yellow-400 px-2 py-1 rounded">Standby</span>
-                </div>
-                <div class="bg-gray-800 border border-gray-700 rounded-xl p-6 hover:border-blue-500/50 transition-colors">
-                    <div class="text-2xl mb-3">📧</div>
-                    <h3 class="text-lg font-semibold mb-2">Email Agent</h3>
-                    <p class="text-sm text-gray-400">Campañas de email y comunicación con clientes.</p>
-                    <span class="inline-block mt-3 text-xs bg-yellow-900/50 text-yellow-400 px-2 py-1 rounded">Standby</span>
+    <div id="dashboard-view" class="hidden">
+        <section class="max-w-4xl mx-auto px-6 py-20 text-center fade-in">
+            <div class="text-6xl mb-6">🚀</div>
+            <h1 class="text-4xl font-bold mb-4">Bienvenido a Lanzalo</h1>
+            <p class="text-xl text-gray-400 mb-2" id="welcome-email"></p>
+            <p class="text-gray-500 mb-8">Tu sesion esta activa. Los agentes estan trabajando.</p>
+            <div class="bg-gray-800 border border-gray-700 rounded-xl p-8 max-w-lg mx-auto">
+                <h2 class="text-xl font-bold mb-4">Estado del sistema</h2>
+                <div class="space-y-3 text-left">
+                    <div class="flex justify-between"><span class="text-gray-400">Agentes activos</span><span class="text-green-400">7/7 ✅</span></div>
+                    <div class="flex justify-between"><span class="text-gray-400">Plan</span><span id="user-plan" class="text-blue-400">Free</span></div>
+                    <div class="flex justify-between"><span class="text-gray-400">Token</span><span class="text-green-400">Valido ✅</span></div>
                 </div>
             </div>
-
-            <!-- Quick Actions -->
-            <div class="bg-gray-800 border border-gray-700 rounded-xl p-6">
-                <h2 class="text-xl font-semibold mb-4">Acciones rápidas</h2>
-                <div class="flex flex-wrap gap-3">
-                    <button onclick="chatWithCEO()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-sm font-medium">
-                        💬 Hablar con el CEO Agent
-                    </button>
-                    <button onclick="showDiscovery()" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors text-sm font-medium">
-                        🔍 Descubrir oportunidades
-                    </button>
-                    <button onclick="showMetrics()" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors text-sm font-medium">
-                        📊 Ver métricas
-                    </button>
-                </div>
-            </div>
-
-            <!-- Chat Section -->
-            <div id="chat-section" class="hidden mt-8 fade-in">
-                <div class="bg-gray-800 border border-gray-700 rounded-xl p-6">
-                    <h2 class="text-xl font-semibold mb-4">💬 Chat con CEO Agent</h2>
-                    <div id="chat-messages" class="space-y-3 mb-4 max-h-96 overflow-y-auto">
-                        <div class="bg-gray-700/50 rounded-lg p-3">
-                            <span class="text-sm text-blue-400 font-medium">CEO Agent:</span>
-                            <p class="text-sm text-gray-300 mt-1">Hola, soy tu co-fundador IA. ¿En qué puedo ayudarte hoy? Puedo analizar oportunidades, crear estrategias, o revisar el estado de tu negocio.</p>
-                        </div>
-                    </div>
-                    <form onsubmit="sendMessage(event)" class="flex gap-2">
-                        <input
-                            type="text"
-                            id="chat-input"
-                            placeholder="Escribe tu mensaje..."
-                            class="flex-1 px-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                        <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">
-                            Enviar
-                        </button>
-                    </form>
-                </div>
-            </div>
-        </section>
-    </div>
-
-    <!-- LOADING VIEW -->
-    <div id="view-loading" class="hidden">
-        <section class="max-w-4xl mx-auto px-6 py-20 text-center">
-            <div class="text-4xl mb-4">⏳</div>
-            <p class="text-gray-400">Verificando sesión...</p>
+            <button onclick="doLogout()" class="mt-8 text-gray-500 hover:text-white transition-colors text-sm">Cerrar sesion</button>
         </section>
     </div>
 
     <script>
-        var BACKEND_URL = 'https://lanzalo-production.up.railway.app';
-        var currentMode = 'login';
-        var currentToken = null;
-        var currentUser = null;
+    var BACKEND_URL = 'https://lanzalo-production.up.railway.app';
+    var currentMode = 'login';
 
-        // ==================
-        // VIEW MANAGEMENT
-        // ==================
-        function showView(viewName) {
-            document.getElementById('view-login').classList.add('hidden');
-            document.getElementById('view-dashboard').classList.add('hidden');
-            document.getElementById('view-loading').classList.add('hidden');
-            document.getElementById('view-' + viewName).classList.remove('hidden');
+    function switchMode(mode) {
+        currentMode = mode;
+        document.getElementById('tab-login').className = mode === 'login'
+            ? 'flex-1 py-2 rounded-lg text-sm font-medium transition-colors bg-blue-600 text-white'
+            : 'flex-1 py-2 rounded-lg text-sm font-medium transition-colors bg-gray-700 text-gray-400 hover:bg-gray-600';
+        document.getElementById('tab-register').className = mode === 'register'
+            ? 'flex-1 py-2 rounded-lg text-sm font-medium transition-colors bg-blue-600 text-white'
+            : 'flex-1 py-2 rounded-lg text-sm font-medium transition-colors bg-gray-700 text-gray-400 hover:bg-gray-600';
+        document.getElementById('btn').textContent = mode === 'login' ? 'Entrar' : 'Crear cuenta gratis';
+        hideMessages();
+    }
 
-            // Show/hide logout button
-            var logoutBtn = document.getElementById('header-logout');
-            if (viewName === 'dashboard') {
-                logoutBtn.classList.remove('hidden');
+    function hideMessages() {
+        document.getElementById('error-msg').classList.add('hidden');
+        document.getElementById('success-msg').classList.add('hidden');
+    }
+
+    function showError(msg) {
+        var el = document.getElementById('error-msg');
+        el.textContent = msg;
+        el.classList.remove('hidden');
+    }
+
+    function showSuccess(msg) {
+        var el = document.getElementById('success-msg');
+        el.textContent = msg;
+        el.classList.remove('hidden');
+    }
+
+    async function handleAuth() {
+        var email = document.getElementById('email').value;
+        var password = document.getElementById('password').value;
+        var btn = document.getElementById('btn');
+        hideMessages();
+
+        if (!email || !password) { showError('Completa todos los campos'); return; }
+        if (password.length < 8) { showError('La contrasena debe tener al menos 8 caracteres'); return; }
+
+        btn.disabled = true;
+        btn.textContent = 'Cargando...';
+
+        try {
+            var endpoint = currentMode === 'login' ? '/api/auth/login' : '/api/auth/register';
+            var res = await fetch(BACKEND_URL + endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: email, password: password, name: email.split('@')[0] })
+            });
+            var data = await res.json();
+
+            if (res.ok && data.token) {
+                localStorage.setItem('token', data.token);
+                localStorage.setItem('user', JSON.stringify(data.user));
+                showDashboard(data.user);
+            } else if (currentMode === 'register' && res.ok) {
+                showSuccess('Cuenta creada. Inicia sesion.');
+                switchMode('login');
+            } else if (data.error && data.error.includes('ya registrado')) {
+                switchMode('login');
+                showError('Ya tienes cuenta. Inicia sesion.');
             } else {
-                logoutBtn.classList.add('hidden');
+                showError(data.error || 'Error. Intenta de nuevo.');
             }
+        } catch (err) {
+            console.error('Error:', err);
+            showError('Error de conexion. Verifica tu internet.');
+        } finally {
+            btn.disabled = false;
+            btn.textContent = currentMode === 'login' ? 'Entrar' : 'Crear cuenta gratis';
         }
+    }
 
-        function showDashboard(user) {
-            currentUser = user;
-            var nameEl = document.getElementById('user-name');
-            nameEl.textContent = user.name || user.email.split('@')[0];
-            showView('dashboard');
-        }
+    async function sendMagicLink() {
+        var email = document.getElementById('email').value;
+        var btn = document.getElementById('magic-btn');
+        hideMessages();
 
-        // ==================
-        // AUTH FUNCTIONS
-        // ==================
-        function switchMode(mode) {
-            currentMode = mode;
-            var tabLogin = document.getElementById('tab-login');
-            var tabRegister = document.getElementById('tab-register');
-            var btnSubmit = document.getElementById('btn-submit');
-            var registerHint = document.getElementById('register-hint');
+        if (!email || !email.includes('@')) { showError('Introduce un email valido'); return; }
 
-            hideMessages();
+        btn.disabled = true;
+        btn.textContent = 'Enviando...';
 
-            if (mode === 'login') {
-                tabLogin.className = 'flex-1 py-2 rounded-lg text-sm font-medium transition-colors bg-blue-600 text-white';
-                tabRegister.className = 'flex-1 py-2 rounded-lg text-sm font-medium transition-colors bg-gray-700 text-gray-400 hover:bg-gray-600';
-                btnSubmit.textContent = 'Entrar';
-                registerHint.classList.add('hidden');
+        try {
+            var res = await fetch(BACKEND_URL + '/api/minimal-login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: email })
+            });
+            var data = await res.json();
+
+            if (res.ok && data.success) {
+                showSuccess('Enlace enviado! Revisa tu email (puede tardar 1-2 min).');
             } else {
-                tabRegister.className = 'flex-1 py-2 rounded-lg text-sm font-medium transition-colors bg-blue-600 text-white';
-                tabLogin.className = 'flex-1 py-2 rounded-lg text-sm font-medium transition-colors bg-gray-700 text-gray-400 hover:bg-gray-600';
-                btnSubmit.textContent = 'Crear cuenta gratis (14 días)';
-                registerHint.classList.remove('hidden');
+                showError(data.error || 'Error enviando enlace.');
             }
+        } catch (err) {
+            console.error('Error:', err);
+            showError('Error de conexion.');
+        } finally {
+            btn.disabled = false;
+            btn.textContent = '🔮 Enviar enlace magico por email';
         }
+    }
 
-        function showError(msg) {
-            var el = document.getElementById('error-msg');
-            el.textContent = msg;
-            el.classList.remove('hidden');
-            document.getElementById('success-msg').classList.add('hidden');
-        }
+    function showDashboard(user) {
+        document.getElementById('login-view').classList.add('hidden');
+        document.getElementById('dashboard-view').classList.remove('hidden');
+        document.getElementById('header-logout').classList.remove('hidden');
+        document.getElementById('welcome-email').textContent = user ? user.email : '';
+        if (user && user.plan) document.getElementById('user-plan').textContent = user.plan;
+    }
 
-        function showSuccess(msg) {
-            var el = document.getElementById('success-msg');
-            el.textContent = msg;
-            el.classList.remove('hidden');
-            document.getElementById('error-msg').classList.add('hidden');
-        }
+    function doLogout() {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        document.getElementById('login-view').classList.remove('hidden');
+        document.getElementById('dashboard-view').classList.add('hidden');
+        document.getElementById('header-logout').classList.add('hidden');
+    }
 
-        function hideMessages() {
-            document.getElementById('error-msg').classList.add('hidden');
-            document.getElementById('success-msg').classList.add('hidden');
-        }
-
-        async function handleSubmit(e) {
-            e.preventDefault();
-            hideMessages();
-
-            var email = document.getElementById('email').value.trim();
-            var password = document.getElementById('password').value;
-            var btn = document.getElementById('btn-submit');
-
-            if (!email || !password) {
-                showError('Email y contraseña son requeridos.');
-                return;
-            }
-
-            if (password.length < 8) {
-                showError('La contraseña debe tener al menos 8 caracteres.');
-                return;
-            }
-
-            btn.disabled = true;
-            btn.textContent = 'Cargando...';
-
-            try {
-                var endpoint = currentMode === 'login'
-                    ? '/api/auth/login'
-                    : '/api/auth/register';
-
-                var response = await fetch(BACKEND_URL + endpoint, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email: email, password: password })
-                });
-
-                var data = await response.json();
-
-                if (response.ok && data.token) {
-                    // Login o registro exitoso con token
-                    localStorage.setItem('token', data.token);
-                    if (data.user) {
-                        localStorage.setItem('user', JSON.stringify(data.user));
-                    }
-                    currentToken = data.token;
-                    showSuccess('Bienvenido. Cargando dashboard...');
-                    setTimeout(function() {
-                        showDashboard(data.user || { email: email });
-                    }, 500);
-
-                } else if (response.ok && data.status === 'ok' && currentMode === 'register') {
-                    // Registro OK pero sin token - auto-login
-                    showSuccess('Cuenta creada. Iniciando sesión...');
-                    var loginRes = await fetch(BACKEND_URL + '/api/auth/login', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ email: email, password: password })
-                    });
-                    var loginData = await loginRes.json();
-
-                    if (loginRes.ok && loginData.token) {
-                        localStorage.setItem('token', loginData.token);
-                        if (loginData.user) {
-                            localStorage.setItem('user', JSON.stringify(loginData.user));
-                        }
-                        currentToken = loginData.token;
-                        setTimeout(function() {
-                            showDashboard(loginData.user || { email: email });
-                        }, 500);
-                    } else {
-                        showSuccess('Cuenta creada. Inicia sesión con tus credenciales.');
-                        switchMode('login');
-                    }
-
-                } else if (data.error && data.error.toLowerCase().includes('ya registrado')) {
-                    switchMode('login');
-                    showError('Ya tienes cuenta. Inicia sesión con tu contraseña.');
-                } else if (data.error && data.error.toLowerCase().includes('invalid')) {
-                    showError('Email o contraseña incorrectos.');
+    // Check if already logged in
+    (function() {
+        var token = localStorage.getItem('token');
+        if (token) {
+            fetch(BACKEND_URL + '/api/auth/verify', {
+                headers: { 'Authorization': 'Bearer ' + token }
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.status === 'ok') {
+                    showDashboard(data.user);
                 } else {
-                    showError(data.error || 'Error. Intenta de nuevo.');
-                }
-            } catch (err) {
-                console.error('Error:', err);
-                showError('Error de conexión. Verifica tu internet e intenta de nuevo.');
-            } finally {
-                btn.disabled = false;
-                btn.textContent = currentMode === 'login' ? 'Entrar' : 'Crear cuenta gratis (14 días)';
-            }
-        }
-
-        function doLogout() {
-            localStorage.removeItem('token');
-            localStorage.removeItem('user');
-            currentToken = null;
-            currentUser = null;
-            showView('login');
-        }
-
-        // ==================
-        // DASHBOARD ACTIONS
-        // ==================
-        function chatWithCEO() {
-            document.getElementById('chat-section').classList.remove('hidden');
-            document.getElementById('chat-input').focus();
-        }
-
-        function showDiscovery() {
-            alert('Función en desarrollo. El Trend Scout Agent está analizando oportunidades.');
-        }
-
-        function showMetrics() {
-            alert('Función en desarrollo. El Data Agent está recopilando métricas.');
-        }
-
-        async function sendMessage(e) {
-            e.preventDefault();
-            var input = document.getElementById('chat-input');
-            var msg = input.value.trim();
-            if (!msg) return;
-
-            var messagesDiv = document.getElementById('chat-messages');
-
-            // Add user message
-            var userMsg = document.createElement('div');
-            userMsg.className = 'bg-blue-900/30 rounded-lg p-3';
-            userMsg.innerHTML = '<span class="text-sm text-blue-300 font-medium">Tú:</span><p class="text-sm text-gray-300 mt-1">' + escapeHtml(msg) + '</p>';
-            messagesDiv.appendChild(userMsg);
-
-            input.value = '';
-            messagesDiv.scrollTop = messagesDiv.scrollHeight;
-
-            // Call CEO chat endpoint
-            try {
-                var response = await fetch(BACKEND_URL + '/api/ceo-chat', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': 'Bearer ' + currentToken
-                    },
-                    body: JSON.stringify({ message: msg })
-                });
-
-                var data = await response.json();
-                var reply = data.reply || data.message || data.response || 'Procesando tu solicitud...';
-
-                var botMsg = document.createElement('div');
-                botMsg.className = 'bg-gray-700/50 rounded-lg p-3 fade-in';
-                botMsg.innerHTML = '<span class="text-sm text-blue-400 font-medium">CEO Agent:</span><p class="text-sm text-gray-300 mt-1">' + escapeHtml(reply) + '</p>';
-                messagesDiv.appendChild(botMsg);
-            } catch (err) {
-                var errMsg = document.createElement('div');
-                errMsg.className = 'bg-red-900/30 rounded-lg p-3 fade-in';
-                errMsg.innerHTML = '<p class="text-sm text-red-300">Error de conexión. Intenta de nuevo.</p>';
-                messagesDiv.appendChild(errMsg);
-            }
-
-            messagesDiv.scrollTop = messagesDiv.scrollHeight;
-        }
-
-        function escapeHtml(text) {
-            var div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
-
-        // ==================
-        // INIT: Check existing session
-        // ==================
-        (function() {
-            var token = localStorage.getItem('token');
-            if (token) {
-                showView('loading');
-                fetch(BACKEND_URL + '/api/auth/verify', {
-                    headers: { 'Authorization': 'Bearer ' + token }
-                })
-                .then(function(r) { return r.json(); })
-                .then(function(data) {
-                    if (data.status === 'ok' && data.user) {
-                        currentToken = token;
-                        showDashboard(data.user);
-                    } else {
-                        localStorage.removeItem('token');
-                        localStorage.removeItem('user');
-                        showView('login');
-                    }
-                })
-                .catch(function() {
                     localStorage.removeItem('token');
                     localStorage.removeItem('user');
-                    showView('login');
-                });
-            } else {
-                showView('login');
-            }
-        })();
+                }
+            })
+            .catch(function() {
+                localStorage.removeItem('token');
+                localStorage.removeItem('user');
+            });
+        }
+    })();
     </script>
 </body>
 </html>
