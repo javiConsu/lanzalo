@@ -62,6 +62,7 @@ app.get('/api/verify-magic', require('./routes/verify-magic'));
 
 app.use('/api', require('./routes/ceo-chat')); // Co-Founder Agent chat
 app.use('/api/credits', require('./routes/credits')); // Sistema de créditos
+app.use('/api/changes', require('./routes/change-requests')); // Cambios en assets (gratis)
 
 // Start HTTP server
 const server = app.listen(PORT, () => {

@@ -14,6 +14,7 @@ import OnboardingChoosePath from './pages/OnboardingChoosePath'
 import OnboardingChooseIdea from './pages/OnboardingChooseIdea'
 import AdminDashboard from './pages/AdminDashboard'
 import Paywall from './components/Paywall'
+import BusinessHub from './pages/BusinessHub'
 
 function App() {
   const [token, setToken] = useState(localStorage.getItem('token'))
@@ -69,7 +70,7 @@ function App() {
         <Route path="/discovery/analysis" element={<DiscoveryAnalysis />} />
         
         <Route path="/" element={<Dashboard user={user} onLogout={handleLogout} />}>
-          <Route index element={user?.isTrialExpired ? <Paywall user={user} /> : <Chat />} />
+          <Route index element={user?.isTrialExpired ? <Paywall user={user} /> : <BusinessHub />} />
           <Route path="chat" element={user?.isTrialExpired ? <Paywall user={user} /> : <Chat />} />
           <Route path="ideas" element={<Ideas />} />
           <Route path="backlog" element={user?.isTrialExpired ? <Paywall user={user} /> : <Backlog />} />

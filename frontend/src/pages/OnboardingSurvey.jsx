@@ -6,7 +6,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowRight, Gift, Loader2 } from 'lucide-react';
-import api from '../lib/api';
+import { apiUrl } from '../api.js';
 
 const SURVEY_QUESTIONS = [
   {
@@ -98,7 +98,12 @@ export default function OnboardingSurvey() {
     setError(null);
 
     try {
-      await api.post('/api/onboarding/survey', { responses });
+      const token = localStorage.getItem('token');
+      await fetch(apiUrl('/api/onboarding/survey'), {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ responses })
+      });
       
       // Redirect to next step (describe idea or choose idea)
       navigate('/onboarding/choose-path');
