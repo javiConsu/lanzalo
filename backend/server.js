@@ -56,6 +56,10 @@ app.use('/api/payments', require('./routes/payments'));
 app.use('/sites', require('./routes/sites'));
 app.use('/api/webhooks', require('./routes/webhooks'));
 app.use('/api/migrate', require('./routes/migrate'));
+// Magic link login (NO auth required - must be BEFORE ceo-chat catch-all)
+app.post('/api/minimal-login', require('./routes/minimal-login'));
+app.get('/api/verify-magic', require('./routes/verify-magic'));
+
 app.use('/api', require('./routes/ceo-chat')); // Co-Founder Agent chat
 
 // Start HTTP server
@@ -133,14 +137,6 @@ app.use('/login', loginEmail);
 
 // Login routes
 app.use('/login', require('./routes/login-email'));
-
-// Minimal login
-const minimalLogin = require('./routes/minimal-login');
-app.post('/api/minimal-login', minimalLogin);
-
-// Verify magic link
-const verifyMagic = require('./routes/verify-magic');
-app.get('/api/verify-magic', verifyMagic);
 
 // TEMP: migración de login_tokens
 app.get('/setup-login-tokens', async (req, res) => {
