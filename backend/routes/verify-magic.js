@@ -15,7 +15,7 @@ module.exports = async (req, res) => {
       return res.status(400).send('<h1>Token no proporcionado</h1>');
     }
 
-    // Buscar token en DB (sin columna used - solo verificar que existe y no ha expirado)
+    // Buscar token en DB
     const result = await pool.query(
       'SELECT * FROM login_tokens WHERE token = $1 AND expires_at > NOW()',
       [token]
@@ -51,21 +51,10 @@ module.exports = async (req, res) => {
     const jwt = generateToken(user);
     console.log('[VERIFY-MAGIC] JWT generated for:', user.email);
 
-    // Redirect to frontend with token
-    res.send(`
-      <!DOCTYPE html>
-      <html>
-      <head><title>Accediendo a Lanzalo...</title></head>
-      <body>
-        <script>
-          localStorage.setItem('token', '${jwt}');
-          localStorage.setItem('user', JSON.stringify(${JSON.stringify(user)}));
-          window.location.href = '${FRONTEND_URL}';
-        </script>
-        <p>Redirigiendo...</p>
-      </body>
-      </html>
-    `);
+    // Redirect to frontend with token as URL parameter
+    // The frontend will read these params and store in localStorage
+    const userEncoded = encodeURIComponent(JSON.stringify(user));
+    res.redirect(`${FRONTEND_URL}?auth_token=${jwt}&user=${userEncoded}`);
 
   } catch (error) {
     console.error('[VERIFY-MAGIC] Error:', error);
