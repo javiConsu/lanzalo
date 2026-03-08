@@ -12,6 +12,7 @@ import DiscoveryAnalysis from './pages/DiscoveryAnalysis'
 import OnboardingSurvey from './pages/OnboardingSurvey'
 import OnboardingChoosePath from './pages/OnboardingChoosePath'
 import OnboardingChooseIdea from './pages/OnboardingChooseIdea'
+import AdminDashboard from './pages/AdminDashboard'
 
 function App() {
   const [token, setToken] = useState(localStorage.getItem('token'))
@@ -47,8 +48,10 @@ function App() {
 
   const handleLogout = () => {
     localStorage.removeItem('token')
+    localStorage.removeItem('user')
     setToken(null)
     setUser(null)
+    window.location.href = '/'
   }
 
   if (!token) {
@@ -71,6 +74,8 @@ function App() {
           <Route path="backlog" element={<Backlog />} />
           <Route path="metrics" element={<Metrics />} />
         </Route>
+
+        <Route path="/admin" element={user?.is_admin ? <AdminDashboard /> : <Navigate to="/" replace />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>
