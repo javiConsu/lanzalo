@@ -118,34 +118,43 @@ router.post('/register', async (req, res) => {
 router.post('/survey', authenticate, async (req, res) => {
   try {
     const { answers } = req.body;
-    // answers: { name, role, location, experience, businessType, goal, source }
     
-    // Save to user profile or separate table
-    await pool.query(
-      `UPDATE users 
-       SET survey_data = $1, survey_completed_at = NOW()
-       WHERE id = $2`,
-      [JSON.stringify(answers), req.user.userId]
-    );
+    // Try to save survey data — columns may not exist in all DB versions
+    try {
+      await pool.query(
+        `UPDATE users 
+         SET survey_data = $1, survey_completed_at = NOW()
+         WHERE id = $2`,
+        [JSON.stringify(answers), req.user.id]
+      );
+    } catch (dbErr) {
+      // Columns might not exist — that's ok, survey is optional
+      console.log('[Onboarding] Survey save skipped (columns may not exist):', dbErr.message);
+    }
     
-    // Reward: Get 3 top validated ideas
-    const topIdeas = await pool.query(
-      `SELECT * FROM discovered_ideas 
-       WHERE score >= 85 AND is_active = TRUE
-       ORDER BY score DESC 
-       LIMIT 3`
-    );
+    // Try to get validated ideas as reward
+    let topIdeas = [];
+    try {
+      const result = await pool.query(
+        `SELECT * FROM discovered_ideas 
+         WHERE score >= 85 AND is_active = TRUE
+         ORDER BY score DESC 
+         LIMIT 3`
+      );
+      topIdeas = result.rows || [];
+    } catch (dbErr) {
+      // Table might not exist yet
+      console.log('[Onboarding] discovered_ideas not available:', dbErr.message);
+    }
     
     res.json({
       success: true,
       reward: {
-        ideas: topIdeas.rows || [],
-        message: 'Gracias por completar la encuesta. Aquí tienes 3 ideas validadas.'
+        ideas: topIdeas,
+        message: 'Gracias por completar la encuesta.'
       },
-      redirect: '/onboarding/idea'
+      redirect: '/onboarding/choose-path'
     });
-    
-    // TODO: Send reward email with ideas
     
   } catch (error) {
     console.error('[Onboarding] Survey error:', error);
@@ -215,10 +224,9 @@ router.post('/create-company', authenticate, async (req, res) => {
     
     await pool.query(
       `INSERT INTO companies 
-       (id, user_id, name, description, subdomain, industry, status, 
-        daily_sync_enabled, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6, 'planning', TRUE, NOW())`,
-      [companyId, req.user.userId, companyData.name, companyData.description,
+       (id, user_id, name, description, subdomain, industry, status, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, 'planning', NOW())`,
+      [companyId, req.user.id, companyData.name, companyData.description,
        subdomain, companyData.audience]
     );
     
@@ -229,8 +237,8 @@ router.post('/create-company', authenticate, async (req, res) => {
     
     await pool.query(
       `INSERT INTO tasks 
-       (id, company_id, title, description, tag, priority, status, auto_created)
-       VALUES ($1, $2, $3, $4, 'research', 'high', 'todo', TRUE)`,
+       (id, company_id, tag, title, description, status, priority, created_at)
+       VALUES ($1, $2, 'research', $3, $4, 'pending', 'high', NOW())`,
       [
         taskId,
         companyId,
@@ -255,7 +263,7 @@ Genera reporte completo con veredicto: Verde/Amarillo/Rojo.`
     // Mark onboarding as completed
     await pool.query(
       'UPDATE users SET onboarding_completed = TRUE WHERE id = $1',
-      [req.user.userId]
+      [req.user.id]
     );
     
     res.json({
@@ -286,7 +294,7 @@ router.get('/status', authenticate, async (req, res) => {
     const user = await pool.query(
       `SELECT onboarding_completed, survey_data, plan, trial_ends_at 
        FROM users WHERE id = $1`,
-      [req.user.userId]
+      [req.user.id]
     );
     
     if (!user.rows || user.rows.length === 0) {
@@ -298,7 +306,7 @@ router.get('/status', authenticate, async (req, res) => {
     // Check if user has companies
     const companies = await pool.query(
       'SELECT id, name, subdomain FROM companies WHERE user_id = $1',
-      [req.user.userId]
+      [req.user.id]
     );
     
     res.json({

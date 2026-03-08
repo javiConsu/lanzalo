@@ -18,7 +18,7 @@ router.use(requireAuth);
 router.get('/profile', async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT id, email, name, role, plan, subscription_tier, trial_ends_at, created_at FROM users WHERE id = $1',
+      'SELECT id, email, name, role, plan, subscription_tier, trial_ends_at, onboarding_completed, created_at FROM users WHERE id = $1',
       [req.user.id]
     );
 
@@ -43,6 +43,7 @@ router.get('/profile', async (req, res) => {
     res.json({
       user: {
         ...user,
+        onboardingCompleted: user.onboarding_completed || false,
         isTrialActive,
         trialDaysLeft,
         isTrialExpired,

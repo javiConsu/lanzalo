@@ -13,6 +13,7 @@ import DiscoveryAnalysis from './pages/DiscoveryAnalysis'
 import OnboardingSurvey from './pages/OnboardingSurvey'
 import OnboardingChoosePath from './pages/OnboardingChoosePath'
 import OnboardingChooseIdea from './pages/OnboardingChooseIdea'
+import OnboardingDescribeIdea from './pages/OnboardingDescribeIdea'
 import AdminDashboard from './pages/AdminDashboard'
 import Paywall from './components/Paywall'
 import BusinessHub from './pages/BusinessHub'
@@ -90,6 +91,7 @@ function App() {
         <Route path="/onboarding/survey" element={<OnboardingSurvey />} />
         <Route path="/onboarding/choose-path" element={<OnboardingChoosePath />} />
         <Route path="/onboarding/choose-idea" element={<OnboardingChooseIdea />} />
+        <Route path="/onboarding/describe-idea" element={<OnboardingDescribeIdea />} />
         <Route path="/discovery" element={<Discovery />} />
         <Route path="/discovery/analysis" element={<DiscoveryAnalysis />} />
         
