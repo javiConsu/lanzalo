@@ -32,8 +32,8 @@ export default function OnboardingDescribeIdea() {
       });
 
       if (result.success && result.company) {
-        // Navigate to the main app — Chat will auto-select the new company
-        navigate('/chat');
+        // Force full reload so App re-fetches profile with onboardingCompleted=true
+        window.location.href = '/chat';
       } else {
         setError(result.error || 'Error creando la empresa');
         setLaunching(false);

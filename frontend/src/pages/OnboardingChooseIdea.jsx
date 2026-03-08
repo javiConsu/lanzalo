@@ -42,8 +42,8 @@ export default function OnboardingChooseIdea() {
         ideaId: idea.id
       });
 
-      // Redirect to chat with new company
-      navigate(`/chat/${result.company.id}`);
+      // Force full reload so App re-fetches profile with onboardingCompleted=true
+      window.location.href = '/chat';
     } catch (err) {
       console.error('Error launching idea:', err);
       setLaunching(false);
