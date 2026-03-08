@@ -5,7 +5,7 @@ import LandingPage from './pages/LandingPage'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import DashboardHome from './pages/DashboardHome'
-import Chat from './pages/Chat'
+import AgentOffice from './pages/AgentOffice'
 import Ideas from './pages/Ideas'
 import Backlog from './pages/Backlog'
 import Metrics from './pages/Metrics'
@@ -101,7 +101,7 @@ function App() {
             : <Dashboard user={user} onLogout={handleLogout} />
         }>
           <Route index element={user?.isTrialExpired ? <Paywall user={user} /> : <DashboardHome />} />
-          <Route path="chat" element={user?.isTrialExpired ? <Paywall user={user} /> : <Chat />} />
+          <Route path="agents" element={user?.isTrialExpired ? <Paywall user={user} /> : <AgentOffice />} />
           <Route path="ideas" element={<Ideas />} />
           <Route path="backlog" element={user?.isTrialExpired ? <Paywall user={user} /> : <Backlog />} />
           <Route path="metrics" element={user?.isTrialExpired ? <Paywall user={user} /> : <Metrics />} />

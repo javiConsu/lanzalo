@@ -17,7 +17,7 @@ export default function Dashboard({ user, onLogout }) {
 
   const navItems = [
     { path: '/', icon: '🏠', label: 'Dashboard' },
-    { path: '/chat', icon: '💬', label: 'Chat' },
+    { path: '/agents', icon: '🏢', label: 'Agentes' },
     { path: '/ideas', icon: '💡', label: 'Ideas' },
     { path: '/backlog', icon: '📋', label: 'Backlog' },
     { path: '/metrics', icon: '📊', label: 'Métricas' },

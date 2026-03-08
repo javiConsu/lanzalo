@@ -549,4 +549,115 @@ router.get('/companies/:companyId/documents', requireAuth, requireCompanyAccess,
   }
 });
 
+/**
+ * Estado de agentes para la oficina pixel-art
+ * Mapea tareas activas a estados visuales de cada agente
+ */
+router.get('/companies/:companyId/agents/status', requireAuth, requireCompanyAccess, async (req, res) => {
+  try {
+    const { companyId } = req.params;
+    
+    // Get all active tasks for this company
+    const result = await pool.query(
+      `SELECT agent_type, status, title, started_at, created_at
+       FROM tasks 
+       WHERE company_id = $1 AND status IN ('todo', 'in_progress')
+       ORDER BY created_at DESC`,
+      [companyId]
+    );
+    
+    // Get recent completed tasks (last hour) for "syncing" state
+    const recentDone = await pool.query(
+      `SELECT agent_type, title, completed_at
+       FROM tasks 
+       WHERE company_id = $1 AND status = 'completed' AND completed_at > NOW() - INTERVAL '1 hour'
+       ORDER BY completed_at DESC`,
+      [companyId]
+    );
+    
+    // Get recent failed tasks for "error" state
+    const recentFailed = await pool.query(
+      `SELECT agent_type, title, completed_at
+       FROM tasks 
+       WHERE company_id = $1 AND status = 'failed' AND completed_at > NOW() - INTERVAL '30 minutes'
+       ORDER BY completed_at DESC`,
+      [companyId]
+    );
+    
+    const activeTasks = result.rows;
+    const completedRecent = recentDone.rows;
+    const failedRecent = recentFailed.rows;
+    
+    // Define all agent types with display info
+    const AGENTS = {
+      ceo: { name: 'CEO', emoji: '🧠', color: '#10b981' },
+      code: { name: 'Code', emoji: '💻', color: '#3b82f6' },
+      marketing: { name: 'Marketing', emoji: '📣', color: '#ec4899' },
+      email: { name: 'Email', emoji: '📧', color: '#f59e0b' },
+      research: { name: 'Research', emoji: '🔍', color: '#8b5cf6' },
+      data: { name: 'Data', emoji: '📊', color: '#06b6d4' },
+      twitter: { name: 'Twitter', emoji: '🐦', color: '#6366f1' }
+    };
+    
+    // Map each agent to a state
+    const agents = {};
+    for (const [type, info] of Object.entries(AGENTS)) {
+      const inProgress = activeTasks.find(t => t.agent_type === type && t.status === 'in_progress');
+      const queued = activeTasks.find(t => t.agent_type === type && t.status === 'todo');
+      const failed = failedRecent.find(t => t.agent_type === type);
+      const completed = completedRecent.find(t => t.agent_type === type);
+      
+      let state = 'idle';
+      let detail = 'Descansando...';
+      
+      if (failed) {
+        state = 'error';
+        detail = `Error: ${failed.title}`;
+      } else if (inProgress) {
+        // Determine if writing, researching, or executing based on agent type
+        if (type === 'research' || type === 'data') {
+          state = 'researching';
+        } else if (type === 'code') {
+          state = 'writing';
+        } else {
+          state = 'executing';
+        }
+        detail = inProgress.title;
+      } else if (completed) {
+        state = 'syncing';
+        detail = `Completado: ${completed.title}`;
+      } else if (queued) {
+        state = 'idle';
+        detail = `Pendiente: ${queued.title}`;
+      }
+      
+      agents[type] = {
+        ...info,
+        type,
+        state,
+        detail,
+        tasksInProgress: activeTasks.filter(t => t.agent_type === type && t.status === 'in_progress').length,
+        tasksQueued: activeTasks.filter(t => t.agent_type === type && t.status === 'todo').length
+      };
+    }
+    
+    // CEO is special - always "executing" when there are any active tasks
+    if (activeTasks.length > 0 && agents.ceo.state === 'idle') {
+      agents.ceo.state = 'executing';
+      agents.ceo.detail = `Coordinando ${activeTasks.length} tareas`;
+    }
+    
+    res.json({
+      agents,
+      totalActive: activeTasks.length,
+      totalQueued: activeTasks.filter(t => t.status === 'todo').length,
+      totalInProgress: activeTasks.filter(t => t.status === 'in_progress').length
+    });
+    
+  } catch (error) {
+    console.error('Error obteniendo estado de agentes:', error);
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
 module.exports = router;
