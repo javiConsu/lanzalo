@@ -96,8 +96,8 @@ INGRESOS: $${this.company.revenue_total || 0}`;
       { role: 'user', content: userMessage }
     ];
 
-    // Activar tools solo cuando el usuario pide algo concreto que las requiere
-    const needsTools = /\b(crea|crear|haz|hacer|añade|añadir|busca|buscar|tarea|task|investiga|analiza|lanza|despliega|tweet|email|campaña)\b/i.test(userMessage);
+    // Intent classification: use cheap LLM to decide if tools are needed
+    const needsTools = await this.classifyIntent(userMessage);
 
     let response;
     if (needsTools) {
@@ -110,9 +110,9 @@ INGRESOS: $${this.company.revenue_total || 0}`;
         toolHandlers,
         companyId: this.companyId,
         taskType: 'ceo',
-        maxTurns: 1,
+        maxTurns: 3,
         temperature: 0.7,
-        maxTokens: 500
+        maxTokens: 800
       });
     } else {
       // Chat rápido y barato (gpt-4o-mini) — 20x más económico
@@ -185,6 +185,120 @@ INGRESOS: $${this.company.revenue_total || 0}`;
       );
     } catch (e) {
       // Silencioso
+    }
+  }
+
+  /**
+   * LLM-based intent classifier — cheap model, ~20 tokens output
+   * Replaces the old regex approach for much better accuracy
+   */
+  async classifyIntent(userMessage) {
+    // Fast regex pre-filter for obvious non-action messages
+    if (userMessage.length < 5) return false;
+    if (/^(hola|buenas|hey|qué tal|gracias|ok|vale|sí|no|ja|\?)$/i.test(userMessage.trim())) return false;
+
+    try {
+      const { callLLM } = require('../backend/llm');
+      const response = await callLLM(
+        `Clasifica si este mensaje del fundador requiere ACCIÓN (crear tarea, buscar info, enviar email, analizar datos, etc.) o es solo CONVERSACIÓN (saludar, opinar, preguntar algo general, charlar).
+
+Mensaje: "${userMessage.substring(0, 300)}"
+
+Responde SOLO con: ACTION o CHAT`,
+        {
+          taskType: 'ceo_chat', // Uses gpt-4o-mini — cheapest
+          temperature: 0,
+          maxTokens: 10
+        }
+      );
+      const result = (response.content || '').trim().toUpperCase();
+      return result.includes('ACTION');
+    } catch (e) {
+      // Fallback to regex if classifier fails
+      return /\b(crea|crear|haz|hacer|añade|añadir|busca|buscar|tarea|task|investiga|analiza|lanza|despliega|tweet|email|campaña|plan|estrategia|ejecuta|monta|construye|diseña|prepara|genera|publica)\b/i.test(userMessage);
+    }
+  }
+
+  /**
+   * Multi-step planning: break complex requests into coordinated task plans
+   * Called when the CEO detects a high-level strategic request
+   */
+  async createMultiStepPlan(userMessage, companyContext) {
+    try {
+      const { callLLM } = require('../backend/llm');
+      const response = await callLLM(
+        `El fundador quiere algo complejo que requiere múltiples pasos coordinados.
+
+Petición: "${userMessage}"
+
+Contexto empresa:
+${companyContext}
+
+Crea un plan de 3-8 tareas coordinadas. Cada tarea debe ser ejecutable por un agente.
+
+Devuelve JSON:
+{
+  "planName": "Nombre del plan",
+  "planDescription": "Resumen de 1-2 frases",
+  "tasks": [
+    {
+      "step": 1,
+      "title": "Título claro",
+      "description": "Descripción detallada",
+      "agent": "code|research|marketing|email|twitter|data|trends|browser",
+      "priority": "high|medium|low",
+      "dependsOn": [] // Steps que deben completarse antes
+    }
+  ]
+}`,
+        {
+          taskType: 'ceo', // Uses claude-3.5-sonnet for planning
+          temperature: 0.4,
+          maxTokens: 1500
+        }
+      );
+
+      const content = response.content || '';
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) return null;
+
+      const plan = JSON.parse(jsonMatch[0]);
+      if (!plan.tasks || !Array.isArray(plan.tasks)) return null;
+
+      // Create all tasks in the backlog
+      const crypto = require('crypto');
+      const { pool } = require('../backend/db');
+      const createdTasks = [];
+
+      for (const task of plan.tasks) {
+        const taskId = crypto.randomUUID();
+        const dependsNote = task.dependsOn && task.dependsOn.length > 0
+          ? `\n\n[Depende de pasos: ${task.dependsOn.join(', ')}]`
+          : '';
+
+        await pool.query(
+          `INSERT INTO tasks (id, company_id, title, description, tag, priority, status, auto_created)
+           VALUES ($1, $2, $3, $4, $5, $6, 'todo', TRUE)`,
+          [
+            taskId,
+            this.companyId,
+            `[Plan: ${plan.planName}] ${task.title}`,
+            `${task.description}${dependsNote}`,
+            task.agent,
+            task.priority || 'medium'
+          ]
+        );
+        createdTasks.push({ id: taskId, ...task });
+      }
+
+      return {
+        planName: plan.planName,
+        planDescription: plan.planDescription,
+        tasks: createdTasks
+      };
+    } catch (e) {
+      console.warn('[CEO] Multi-step planning error:', e.message);
+      return null;
     }
   }
 

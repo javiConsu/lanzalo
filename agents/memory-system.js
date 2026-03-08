@@ -296,9 +296,39 @@ class MemorySystem {
 
     // Actualizar Layer 3 si es un patrón cross-company
     if (learnings.pattern) {
-      const layer3 = await this.getLayer3();
-      // Añadir a patrones si es relevante
-      await this.updateLayer3(layer3);
+      try {
+        const layer3 = await this.getLayer3();
+
+        // Add the new pattern to the appropriate category
+        const patterns = layer3.patterns || {};
+        const industry = await this.getCompanyIndustry();
+
+        if (industry && !patterns[industry]) {
+          patterns[industry] = { bestPractices: [] };
+        }
+
+        if (industry && patterns[industry]) {
+          patterns[industry].bestPractices.push(learnings.pattern);
+          // Keep only last 15 patterns per industry
+          patterns[industry].bestPractices = patterns[industry].bestPractices.slice(-15);
+        }
+
+        // Also track successful features from completed tasks
+        const successfulFeatures = layer3.successfulFeatures || [];
+        if (task.status === 'completed' || result?.status === 'completed') {
+          successfulFeatures.push(`${task.tag}: ${task.title} (${new Date().toISOString().split('T')[0]})`);
+        }
+
+        await this.updateLayer3({
+          ...layer3,
+          patterns,
+          successfulFeatures: successfulFeatures.slice(-30),
+          lastRealUpdate: new Date().toISOString()
+        });
+        console.log(`🧠 Layer 3 updated with cross-company pattern from ${task.tag}`);
+      } catch (e) {
+        console.warn('Layer 3 update error:', e.message);
+      }
     }
   }
 
@@ -332,6 +362,22 @@ RESPONDE EN JSON:
       return JSON.parse(response.content);
     } catch {
       return { domain: null, preferences: null, pattern: null };
+    }
+  }
+
+  /**
+   * Get company industry for Layer 3 categorization
+   */
+  async getCompanyIndustry() {
+    if (!this.companyId) return null;
+    try {
+      const result = await pool.query(
+        'SELECT industry FROM companies WHERE id = $1',
+        [this.companyId]
+      );
+      return result.rows[0]?.industry?.toLowerCase() || null;
+    } catch (e) {
+      return null;
     }
   }
 

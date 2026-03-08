@@ -9,6 +9,7 @@ const { WebSocketServer } = require('ws');
 const orchestrator = require('../agents/orchestrator');
 const taskExecutor = require('../agents/task-executor').instance;
 const { scheduleDailySyncs } = require('../agents/daily-sync');
+const GrowthAgent = require('../agents/growth-agent');
 const { scheduleTrialChecks, scheduleTrialReminders } = require('../agents/trial-manager');
 const { scheduleDripSequence } = require('./services/drip-sequence');
 const { scheduleWeeklyIdeasDigest } = require('./services/weekly-ideas-digest');
@@ -66,6 +67,7 @@ app.get('/api/verify-magic', require('./routes/verify-magic'));
 app.use('/api', require('./routes/ceo-chat')); // Co-Founder Agent chat
 app.use('/api/credits', require('./routes/credits')); // Sistema de créditos
 app.use('/api/changes', require('./routes/change-requests')); // Cambios en assets (gratis)
+app.use('/api', require('./routes/feedback')); // User feedback (thumbs up/down)
 
 // Servir frontend React (producción)
 const path = require('path');
@@ -107,6 +109,11 @@ const server = app.listen(PORT, () => {
   // Schedule weekly ideas digest (Sundays at 11:00 CET)
   console.log('[Server] Scheduling Weekly Ideas Digest...');
   scheduleWeeklyIdeasDigest();
+  
+  // Start Growth Agent (meta-agent, runs daily at 6AM UTC)
+  console.log('[Server] Starting Growth Agent...');
+  const growthAgent = new GrowthAgent();
+  growthAgent.start();
   
   console.log('✅ All systems running');
 });

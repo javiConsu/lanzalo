@@ -164,6 +164,22 @@ const TOOL_DEFS = {
     }
   },
 
+  // --- Multi-step Planning ---
+  create_plan: {
+    type: 'function',
+    function: {
+      name: 'create_plan',
+      description: 'Crear un plan de múltiples tareas coordinadas para un objetivo complejo (lanzamiento, campaña, redesign, etc.)',
+      parameters: {
+        type: 'object',
+        required: ['objective'],
+        properties: {
+          objective: { type: 'string', description: 'Objetivo del plan (ej: "lanzar campaña de email marketing", "rediseñar landing page")' }
+        }
+      }
+    }
+  },
+
   // --- Company ---
   get_company_info: {
     type: 'function',
@@ -303,6 +319,24 @@ function createToolHandlers(companyId, userId) {
         'SELECT * FROM companies WHERE id = $1', [companyId]
       );
       return result.rows[0] || { error: 'Company not found' };
+    },
+
+    create_plan: async (args) => {
+      const CEOAgent = require('./ceo-agent');
+      const ceo = new CEOAgent(companyId, userId);
+      await ceo.initialize();
+
+      // Build memory context for planning
+      let memContext = '';
+      try {
+        const compRes = await pool.query('SELECT * FROM companies WHERE id = $1', [companyId]);
+        const c = compRes.rows[0];
+        if (c) memContext = `Empresa: ${c.name}\nIndustria: ${c.industry || 'N/A'}\nDescripción: ${c.description || 'N/A'}`;
+      } catch(e) {}
+
+      const plan = await ceo.createMultiStepPlan(args.objective, memContext);
+      if (!plan) return { error: 'No se pudo crear el plan' };
+      return { success: true, plan: plan.planName, tasks: plan.tasks.length, description: plan.planDescription };
     }
   };
 }
@@ -312,7 +346,7 @@ function createToolHandlers(companyId, userId) {
 // ═══════════════════════════════════════
 
 const AGENT_TOOLS = {
-  ceo: ['create_task', 'get_tasks', 'read_memory', 'update_memory', 'web_search', 'get_company_info'],
+  ceo: ['create_task', 'get_tasks', 'read_memory', 'update_memory', 'web_search', 'get_company_info', 'create_plan'],
   code: ['read_memory', 'update_memory', 'query_db', 'create_report', 'get_company_info'],
   research: ['web_search', 'read_memory', 'update_memory', 'create_report', 'query_db', 'get_company_info'],
   marketing: ['read_memory', 'web_search', 'create_report', 'get_company_info'],

@@ -9,6 +9,7 @@
  */
 const { pool } = require('../backend/db');
 const crypto = require('crypto');
+const MemorySystem = require('./memory-system');
 
 class TaskExecutor {
   constructor() {
@@ -146,6 +147,17 @@ class TaskExecutor {
         await this.postCompletionHook(task, result);
       } catch (e) {
         console.warn('[Task Executor] Post-completion hook error:', e.message);
+      }
+
+      // Memory curation: extract learnings from completed task
+      try {
+        if (task.company_id) {
+          const memory = new MemorySystem(task.company_id);
+          await memory.curate(task, result);
+          console.log(`[Task Executor] 🧠 Memory curated for task ${taskId}`);
+        }
+      } catch (e) {
+        console.warn('[Task Executor] Memory curation error:', e.message);
       }
     } catch (error) {
       console.error(`[Task Executor] ❌ Task ${taskId} failed:`, error.message);

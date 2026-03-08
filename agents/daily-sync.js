@@ -402,17 +402,36 @@ async function createTaskFromDecision(companyId, decision) {
 }
 
 /**
- * Send daily sync email (placeholder - will integrate with Resend later)
+ * Send daily sync email via Resend
  */
 async function sendDailySyncEmail(company, analysis, date) {
-  console.log(`[Daily Sync] Email would be sent to ${company.subdomain} owner`);
-  console.log('Summary:', analysis.summary);
-  console.log('Wins:', analysis.wins.length);
-  console.log('Issues:', analysis.issues.length);
-  console.log('Decisions:', analysis.decisions.length);
-  
-  // TODO: Integrate with Resend when email system is ready
-  // For now, just log
+  try {
+    // Find the owner of this company
+    const ownerResult = await pool.query(
+      `SELECT u.email, u.name FROM users u
+       JOIN companies c ON c.user_id = u.id
+       WHERE c.id = $1`,
+      [company.id]
+    );
+    const owner = ownerResult.rows[0];
+    if (!owner || !owner.email) {
+      console.log(`[Daily Sync] No owner found for company ${company.id}, skipping email`);
+      return;
+    }
+
+    // Use the existing email service
+    const { sendDailySync } = require('../backend/services/email-service');
+    const result = await sendDailySync(owner, company, analysis);
+
+    if (result.success) {
+      console.log(`[Daily Sync] Email sent to ${owner.email}`);
+    } else {
+      console.log(`[Daily Sync] Email not sent: ${result.reason || 'unknown'}`);
+    }
+  } catch (e) {
+    console.warn(`[Daily Sync] Email error: ${e.message}`);
+    // Non-blocking — the sync itself completed, email is a nice-to-have
+  }
 }
 
 /**
