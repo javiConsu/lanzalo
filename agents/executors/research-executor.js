@@ -46,23 +46,38 @@ class ResearchExecutor extends TaskExecutor {
    * Buscar información (usando Brave Search si está disponible)
    */
   async search(query) {
-    // TODO: Integrar Brave Search API real
-    // Por ahora, simular resultados
-    
     console.log(`🔎 Buscando: "${query}"`);
 
-    // Simulación de resultados
+    // Brave Search API real
+    const BRAVE_API_KEY = process.env.BRAVE_API_KEY;
+    if (!BRAVE_API_KEY) {
+      console.warn('[Research] BRAVE_API_KEY no configurada, usando fallback');
+      return this.fallbackSearch(query);
+    }
+
+    try {
+      const response = await axios.get('https://api.search.brave.com/res/v1/web/search', {
+        params: { q: query, count: 10 },
+        headers: { 'X-Subscription-Token': BRAVE_API_KEY }
+      });
+
+      const results = (response.data.web?.results || []).map(r => ({
+        title: r.title,
+        url: r.url,
+        snippet: r.description || ''
+      }));
+
+      console.log(`🔎 ${results.length} resultados de Brave Search`);
+      return results;
+    } catch (error) {
+      console.error('[Research] Brave Search error:', error.message);
+      return this.fallbackSearch(query);
+    }
+  }
+
+  fallbackSearch(query) {
     return [
-      {
-        title: `Resultado 1 para: ${query}`,
-        url: 'https://example.com/1',
-        snippet: 'Información relevante encontrada...'
-      },
-      {
-        title: `Resultado 2 para: ${query}`,
-        url: 'https://example.com/2',
-        snippet: 'Más datos sobre el tema...'
-      }
+      { title: `Resultado para: ${query}`, url: 'https://example.com', snippet: 'Búsqueda real no disponible. Configura BRAVE_API_KEY.' }
     ];
   }
 
