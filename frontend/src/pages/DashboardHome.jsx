@@ -508,10 +508,10 @@ export default function DashboardHome() {
       <div className="flex-1 flex flex-col lg:flex-row gap-4 p-4 overflow-hidden">
         {/* Left: Widgets (40%) */}
         <div className="lg:w-2/5 flex flex-col gap-3 overflow-y-auto min-h-0">
-          <StatsWidget company={company} />
+          <ActivityWidget companyId={company.id} />
           <TasksWidget companyId={company.id} />
           <LinksWidget company={company} companyId={company.id} />
-          <ActivityWidget companyId={company.id} />
+          <StatsWidget company={company} />
         </div>
 
         {/* Right: Chat (60%) — limited height */}

@@ -317,15 +317,15 @@ function renderWelcomeEmail(user) {
       
       <p>Sin tarjeta. Sin compromiso. Sin trucos.</p>
       
-      <p><strong>Próximos pasos:</strong></p>
+      <p><strong>Qué va a pasar ahora:</strong></p>
       <ol>
-        <li>Completa Strategic Discovery (28 preguntas)</li>
-        <li>Te analizo y propongo 3-5 caminos</li>
-        <li>Eliges el mejor para TI</li>
-        <li>Construimos juntos</li>
+        <li>Describe tu idea de negocio</li>
+        <li>Tu Co-Founder analiza mercado, competencia y viabilidad</li>
+        <li>Te da un veredicto sincero con opciones claras</li>
+        <li>Construís juntos (o pivotas, si hace falta)</li>
       </ol>
       
-      <a href="https://app.lanzalo.pro/discovery" class="cta">Empezar Discovery →</a>
+      <a href="https://lanzalo.pro" class="cta">Entrar a Lanzalo →</a>
       
       <p style="margin-top: 24px; font-size: 14px; color: #6b7280;">
         Tu trial termina el: ${trialEndsDate}
@@ -484,114 +484,83 @@ function renderCoFounderFirstEmail(user, company, bodyText) {
   const htmlParagraphs = bodyText
     .split('\n\n')
     .filter(p => p.trim())
-    .map(p => `<p style="margin: 0 0 16px 0;">${p.replace(/\n/g, '<br>')}</p>`)
+    .map(p => `<p style="margin: 0 0 16px 0; color: #e5e7eb; font-size: 15px; line-height: 1.7;">${p.replace(/\n/g, '<br>')}</p>`)
     .join('');
 
+  // Email template uses table-based layout for maximum email client compatibility.
+  // Many clients strip body background-color, so we use a wrapper table with bgcolor.
   return `
     <!DOCTYPE html>
     <html>
     <head>
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <style>
-        body { 
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; 
-          line-height: 1.7; 
-          color: #e5e7eb; 
-          background-color: #0a0a0a;
-          margin: 0; 
-          padding: 0; 
-        }
-        .container {
-          max-width: 600px; 
-          margin: 0 auto; 
-          padding: 40px 24px;
-        }
-        .logo {
-          font-size: 20px;
-          font-weight: 800;
-          color: #10b981;
-          margin-bottom: 32px;
-          letter-spacing: -0.5px;
-        }
-        .body-text {
-          font-size: 15px;
-          color: #d1d5db;
-        }
-        .body-text p {
-          margin: 0 0 16px 0;
-        }
-        .status-box {
-          background: #111827;
-          border: 1px solid #1f2937;
-          border-left: 3px solid #10b981;
-          border-radius: 8px;
-          padding: 20px;
-          margin: 24px 0;
-        }
-        .status-box h3 {
-          color: #10b981;
-          font-size: 13px;
-          text-transform: uppercase;
-          letter-spacing: 1px;
-          margin: 0 0 12px 0;
-        }
-        .status-item {
-          color: #9ca3af;
-          font-size: 14px;
-          padding: 4px 0;
-        }
-        .status-item .check {
-          color: #10b981;
-          margin-right: 8px;
-        }
-        .status-item .pending {
-          color: #f59e0b;
-          margin-right: 8px;
-        }
-        .cta {
-          display: inline-block;
-          background: #10b981;
-          color: #000000;
-          padding: 14px 28px;
-          text-decoration: none;
-          border-radius: 8px;
-          font-weight: 600;
-          font-size: 15px;
-          margin: 24px 0;
-        }
-        .footer {
-          color: #4b5563;
-          font-size: 13px;
-          margin-top: 40px;
-          padding-top: 20px;
-          border-top: 1px solid #1f2937;
-        }
-      </style>
+      <!--[if mso]><noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript><![endif]-->
     </head>
-    <body>
-      <div class="container">
-        <div class="logo">Lanzalo.pro</div>
-        
-        <div class="body-text">
-          ${htmlParagraphs}
-        </div>
-
-        <div class="status-box">
-          <h3>Lo que ya estoy haciendo</h3>
-          <div class="status-item"><span class="check">✓</span> Empresa creada: ${company.name}</div>
-          <div class="status-item"><span class="pending">○</span> Análisis de mercado y competencia en curso</div>
-          <div class="status-item"><span class="pending">○</span> Plan de negocio con valoración de la idea</div>
-          <div class="status-item"><span class="pending">○</span> Veredicto del Co-Founder en tu chat</div>
-        </div>
-
-        <a href="https://lanzalo.pro/login" class="cta">Abrir tu dashboard →</a>
-
-        <div class="footer">
-          <p><strong style="color: #9ca3af;">Lanzalo</strong> — Tu equipo de IA que no duerme</p>
-          <p style="margin-top: 8px; font-style: italic;">PD: Si esto fuera un co-founder humano, te estaría cobrando equity. A mí me vale con $39/mes.</p>
-        </div>
-      </div>
+    <body style="margin: 0; padding: 0; background-color: #0a0a0a; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+      <!-- Outer wrapper table for background color (email client safe) -->
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #0a0a0a;">
+        <tr>
+          <td align="center" style="padding: 40px 16px;">
+            <!-- Inner content table -->
+            <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width: 600px; width: 100%;">
+              
+              <!-- Logo -->
+              <tr>
+                <td style="padding-bottom: 32px;">
+                  <span style="font-size: 20px; font-weight: 800; color: #10b981; letter-spacing: -0.5px;">Lanzalo.pro</span>
+                </td>
+              </tr>
+              
+              <!-- Body text -->
+              <tr>
+                <td style="color: #e5e7eb; font-size: 15px; line-height: 1.7;">
+                  ${htmlParagraphs}
+                </td>
+              </tr>
+              
+              <!-- Status box -->
+              <tr>
+                <td style="padding: 24px 0;">
+                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #111827; border: 1px solid #1f2937; border-left: 3px solid #10b981; border-radius: 8px;">
+                    <tr>
+                      <td style="padding: 20px;">
+                        <p style="color: #10b981; font-size: 13px; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 12px 0; font-weight: 700;">Lo que ya estoy haciendo</p>
+                        <p style="color: #9ca3af; font-size: 14px; margin: 4px 0;"><span style="color: #10b981; margin-right: 8px;">✓</span> Empresa creada: ${company.name}</p>
+                        <p style="color: #9ca3af; font-size: 14px; margin: 4px 0;"><span style="color: #f59e0b; margin-right: 8px;">○</span> Análisis de mercado y competencia en curso</p>
+                        <p style="color: #9ca3af; font-size: 14px; margin: 4px 0;"><span style="color: #f59e0b; margin-right: 8px;">○</span> Plan de negocio con valoración de la idea</p>
+                        <p style="color: #9ca3af; font-size: 14px; margin: 4px 0;"><span style="color: #f59e0b; margin-right: 8px;">○</span> Veredicto del Co-Founder en tu chat</p>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+              
+              <!-- CTA button -->
+              <tr>
+                <td style="padding-bottom: 24px;">
+                  <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                    <tr>
+                      <td style="background-color: #10b981; border-radius: 8px;">
+                        <a href="https://lanzalo.pro" target="_blank" style="display: inline-block; padding: 14px 28px; color: #000000; text-decoration: none; font-weight: 600; font-size: 15px;">Abrir tu dashboard →</a>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+              
+              <!-- Footer -->
+              <tr>
+                <td style="padding-top: 20px; border-top: 1px solid #1f2937;">
+                  <p style="color: #6b7280; font-size: 13px; margin: 0 0 8px 0;"><strong style="color: #9ca3af;">Lanzalo</strong> — Tu equipo de IA que no duerme</p>
+                  <p style="color: #6b7280; font-size: 13px; font-style: italic; margin: 0;">PD: Si esto fuera un co-founder humano, te estaría cobrando equity. A mí me vale con $39/mes.</p>
+                </td>
+              </tr>
+              
+            </table>
+          </td>
+        </tr>
+      </table>
     </body>
     </html>
   `;
