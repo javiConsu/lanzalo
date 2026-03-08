@@ -4,6 +4,7 @@ import { apiUrl } from './api.js'
 import LandingPage from './pages/LandingPage'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
+import DashboardHome from './pages/DashboardHome'
 import Chat from './pages/Chat'
 import Ideas from './pages/Ideas'
 import Backlog from './pages/Backlog'
@@ -16,7 +17,6 @@ import OnboardingChooseIdea from './pages/OnboardingChooseIdea'
 import OnboardingDescribeIdea from './pages/OnboardingDescribeIdea'
 import AdminDashboard from './pages/AdminDashboard'
 import Paywall from './components/Paywall'
-import BusinessHub from './pages/BusinessHub'
 
 function App() {
   const [token, setToken] = useState(localStorage.getItem('token'))
@@ -100,7 +100,7 @@ function App() {
             ? <Navigate to="/onboarding/survey" replace /> 
             : <Dashboard user={user} onLogout={handleLogout} />
         }>
-          <Route index element={user?.isTrialExpired ? <Paywall user={user} /> : <BusinessHub />} />
+          <Route index element={user?.isTrialExpired ? <Paywall user={user} /> : <DashboardHome />} />
           <Route path="chat" element={user?.isTrialExpired ? <Paywall user={user} /> : <Chat />} />
           <Route path="ideas" element={<Ideas />} />
           <Route path="backlog" element={user?.isTrialExpired ? <Paywall user={user} /> : <Backlog />} />
