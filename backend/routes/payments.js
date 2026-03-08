@@ -1,7 +1,7 @@
 /**
- * Stripe Payments — Checkout, Subscriptions, Revenue Share
+ * Stripe Payments — Checkout, Subscriptions
  * 
- * Plan: Pro $39/mes + 5% revenue share
+ * Plan: Pro $39/mes (sin revenue share — decisión 2026-03-08)
  * Trial: 14 días gratis
  */
 

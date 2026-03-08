@@ -37,13 +37,8 @@ router.get('/financials/dashboard', async (req, res) => {
     const proUsers = parseInt(mrrResult.rows[0]$1.pro_users || 0);
     const mrr = proUsers * 39; // $39/mes por usuario Pro
 
-    // Revenue Share (20% de ingresos de empresas)
-    const revenueShareResult = await pool.query(
-      `SELECT SUM(revenue_total * 0.20) as revenue_share
-       FROM companies
-       WHERE ${dateFilter.replace('created_at', 'updated_at')}`
-    );
-    const revenueShare = parseFloat(revenueShareResult.rows[0]$2.revenue_share || 0);
+    // Revenue Share: ELIMINADO (decisión 2026-03-08, modelo $39/mes fijo)
+    const revenueShare = 0;
 
     // Total ingresos del período
     const totalRevenue = period === 'month' $3 mrr : (mrr / 30) * getDaysInPeriod(period);
@@ -202,7 +197,7 @@ router.get('/financials/pricing-analysis', async (req, res) => {
 
     // Simulación de precios
     const pricingScenarios = [
-      { price: 29, name: 'Budget' },
+      { price: 29, name: 'Descuento' },
       { price: 39, name: 'Current' },
       { price: 49, name: 'Premium' },
       { price: 59, name: 'Enterprise' }
@@ -267,8 +262,7 @@ router.get('/financials/company-costs', async (req, res) => {
          COALESCE(SUM(l.estimated_cost), 0) as total_cost,
          COALESCE(SUM(l.tokens_used), 0) as total_tokens,
          COUNT(l.id) as api_calls,
-         c.revenue_total,
-         (c.revenue_total * 0.20) as revenue_share
+         c.revenue_total
        FROM companies c
        LEFT JOIN users u ON c.user_id = u.id
        LEFT JOIN llm_usage l ON c.id = l.company_id AND ${dateFilter}
@@ -281,8 +275,7 @@ router.get('/financials/company-costs', async (req, res) => {
     const companies = result.rows.map(row => {
       const cost = parseFloat(row.total_cost);
       const revenue = row.user_plan === 'pro' ? 39 : 0;
-      const revenueShare = parseFloat(row.revenue_share || 0);
-      const totalRevenue = revenue + revenueShare;
+      const totalRevenue = revenue; // Sin revenue share (modelo $39/mes fijo)
       const profit = totalRevenue - cost;
 
       return {
@@ -300,7 +293,7 @@ router.get('/financials/company-costs', async (req, res) => {
         },
         revenue: {
           subscription: revenue,
-          revenueShare: revenueShare.toFixed(2),
+          revenueShare: '0.00',
           total: totalRevenue.toFixed(2)
         },
         profit: profit.toFixed(2),

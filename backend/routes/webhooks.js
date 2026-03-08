@@ -5,6 +5,7 @@
 const express = require('express');
 const router = express.Router();
 const { pool } = require('../db');
+const { activatePro, renewMonthly, addCredits } = require('../middleware/credits');
 
 const stripe = process.env.STRIPE_SECRET_KEY 
   ? require('stripe')(process.env.STRIPE_SECRET_KEY) 
@@ -76,6 +77,15 @@ async function handleCheckoutComplete(session) {
 
   console.log(`[Webhook] Checkout completado para usuario ${userId}`);
 
+  // Verificar si es compra de pack de créditos
+  if (session.metadata?.type === 'credit_pack') {
+    const credits = parseInt(session.metadata.credits);
+    await addCredits(userId, credits, 'pack_purchase', { packId: session.metadata.packId });
+    console.log(`[Webhook] Pack de ${credits} créditos añadido a ${userId}`);
+    return;
+  }
+
+  // Suscripción Pro
   await pool.query(
     `UPDATE users SET 
       subscription_tier = 'pro',
@@ -84,6 +94,11 @@ async function handleCheckoutComplete(session) {
      WHERE id = $2`,
     [session.subscription, userId]
   );
+
+  // Activar créditos Pro (20/mes)
+  await activatePro(userId).catch(err => {
+    console.error('[Webhook] Error activando créditos Pro:', err);
+  });
 
   // Log actividad
   const companies = await pool.query(
@@ -138,10 +153,22 @@ async function handleSubscriptionCancelled(subscription) {
 }
 
 /**
- * Pago exitoso
+ * Pago exitoso → renovar créditos mensuales
  */
 async function handlePaymentSuccess(invoice) {
   console.log(`[Webhook] Pago exitoso: $${(invoice.amount_paid / 100).toFixed(2)}`);
+  
+  // Renovar créditos mensuales
+  const customerId = invoice.customer;
+  const userResult = await pool.query(
+    'SELECT id FROM users WHERE stripe_customer_id = $1', [customerId]
+  );
+  if (userResult.rows.length > 0) {
+    await renewMonthly(userResult.rows[0].id).catch(err => {
+      console.error('[Webhook] Error renovando créditos:', err);
+    });
+    console.log(`[Webhook] Créditos renovados para ${userResult.rows[0].id}`);
+  }
 }
 
 /**

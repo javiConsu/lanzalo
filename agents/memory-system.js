@@ -196,7 +196,7 @@ class MemorySystem {
         saas: {
           bestPractices: [
             'Pricing page aumenta conversión',
-            'Free trial de 7 días óptimo',
+            'Free trial de 14 días óptimo',
             'Testimonials en landing page críticos'
           ]
         },

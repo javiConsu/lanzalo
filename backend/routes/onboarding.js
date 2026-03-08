@@ -17,6 +17,7 @@ const crypto = require('crypto');
 const { pool } = require('../db');
 const { authenticate } = require('../middleware/auth');
 const { sendWelcomeEmail } = require('../services/email-service');
+const { initCredits } = require('../middleware/credits');
 
 /**
  * POST /api/onboarding/register
@@ -72,6 +73,11 @@ router.post('/register', async (req, res) => {
     );
     
     console.log(`[Onboarding] New user registered: ${email}`);
+    
+    // Inicializar créditos (5 para trial)
+    await initCredits(userId, 'trial').catch(err => {
+      console.error('[Onboarding] Failed to init credits:', err);
+    });
     
     // Send welcome email (async, don't block response)
     const newUser = {
