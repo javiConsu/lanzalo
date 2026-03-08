@@ -125,17 +125,23 @@ router.post('/survey', authenticate, async (req, res) => {
   try {
     const { answers } = req.body;
     
-    // Try to save survey data — columns may not exist in all DB versions
+    // Merge survey answers with existing intake data (aboutMe, lookingFor from registration)
     try {
+      const existing = await pool.query(
+        'SELECT survey_data FROM users WHERE id = $1',
+        [req.user.id]
+      );
+      const existingData = existing.rows[0]?.survey_data || {};
+      const merged = { ...existingData, surveyAnswers: answers };
+      
       await pool.query(
         `UPDATE users 
          SET survey_data = $1, survey_completed_at = NOW()
          WHERE id = $2`,
-        [JSON.stringify(answers), req.user.id]
+        [JSON.stringify(merged), req.user.id]
       );
     } catch (dbErr) {
-      // Columns might not exist — that's ok, survey is optional
-      console.log('[Onboarding] Survey save skipped (columns may not exist):', dbErr.message);
+      console.log('[Onboarding] Survey save skipped:', dbErr.message);
     }
     
     // Try to get validated ideas as reward
