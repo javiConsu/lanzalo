@@ -638,7 +638,7 @@ REGLAS:
             id, title, problem, target_audience, evidence,
             source, difficulty, potential_revenue, category, score,
             discovered_at, is_active
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), 1)`,
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), true)`,
           [
             crypto.randomUUID(),
             idea.title,
