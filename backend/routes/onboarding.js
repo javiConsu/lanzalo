@@ -65,10 +65,10 @@ router.post('/register', async (req, res) => {
        trialStartedAt, trialEndsAt]
     );
     
-    // Generate JWT
+    // Generate JWT (use 'id' to match auth middleware)
     const token = jwt.sign(
-      { userId, email: email.toLowerCase(), plan: 'trial' },
-      process.env.JWT_SECRET || 'dev-secret',
+      { id: userId, email: email.toLowerCase(), plan: 'trial' },
+      process.env.JWT_SECRET || 'change-this-in-production',
       { expiresIn: '30d' }
     );
     

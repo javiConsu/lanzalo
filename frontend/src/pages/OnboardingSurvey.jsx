@@ -102,7 +102,7 @@ export default function OnboardingSurvey() {
       await fetch(apiUrl('/api/onboarding/survey'), {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ responses })
+        body: JSON.stringify({ answers: responses })
       });
       
       // Redirect to next step (describe idea or choose idea)

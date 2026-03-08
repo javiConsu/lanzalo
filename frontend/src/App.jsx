@@ -80,6 +80,9 @@ function App() {
     return <LandingPage onNavigateToLogin={handleNavigateToLogin} />
   }
 
+  // Determine if user needs onboarding
+  const needsOnboarding = user && user.onboardingCompleted === false
+
   // Authenticated: show app
   return (
     <Router>
@@ -90,7 +93,11 @@ function App() {
         <Route path="/discovery" element={<Discovery />} />
         <Route path="/discovery/analysis" element={<DiscoveryAnalysis />} />
         
-        <Route path="/" element={<Dashboard user={user} onLogout={handleLogout} />}>
+        <Route path="/" element={
+          needsOnboarding 
+            ? <Navigate to="/onboarding/survey" replace /> 
+            : <Dashboard user={user} onLogout={handleLogout} />
+        }>
           <Route index element={user?.isTrialExpired ? <Paywall user={user} /> : <BusinessHub />} />
           <Route path="chat" element={user?.isTrialExpired ? <Paywall user={user} /> : <Chat />} />
           <Route path="ideas" element={<Ideas />} />
@@ -99,7 +106,7 @@ function App() {
         </Route>
 
         <Route path="/admin" element={user?.is_admin ? <AdminDashboard /> : <Navigate to="/" replace />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="*" element={needsOnboarding ? <Navigate to="/onboarding/survey" replace /> : <Navigate to="/" replace />} />
       </Routes>
     </Router>
   )
