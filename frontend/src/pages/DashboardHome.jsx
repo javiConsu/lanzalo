@@ -14,7 +14,6 @@ function InlineChat({ companyId }) {
   const messagesEndRef = useRef(null)
   const token = localStorage.getItem('token')
 
-  // Load history + auto-welcome
   useEffect(() => {
     if (!companyId) return
     const load = async () => {
@@ -92,7 +91,7 @@ function InlineChat({ companyId }) {
         </div>
       </div>
 
-      {/* Messages — scrollable, limited height */}
+      {/* Messages */}
       <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3 min-h-0">
         {messages.length === 0 && !loading && (
           <div className="flex items-center justify-center h-32">
@@ -248,9 +247,10 @@ function StatsWidget({ company }) {
   )
 }
 
-// ─── Links & Documents Widget ──────────────────────────────
+// ─── Links & Documents Widget (clickable docs) ─────────────
 function LinksWidget({ company, companyId }) {
   const [documents, setDocuments] = useState([])
+  const [expandedDoc, setExpandedDoc] = useState(null)
   const token = localStorage.getItem('token')
 
   useEffect(() => {
@@ -281,38 +281,44 @@ function LinksWidget({ company, companyId }) {
         </span>
       </div>
       <div className="p-3 space-y-2">
-        {/* User's website */}
+        {/* User's website — placeholder until validated */}
         {subdomain && (
-          <a
-            href={`https://${subdomain}.lanzalo.pro`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-3 px-3 py-2.5 bg-gray-800/50 rounded-xl hover:bg-gray-800 transition-colors group"
-          >
+          <div className="flex items-center gap-3 px-3 py-2.5 bg-gray-800/50 rounded-xl">
             <span className="text-sm">🌐</span>
             <div className="flex-1 min-w-0">
-              <p className="text-sm text-gray-200 group-hover:text-emerald-400 transition-colors truncate">
+              <p className="text-sm text-gray-400 truncate">
                 {subdomain}.lanzalo.pro
               </p>
-              <p className="text-xs text-gray-500">Tu web</p>
+              <p className="text-xs text-amber-400/70">Pendiente de validar idea</p>
             </div>
-            <span className="text-xs text-gray-600">↗</span>
-          </a>
+            <span className="text-xs text-gray-600">🔒</span>
+          </div>
         )}
 
-        {/* Generated documents from completed tasks */}
+        {/* Generated documents from completed tasks — CLICKABLE */}
         {documents.map(doc => (
-          <div
-            key={doc.id}
-            className="flex items-center gap-3 px-3 py-2.5 bg-gray-800/50 rounded-xl hover:bg-gray-800 transition-colors group cursor-default"
-          >
-            <span className="text-sm">{DOC_ICONS[doc.tag] || '📄'}</span>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm text-gray-200 truncate">{doc.title}</p>
-              <p className="text-xs text-gray-500">
-                {doc.tag || 'documento'} · {new Date(doc.completed_at || doc.created_at).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}
-              </p>
-            </div>
+          <div key={doc.id}>
+            <button
+              onClick={() => setExpandedDoc(expandedDoc === doc.id ? null : doc.id)}
+              className="w-full flex items-center gap-3 px-3 py-2.5 bg-gray-800/50 rounded-xl hover:bg-gray-800 transition-colors group text-left"
+            >
+              <span className="text-sm">{DOC_ICONS[doc.tag] || '📄'}</span>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm text-gray-200 group-hover:text-emerald-400 transition-colors truncate">{doc.title}</p>
+                <p className="text-xs text-gray-500">
+                  {doc.tag || 'documento'} · {new Date(doc.completed_at || doc.created_at).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}
+                </p>
+              </div>
+              <span className={`text-xs text-gray-500 transition-transform ${expandedDoc === doc.id ? 'rotate-180' : ''}`}>▼</span>
+            </button>
+            {/* Expanded document content */}
+            {expandedDoc === doc.id && doc.output && (
+              <div className="mt-1 mx-1 p-4 bg-gray-800/80 rounded-xl border border-gray-700/50 max-h-96 overflow-y-auto">
+                <div className="prose prose-invert prose-sm max-w-none">
+                  <pre className="whitespace-pre-wrap text-xs text-gray-300 leading-relaxed font-sans">{doc.output}</pre>
+                </div>
+              </div>
+            )}
           </div>
         ))}
 
@@ -390,8 +396,51 @@ function ActivityWidget({ companyId }) {
   )
 }
 
+// ─── Company Selector ──────────────────────────────────────
+function CompanySelector({ companies, selected, onSelect, onCreateNew }) {
+  const [open, setOpen] = useState(false)
+
+  if (companies.length <= 1 && !onCreateNew) return null
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen(!open)}
+        className="flex items-center gap-2 px-3 py-1.5 bg-gray-800/50 border border-gray-700/50 rounded-lg hover:bg-gray-800 transition-colors"
+      >
+        <span className="text-sm font-medium text-white truncate max-w-[150px]">{selected?.name}</span>
+        <span className={`text-xs text-gray-500 transition-transform ${open ? 'rotate-180' : ''}`}>▼</span>
+      </button>
+      {open && (
+        <div className="absolute top-full left-0 mt-1 w-56 bg-gray-800 border border-gray-700 rounded-xl shadow-xl z-50 overflow-hidden">
+          {companies.map(c => (
+            <button
+              key={c.id}
+              onClick={() => { onSelect(c); setOpen(false) }}
+              className={`w-full text-left px-4 py-2.5 text-sm hover:bg-gray-700/50 transition-colors flex items-center gap-2 ${
+                c.id === selected?.id ? 'text-emerald-400 bg-gray-700/30' : 'text-gray-300'
+              }`}
+            >
+              <span className="text-xs">{c.status === 'live' ? '🟢' : '🟡'}</span>
+              <span className="truncate">{c.name}</span>
+            </button>
+          ))}
+          <button
+            onClick={() => { onCreateNew(); setOpen(false) }}
+            className="w-full text-left px-4 py-2.5 text-sm text-emerald-400 hover:bg-gray-700/50 transition-colors border-t border-gray-700 flex items-center gap-2"
+          >
+            <span className="text-xs">+</span>
+            <span>Crear nuevo negocio</span>
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── Main DashboardHome ────────────────────────────────────
 export default function DashboardHome() {
+  const [companies, setCompanies] = useState([])
   const [company, setCompany] = useState(null)
   const [loading, setLoading] = useState(true)
   const navigate = useNavigate()
@@ -403,9 +452,9 @@ export default function DashboardHome() {
     })
       .then(r => r.json())
       .then(d => {
-        if (d.companies?.[0]) {
-          setCompany(d.companies[0])
-        }
+        const list = d.companies || []
+        setCompanies(list)
+        if (list[0]) setCompany(list[0])
         setLoading(false)
       })
       .catch(() => setLoading(false))
@@ -443,18 +492,32 @@ export default function DashboardHome() {
   }
 
   return (
-    <div className="flex-1 flex flex-col lg:flex-row gap-4 p-4 overflow-hidden">
-      {/* Left: Widgets (40%) */}
-      <div className="lg:w-2/5 flex flex-col gap-3 overflow-y-auto min-h-0">
-        <StatsWidget company={company} />
-        <TasksWidget companyId={company.id} />
-        <LinksWidget company={company} companyId={company.id} />
-        <ActivityWidget companyId={company.id} />
-      </div>
+    <div className="flex-1 flex flex-col overflow-hidden">
+      {/* Company selector header */}
+      {companies.length > 0 && (
+        <div className="flex items-center justify-between px-4 pt-3 pb-1 flex-shrink-0">
+          <CompanySelector
+            companies={companies}
+            selected={company}
+            onSelect={setCompany}
+            onCreateNew={() => navigate('/onboarding/describe-idea')}
+          />
+        </div>
+      )}
 
-      {/* Right: Chat (60%) — limited height */}
-      <div className="flex-1 lg:w-3/5 min-h-0">
-        <InlineChat companyId={company.id} />
+      <div className="flex-1 flex flex-col lg:flex-row gap-4 p-4 overflow-hidden">
+        {/* Left: Widgets (40%) */}
+        <div className="lg:w-2/5 flex flex-col gap-3 overflow-y-auto min-h-0">
+          <StatsWidget company={company} />
+          <TasksWidget companyId={company.id} />
+          <LinksWidget company={company} companyId={company.id} />
+          <ActivityWidget companyId={company.id} />
+        </div>
+
+        {/* Right: Chat (60%) — limited height */}
+        <div className="flex-1 lg:w-3/5 min-h-0">
+          <InlineChat companyId={company.id} />
+        </div>
       </div>
     </div>
   )

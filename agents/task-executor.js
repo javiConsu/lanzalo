@@ -205,21 +205,32 @@ Aqui esta el documento completo que generaste:
 ${reportPreview}
 ---
 
-Ahora escribe un MENSAJE DE CHAT (no el documento) para tu socio fundador.
+Ahora escribe un MENSAJE DE CHAT para tu socio fundador con el veredicto.
 
-REGLAS:
-- 3-5 frases maximo. Es un mensaje de chat, no un email.
-- Resume el VEREDICTO principal (adelante, con reservas, o replantear?)
-- Menciona 1-2 hallazgos clave que el fundador DEBE saber
-- Dile que el analisis completo esta disponible en la seccion "Links y documentos" del dashboard
-- Termina proponiendo el siguiente paso concreto
-- Tono: socio que te dice la verdad, no consultor que te vende humo`;
+ESTRUCTURA OBLIGATORIA:
+1. Empieza con un comentario gracioso/borde sobre lo que has encontrado (1-2 frases)
+2. Da el VEREDICTO claro (adelante, con reservas, o replantear) con algun dato clave
+3. Menciona que el documento completo esta en "Links y documentos" del dashboard
+4. Termina con OPCIONES CLARAS para el usuario. Siempre estas 3:
+
+A. Avanzamos con la web y empezamos a construir
+B. Mientras, entrevista a [N] [tipo de persona relevante] para validar la demanda real. Esa info sera oro para mi cerebro de IA.
+C. Te preparo las preguntas para la entrevista?
+
+Dime A, B, C o todas.
+
+TONO:
+- Humor espanol, borde pero con carino
+- Nada de "interesante" ni "suena bien" ni lenguaje corporativo
+- Si el veredicto es malo, dilo con gracia pero sin suavizar
+- Eres un socio que pone pasta, no un consultor que cobra por hora
+- Adapta la opcion B al sector concreto (si es app de nutricion, entrevistar nutricionistas; si es SaaS B2B, entrevistar directores de ventas, etc.)`;
 
     const response = await callLLM(prompt, {
       systemPrompt,
       taskType: 'ceo_chat',
-      temperature: 0.7,
-      maxTokens: 400
+      temperature: 0.8,
+      maxTokens: 600
     });
 
     const chatMessage = response.content || '';

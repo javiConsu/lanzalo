@@ -459,21 +459,30 @@ router.post('/companies/:companyId/chat/welcome', requireAuth, requireCompanyAcc
     const systemPrompt = getSystemPrompt('ceo', company?.name || 'tu empresa', intakeContext);
 
     const welcomePrompt = `INSTRUCCIÓN INTERNA (no repitas esto):
-Genera tu PRIMER mensaje de bienvenida para este fundador. Acaba de registrarse.
+Genera tu PRIMER mensaje para este fundador. Acaba de registrar su idea.
 
 Datos disponibles:
 - Nombre: ${userName || 'No proporcionado'}
 - Empresa: ${company?.name || 'Sin nombre aún'}
 - Descripción: ${company?.description || 'Sin descripción'}
+- Audiencia: ${company?.industry || 'No especificada'}
 ${intakeContext}
 
+CONTEXTO IMPORTANTE:
+Ya has lanzado automáticamente un análisis de mercado y plan de negocio para esta idea.
+El fundador va a recibir el resultado en unos minutos en su dashboard.
+TU MENSAJE tiene que anunciar que YA ESTÁS TRABAJANDO en eso.
+
 REGLAS para el mensaje:
-- 2-4 frases máximo. Nada de párrafos.
-- Demuestra que has LEÍDO lo que escribió (referencia algo concreto de aboutMe o lookingFor)
-- Propón UNA acción concreta como siguiente paso (validar idea, definir audiencia, montar landing...)
-- Tono: colega emprendedor, no asistente. Sin "¡Bienvenido!" ni "¡Qué emoción!"
-- Si no hay datos de intake, saluda brevemente y pregunta qué tiene en mente.
-- Termina con una pregunta directa que invite a responder.`;
+- 3-5 frases. Nada de párrafos.
+- Menciona la idea por nombre y haz un comentario gracioso/ingenioso sobre el tema
+- Di que ya estás analizando mercado, competencia y viabilidad
+- Algo tipo: "dame unos minutos y te doy mi veredicto sincero" o "no está la economía como para tirar la pasta sin datos"
+- Tono: humor español, un poco borde, como un colega que te habla claro
+- NO propongas nada todavía. NO digas "validar idea" ni "definir audiencia". Solo anuncia que ESTÁS TRABAJANDO.
+- NO uses "¡Bienvenido!", "¡Qué emoción!", "¡Genial!", "Interesante"
+- Puedes bromear con el sector/tema de la idea de forma simpatiquilla
+- Si no hay datos de intake, saluda con el nombre y comenta la idea directamente.`;
 
     const response = await callLLM(welcomePrompt, {
       systemPrompt,

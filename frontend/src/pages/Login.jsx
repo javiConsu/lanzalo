@@ -5,8 +5,6 @@ export default function Login({ onLogin, initialMode, onBack }) {
   const [mode, setMode] = useState(initialMode || 'login') // 'login' | 'register'
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [aboutMe, setAboutMe] = useState('')
-  const [lookingFor, setLookingFor] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -20,10 +18,7 @@ export default function Login({ onLogin, initialMode, onBack }) {
       const res = await fetch(apiUrl(endpoint), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(mode === 'register'
-          ? { email, password, aboutMe, lookingFor }
-          : { email, password }
-        )
+        body: JSON.stringify({ email, password })
       })
 
       const data = await res.json()
@@ -97,33 +92,6 @@ export default function Login({ onLogin, initialMode, onBack }) {
               minLength={8}
               required
             />
-
-            {mode === 'register' && (
-              <>
-                <div>
-                  <label className="block text-sm text-gray-400 mb-1.5">Cuéntanos de ti</label>
-                  <textarea
-                    value={aboutMe}
-                    onChange={(e) => setAboutMe(e.target.value)}
-                    className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none text-sm"
-                    placeholder="Ej: Soy diseñador freelance en Barcelona, llevo 3 años queriendo lanzar algo propio..."
-                    rows={2}
-                    maxLength={500}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm text-gray-400 mb-1.5">¿Qué buscas en Lánzalo?</label>
-                  <textarea
-                    value={lookingFor}
-                    onChange={(e) => setLookingFor(e.target.value)}
-                    className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none text-sm"
-                    placeholder="Ej: Quiero validar mi idea rápido sin perder meses programando..."
-                    rows={2}
-                    maxLength={500}
-                  />
-                </div>
-              </>
-            )}
 
             {error && (
               <div className="bg-red-900/50 border border-red-700 text-red-200 px-4 py-3 rounded-lg text-sm">
