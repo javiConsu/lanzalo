@@ -301,4 +301,52 @@ router.get('/audit-log', async (req, res) => {
   }
 });
 
+/**
+ * User intake insights — weekly CS agent data
+ * Returns registration intake data (aboutMe, lookingFor) from recent users
+ */
+router.get('/insights/intake', async (req, res) => {
+  try {
+    const days = parseInt(req.query.days) || 7;
+
+    const result = await pool.query(
+      `SELECT id, email, name, survey_data, plan, created_at
+       FROM users
+       WHERE role != 'admin'
+         AND created_at >= NOW() - INTERVAL '1 day' * $1
+         AND survey_data IS NOT NULL
+       ORDER BY created_at DESC`,
+      [days]
+    );
+
+    // Also get total signups in period (including those without intake)
+    const totals = await pool.query(
+      `SELECT 
+         COUNT(*) as total_signups,
+         COUNT(*) FILTER (WHERE survey_data IS NOT NULL) as with_intake,
+         COUNT(*) FILTER (WHERE onboarding_completed = TRUE) as completed_onboarding
+       FROM users
+       WHERE role != 'admin'
+         AND created_at >= NOW() - INTERVAL '1 day' * $1`,
+      [days]
+    );
+
+    res.json({
+      period: `last ${days} days`,
+      stats: totals.rows[0],
+      users: result.rows.map(u => ({
+        email: u.email,
+        name: u.name,
+        plan: u.plan,
+        intake: u.survey_data,
+        createdAt: u.created_at
+      }))
+    });
+
+  } catch (error) {
+    console.error('Error obteniendo intake insights:', error);
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
 module.exports = router;
