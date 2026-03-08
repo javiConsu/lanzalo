@@ -38,6 +38,11 @@ const BUBBLE_TEXTS = {
     'Zen mode: activado',
     'Nadie me ha dado tarea. Sospechoso.',
     'Esto de no hacer nada cansa, ¿eh?',
+    'A ver si el jefe se decide...',
+    'Esperando instrucciones...',
+    'Listo para lo que haga falta',
+    'Aquí quietecito por ahora',
+    'Recargando pilas ⚡',
   ],
   writing: [
     'No me molestes, estoy en racha',
@@ -504,7 +509,13 @@ function AgentPanel({ agents, totalActive, totalInProgress }) {
 
 // ─── Main AgentOffice Page ─────────────────────────────────
 export default function AgentOffice() {
-  const [agents, setAgents] = useState({})
+  // Default agents — always show all 7, even with no tasks
+  const DEFAULT_AGENTS = Object.fromEntries(
+    Object.entries(AGENT_DEFS).map(([type, def]) => [type, {
+      ...def, type, state: 'idle', detail: 'Descansando...', tasksInProgress: 0, tasksQueued: 0
+    }])
+  )
+  const [agents, setAgents] = useState(DEFAULT_AGENTS)
   const [stats, setStats] = useState({ totalActive: 0, totalInProgress: 0, totalQueued: 0 })
   const [companyId, setCompanyId] = useState(null)
   const [companies, setCompanies] = useState([])

@@ -559,7 +559,7 @@ router.get('/companies/:companyId/agents/status', requireAuth, requireCompanyAcc
     
     // Get all active tasks for this company
     const result = await pool.query(
-      `SELECT agent_type, status, title, started_at, created_at
+      `SELECT COALESCE(tag, agent_type) as agent_tag, status, title, started_at, created_at
        FROM tasks 
        WHERE company_id = $1 AND status IN ('todo', 'in_progress')
        ORDER BY created_at DESC`,
@@ -568,7 +568,7 @@ router.get('/companies/:companyId/agents/status', requireAuth, requireCompanyAcc
     
     // Get recent completed tasks (last hour) for "syncing" state
     const recentDone = await pool.query(
-      `SELECT agent_type, title, completed_at
+      `SELECT COALESCE(tag, agent_type) as agent_tag, title, completed_at
        FROM tasks 
        WHERE company_id = $1 AND status = 'completed' AND completed_at > NOW() - INTERVAL '1 hour'
        ORDER BY completed_at DESC`,
@@ -577,7 +577,7 @@ router.get('/companies/:companyId/agents/status', requireAuth, requireCompanyAcc
     
     // Get recent failed tasks for "error" state
     const recentFailed = await pool.query(
-      `SELECT agent_type, title, completed_at
+      `SELECT COALESCE(tag, agent_type) as agent_tag, title, completed_at
        FROM tasks 
        WHERE company_id = $1 AND status = 'failed' AND completed_at > NOW() - INTERVAL '30 minutes'
        ORDER BY completed_at DESC`,
@@ -602,10 +602,10 @@ router.get('/companies/:companyId/agents/status', requireAuth, requireCompanyAcc
     // Map each agent to a state
     const agents = {};
     for (const [type, info] of Object.entries(AGENTS)) {
-      const inProgress = activeTasks.find(t => t.agent_type === type && t.status === 'in_progress');
-      const queued = activeTasks.find(t => t.agent_type === type && t.status === 'todo');
-      const failed = failedRecent.find(t => t.agent_type === type);
-      const completed = completedRecent.find(t => t.agent_type === type);
+      const inProgress = activeTasks.find(t => t.agent_tag === type && t.status === 'in_progress');
+      const queued = activeTasks.find(t => t.agent_tag === type && t.status === 'todo');
+      const failed = failedRecent.find(t => t.agent_tag === type);
+      const completed = completedRecent.find(t => t.agent_tag === type);
       
       let state = 'idle';
       let detail = 'Descansando...';
@@ -636,8 +636,8 @@ router.get('/companies/:companyId/agents/status', requireAuth, requireCompanyAcc
         type,
         state,
         detail,
-        tasksInProgress: activeTasks.filter(t => t.agent_type === type && t.status === 'in_progress').length,
-        tasksQueued: activeTasks.filter(t => t.agent_type === type && t.status === 'todo').length
+        tasksInProgress: activeTasks.filter(t => t.agent_tag === type && t.status === 'in_progress').length,
+        tasksQueued: activeTasks.filter(t => t.agent_tag === type && t.status === 'todo').length
       };
     }
     
