@@ -1,12 +1,18 @@
 /**
- * Co-Founder Proactivo Diario
+ * Co-Founder Daily Briefing — Lánzalo
  * 
- * Cada mañana (08:00 CET = 07:00 UTC):
- * 1. Revisa estado de cada proyecto activo
- * 2. Genera plan del día con el tono del Co-Founder
- * 3. Envía mensaje por chat Y email al usuario
+ * 2 emails al día:
+ *  - 08:00 CET (07:00 UTC) → Briefing matutino: plan del día
+ *  - 20:00 CET (19:00 UTC) → Resumen vespertino: qué se hizo hoy
  * 
- * El Co-Founder NO espera — propone, decide, mueve.
+ * Formato tipo "CEO Briefing" de Polsia:
+ *  - Resumen ejecutivo
+ *  - Tareas completadas / fallidas / en cola
+ *  - Métricas del sistema
+ *  - Plan de acción
+ * 
+ * POLÍTICA: Este es el ÚNICO email que recibe el usuario sobre tareas.
+ * NO hay emails individuales por tarea creada/completada/fallida.
  */
 
 const cron = require('node-cron');
@@ -14,7 +20,7 @@ const { pool } = require('../db');
 const { callLLM } = require('../llm');
 const { getSystemPrompt } = require('../../agents/system-prompts');
 const { Resend } = require('resend');
-const crypto = require('crypto');
+const { TAG_NAMES } = require('./task-notifications');
 
 const resend = process.env.RESEND_API_KEY
   ? new Resend(process.env.RESEND_API_KEY)
@@ -22,26 +28,32 @@ const resend = process.env.RESEND_API_KEY
 
 const FROM_EMAIL = 'Lanzalo <noreply@lanzalo.pro>';
 
-/**
- * Programar el briefing diario del Co-Founder
- * Lunes a Viernes, 08:00 CET (07:00 UTC)
- */
+// ═══════════════════════════════════════
+// SCHEDULING
+// ═══════════════════════════════════════
+
 function scheduleCofounderDaily() {
-  // Lunes a Viernes, 07:00 UTC (08:00 CET)
+  // Briefing matutino: L-V, 07:00 UTC (08:00 CET)
   cron.schedule('0 7 * * 1-5', async () => {
-    console.log('[Co-Founder Daily] Arrancando briefing matutino...');
-    await runDailyBriefingForAll();
+    console.log('[Daily Briefing] ☀️ Arrancando briefing matutino...');
+    await runBriefingForAll('morning');
   });
 
-  console.log('[Co-Founder Daily] Programado: L-V a las 08:00 CET');
+  // Resumen vespertino: L-V, 19:00 UTC (20:00 CET)
+  cron.schedule('0 19 * * 1-5', async () => {
+    console.log('[Daily Briefing] 🌙 Arrancando resumen vespertino...');
+    await runBriefingForAll('evening');
+  });
+
+  console.log('[Daily Briefing] Programado: L-V 08:00 CET (matutino) + 20:00 CET (vespertino)');
 }
 
-/**
- * Ejecutar briefing para TODOS los proyectos activos
- */
-async function runDailyBriefingForAll() {
+// ═══════════════════════════════════════
+// MAIN RUNNER
+// ═══════════════════════════════════════
+
+async function runBriefingForAll(type = 'morning') {
   try {
-    // Obtener todos los proyectos activos con sus usuarios
     const result = await pool.query(`
       SELECT c.id as company_id, c.name, c.description, c.industry, c.status,
              c.revenue_total, c.subdomain,
@@ -52,205 +64,223 @@ async function runDailyBriefingForAll() {
     `);
 
     const projects = result.rows;
-    console.log(`[Co-Founder Daily] ${projects.length} proyectos activos`);
+    console.log(`[Daily Briefing] ${projects.length} proyectos activos`);
 
     for (const project of projects) {
       try {
-        await generateDailyBriefing(project);
+        await generateAndSendBriefing(project, type);
       } catch (error) {
-        console.error(`[Co-Founder Daily] Error en ${project.name}:`, error.message);
+        console.error(`[Daily Briefing] Error en ${project.name}:`, error.message);
       }
     }
   } catch (error) {
-    console.error('[Co-Founder Daily] Error general:', error.message);
+    console.error('[Daily Briefing] Error general:', error.message);
   }
 }
 
-/**
- * Generar briefing diario para UN proyecto
- */
-async function generateDailyBriefing(project) {
-  const { company_id, name, description, industry, email, user_name } = project;
+// For backwards compat
+const runDailyBriefingForAll = () => runBriefingForAll('morning');
 
-  // 1. Recopilar estado actual del proyecto
-  const context = await gatherProjectContext(company_id);
+// ═══════════════════════════════════════
+// GATHER DATA
+// ═══════════════════════════════════════
 
-  // 2. Generar plan del día con LLM
-  const briefing = await generateBriefingWithLLM(project, context);
-  if (!briefing) return;
+async function gatherBriefingData(companyId) {
+  const data = {};
 
-  // 3. Guardar como mensaje del Co-Founder en el chat
-  await pool.query(
-    `INSERT INTO chat_messages (company_id, role, content, created_at)
-     VALUES ($1, 'assistant', $2, NOW())`,
-    [company_id, briefing]
-  );
-
-  // 4. Enviar email al usuario
-  await sendBriefingEmail(email, user_name, name, briefing);
-
-  console.log(`[Co-Founder Daily] Briefing enviado para ${name} → ${email}`);
-}
-
-/**
- * Recopilar contexto del proyecto para el briefing
- */
-async function gatherProjectContext(companyId) {
-  const context = {};
-
-  // Tareas completadas ayer
+  // Tasks completed in last 24h
   const completed = await pool.query(
-    `SELECT title, tag, output FROM tasks 
+    `SELECT id, title, tag, output, completed_at FROM tasks 
      WHERE company_id = $1 AND status = 'completed'
        AND completed_at >= NOW() - INTERVAL '24 hours'
-     ORDER BY completed_at DESC LIMIT 10`,
+     ORDER BY completed_at DESC LIMIT 15`,
     [companyId]
   );
-  context.completedYesterday = completed.rows;
+  data.completed = completed.rows;
 
-  // Tareas fallidas
+  // Tasks failed in last 24h
   const failed = await pool.query(
-    `SELECT title, tag, error_message FROM tasks 
+    `SELECT id, title, tag, error_message, updated_at FROM tasks 
      WHERE company_id = $1 AND status = 'failed'
        AND updated_at >= NOW() - INTERVAL '24 hours'
-     LIMIT 5`,
-    [companyId]
-  );
-  context.failedYesterday = failed.rows;
-
-  // Tareas pendientes en backlog
-  const pending = await pool.query(
-    `SELECT title, tag, priority, created_at FROM tasks 
-     WHERE company_id = $1 AND status IN ('todo', 'in_progress')
-     ORDER BY 
-       CASE priority WHEN 'critical' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 ELSE 4 END,
-       created_at
      LIMIT 10`,
     [companyId]
   );
-  context.pendingTasks = pending.rows;
+  data.failed = failed.rows;
 
-  // Últimos mensajes del chat (para contexto de conversación)
+  // Tasks currently in progress
+  const inProgress = await pool.query(
+    `SELECT id, title, tag, started_at FROM tasks 
+     WHERE company_id = $1 AND status = 'in_progress'
+     ORDER BY started_at DESC LIMIT 10`,
+    [companyId]
+  );
+  data.inProgress = inProgress.rows;
+
+  // Tasks in backlog (todo)
+  const backlog = await pool.query(
+    `SELECT id, title, tag, priority, created_at FROM tasks 
+     WHERE company_id = $1 AND status = 'todo'
+     ORDER BY 
+       CASE priority WHEN 'critical' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 ELSE 4 END,
+       created_at
+     LIMIT 15`,
+    [companyId]
+  );
+  data.backlog = backlog.rows;
+
+  // Total stats
+  const stats = await pool.query(
+    `SELECT 
+       COUNT(*) FILTER (WHERE status = 'completed') as total_completed,
+       COUNT(*) FILTER (WHERE status = 'failed') as total_failed,
+       COUNT(*) FILTER (WHERE status = 'todo') as total_todo,
+       COUNT(*) FILTER (WHERE status = 'in_progress') as total_in_progress,
+       COUNT(*) FILTER (WHERE status = 'completed' AND completed_at >= NOW() - INTERVAL '24 hours') as completed_today,
+       COUNT(*) FILTER (WHERE status = 'failed' AND updated_at >= NOW() - INTERVAL '24 hours') as failed_today,
+       COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '24 hours') as created_today
+     FROM tasks WHERE company_id = $1`,
+    [companyId]
+  );
+  data.stats = stats.rows[0] || {};
+
+  // Content pieces generated recently
+  try {
+    const content = await pool.query(
+      `SELECT type, platform, status, COUNT(*) as cnt 
+       FROM content_pieces 
+       WHERE company_id = $1 AND created_at >= NOW() - INTERVAL '24 hours'
+       GROUP BY type, platform, status`,
+      [companyId]
+    );
+    data.contentPieces = content.rows;
+  } catch (e) { data.contentPieces = []; }
+
+  // Recent chat messages
   const chat = await pool.query(
     `SELECT role, content FROM chat_messages 
      WHERE company_id = $1 
-     ORDER BY created_at DESC LIMIT 5`,
+     ORDER BY created_at DESC LIMIT 3`,
     [companyId]
   );
-  context.recentChat = chat.rows.reverse();
+  data.recentChat = chat.rows.reverse();
 
-  // Memoria del proyecto
+  // Memory
   try {
     const memory = await pool.query(
       'SELECT layer, content FROM memory WHERE company_id = $1 AND layer IN (1, 2)',
       [companyId]
     );
-    context.memory = memory.rows;
-  } catch (e) {
-    context.memory = [];
-  }
+    data.memory = memory.rows;
+  } catch (e) { data.memory = []; }
 
-  // Reports/análisis generados
-  try {
-    const reports = await pool.query(
-      `SELECT title, type, created_at FROM reports
-       WHERE company_id = $1
-       ORDER BY created_at DESC LIMIT 3`,
-      [companyId]
-    );
-    context.recentReports = reports.rows;
-  } catch (e) {
-    context.recentReports = [];
-  }
-
-  return context;
+  return data;
 }
 
-/**
- * Generar el briefing con LLM usando la voz del Co-Founder
- */
-async function generateBriefingWithLLM(project, context) {
+// ═══════════════════════════════════════
+// GENERATE & SEND
+// ═══════════════════════════════════════
+
+async function generateAndSendBriefing(project, type) {
+  const { company_id, name, description, industry, email, user_name } = project;
+  const data = await gatherBriefingData(company_id);
+
+  // Generate AI narrative
+  const narrative = await generateNarrative(project, data, type);
+
+  // Save as Co-Founder chat message (only morning briefing)
+  if (type === 'morning' && narrative) {
+    await pool.query(
+      `INSERT INTO chat_messages (company_id, role, content, created_at)
+       VALUES ($1, 'assistant', $2, NOW())`,
+      [company_id, narrative]
+    );
+  }
+
+  // Send structured email
+  await sendBriefingEmail(project, data, narrative, type);
+
+  console.log(`[Daily Briefing] ${type} enviado para ${name} → ${email}`);
+}
+
+// ═══════════════════════════════════════
+// AI NARRATIVE
+// ═══════════════════════════════════════
+
+async function generateNarrative(project, data, type) {
   const { name, description, industry } = project;
+  const systemPrompt = getSystemPrompt('ceo', name, '');
 
-  // Formatear contexto
+  const isMorning = type === 'morning';
+  
   let contextStr = `EMPRESA: ${name}\nINDUSTRIA: ${industry || 'No definida'}\nDESCRIPCIÓN: ${description || 'Sin descripción'}`;
-
-  if (context.completedYesterday.length > 0) {
-    contextStr += '\n\nTAREAS COMPLETADAS AYER:';
-    for (const t of context.completedYesterday) {
-      contextStr += `\n- [${t.tag}] ${t.title}`;
-      if (t.output) contextStr += ` → ${t.output.substring(0, 100)}`;
+  
+  if (data.completed.length > 0) {
+    contextStr += '\n\nTAREAS COMPLETADAS (últimas 24h):';
+    for (const t of data.completed) {
+      contextStr += `\n- ✅ [${TAG_NAMES[t.tag] || t.tag}] ${t.title}`;
     }
   }
 
-  if (context.failedYesterday.length > 0) {
+  if (data.failed.length > 0) {
     contextStr += '\n\nTAREAS FALLIDAS:';
-    for (const t of context.failedYesterday) {
-      contextStr += `\n- [${t.tag}] ${t.title}: ${t.error_message || 'Error desconocido'}`;
+    for (const t of data.failed) {
+      contextStr += `\n- ❌ [${TAG_NAMES[t.tag] || t.tag}] ${t.title}: ${(t.error_message || 'Error desconocido').substring(0, 80)}`;
     }
   }
 
-  if (context.pendingTasks.length > 0) {
+  if (data.inProgress.length > 0) {
+    contextStr += '\n\nEN PROGRESO AHORA:';
+    for (const t of data.inProgress) {
+      contextStr += `\n- ⚡ [${TAG_NAMES[t.tag] || t.tag}] ${t.title}`;
+    }
+  }
+
+  if (data.backlog.length > 0) {
     contextStr += '\n\nBACKLOG PENDIENTE:';
-    for (const t of context.pendingTasks) {
+    for (const t of data.backlog.slice(0, 5)) {
       contextStr += `\n- [${t.priority}/${t.tag}] ${t.title}`;
     }
   }
 
-  if (context.recentChat.length > 0) {
-    contextStr += '\n\nÚLTIMOS MENSAJES DEL CHAT:';
-    for (const m of context.recentChat.slice(-3)) {
-      contextStr += `\n[${m.role}]: ${m.content.substring(0, 200)}`;
-    }
-  }
+  contextStr += `\n\nESTADÍSTICAS HOY: ${data.stats.completed_today || 0} completadas, ${data.stats.failed_today || 0} fallidas, ${data.stats.created_today || 0} creadas`;
+  contextStr += `\nTOTAL BACKLOG: ${data.stats.total_todo || 0} pendientes, ${data.stats.total_in_progress || 0} en progreso`;
 
-  // Memory context
-  for (const mem of context.memory) {
-    try {
-      const data = typeof mem.content === 'string' ? JSON.parse(mem.content) : mem.content;
-      if (data.targetAudience) contextStr += `\nAUDIENCIA: ${data.targetAudience}`;
-      if (data.keyFeatures?.length) contextStr += `\nFEATURES: ${data.keyFeatures.join(', ')}`;
-    } catch (e) {}
-  }
+  const prompt = isMorning 
+    ? `INSTRUCCIÓN INTERNA (no repitas esto):
+Es por la mañana. Genera un briefing matutino CORTO para tu socio.
 
-  const systemPrompt = getSystemPrompt('ceo', name, contextStr);
+CONTEXTO:
+${contextStr}
 
-  const prompt = `INSTRUCCIÓN INTERNA (no repitas esto):
-Es por la mañana. Eres el Co-Founder y acabas de llegar a la oficina (virtual). 
-Revisa TODO lo que ha pasado y propón el plan del día.
-
-GENERA un mensaje de briefing matutino para tu socio. ESTRUCTURA:
-
-1. SALUDO RÁPIDO (1 frase, con tu humor habitual — referencia algo del contexto si puedes)
-
-2. RESUMEN RÁPIDO de lo que pasó ayer (2-3 frases max):
-   - Tareas completadas: menciiona las importantes
-   - Problemas: si algo falló, dilo
-   - Si no pasó nada ayer, dilo también ("Ayer día tranquilo. Hoy toca moverse.")
-
-3. PLAN DEL DÍA — Lo importante. Propón 2-4 acciones concretas:
-   "Hoy tengo planeado hacer esto:"
-   1. [acción específica] → quién lo hace
-   2. [acción específica] → quién lo hace
-   3. [acción específica] → quién lo hace
-
-4. CIERRE con una pregunta que requiera mínima fricción:
-   "¿Te parece bien o cambio algo?"
-   o "Si no me dices nada, arranco a las 10."
-   o "¿Alguna prioridad que me esté saltando?"
+ESTRUCTURA:
+1. Saludo rápido (1 frase, humor habitual)
+2. Resumen de ayer (2-3 frases: qué se hizo, qué falló, qué quedó pendiente)
+3. Plan de hoy: 2-4 acciones concretas numeradas
+4. Cierre con pregunta de baja fricción ("¿Te parece o cambio algo?")
 
 REGLAS:
-- TODO en español
-- Tono Co-Founder: directo, con humor, sin corporativismo
-- NUNCA preguntes "¿qué quieres hacer hoy?" — TÚ propones
-- El plan debe ser ESPECÍFICO al estado actual del proyecto
-- Si el proyecto está parado, propón tú lo siguiente lógico
-- Si hay tareas fallidas, propón solución
-- Si no hay backlog, propón nuevas tareas basándote en la fase del proyecto
-- CORTO: máximo 10-15 líneas. No te enrolles.
-- Si el proyecto acaba de empezar y no hay análisis de mercado → proponerlo
-- Si ya hay análisis pero no hay web → proponer la web
-- Si hay web pero no hay tráfico → proponer marketing/outreach`;
+- Español, tono Co-Founder directo, con humor
+- CORTO: máximo 10-12 líneas
+- Si algo falló, propon solución, no excusas
+- TÚ propones, no preguntas qué hacer`
+    : `INSTRUCCIÓN INTERNA (no repitas esto):
+Son las 8 de la tarde. Genera un resumen del día CORTO.
+
+CONTEXTO:
+${contextStr}
+
+ESTRUCTURA:
+1. Comentario sobre el día (1 frase)
+2. Resumen: qué se completó hoy, qué falló, qué queda
+3. Plan para mañana (1-2 líneas)
+4. Cierre motivacional o con humor
+
+REGLAS:
+- Español, tono Co-Founder directo
+- CORTO: máximo 8-10 líneas
+- Si fue un día productivo, celébralo
+- Si no, sé honesto pero propositivo`;
 
   try {
     const response = await callLLM(prompt, {
@@ -259,64 +289,242 @@ REGLAS:
       temperature: 0.8,
       maxTokens: 400
     });
-
     return response.content || null;
   } catch (error) {
-    console.error('[Co-Founder Daily] Error LLM:', error.message);
+    console.error('[Daily Briefing] Error LLM:', error.message);
     return null;
   }
 }
 
-/**
- * Enviar email con el briefing
- */
-async function sendBriefingEmail(userEmail, userName, companyName, briefing) {
+// ═══════════════════════════════════════
+// EMAIL TEMPLATE
+// ═══════════════════════════════════════
+
+function buildTaskRow(task, statusIcon, statusColor) {
+  const agentName = TAG_NAMES[task.tag] || task.tag || 'Equipo';
+  const priorityColors = { critical: '#ef4444', high: '#f97316', medium: '#eab308', low: '#6b7280' };
+  const prioColor = priorityColors[task.priority] || '#6b7280';
+  const prioLabel = task.priority ? task.priority.charAt(0).toUpperCase() + task.priority.slice(1) : '';
+  
+  return `
+    <tr>
+      <td style="padding: 8px 12px; border-bottom: 1px solid #1f2937; color: #e5e7eb; font-size: 13px;">
+        ${statusIcon} ${task.title.substring(0, 60)}${task.title.length > 60 ? '...' : ''}
+      </td>
+      <td style="padding: 8px 12px; border-bottom: 1px solid #1f2937; color: #9ca3af; font-size: 12px; white-space: nowrap;">
+        ${agentName}
+      </td>
+      <td style="padding: 8px 12px; border-bottom: 1px solid #1f2937; font-size: 11px; white-space: nowrap;">
+        <span style="color: ${statusColor}; font-weight: 600;">${statusIcon === '✅' ? 'Hecho' : statusIcon === '❌' ? 'Error' : statusIcon === '⚡' ? 'En curso' : prioLabel}</span>
+      </td>
+    </tr>`;
+}
+
+async function sendBriefingEmail(project, data, narrative, type) {
   if (!resend) {
-    console.log('[Co-Founder Daily] Resend no configurado, skip email');
+    console.log('[Daily Briefing] Resend no configurado, skip email');
     return;
   }
+
+  const { email, user_name, name: companyName } = project;
+  const userName = user_name ? user_name.split(' ')[0] : 'crack';
+  const isMorning = type === 'morning';
 
   const today = new Date().toLocaleDateString('es-ES', { 
     weekday: 'long', day: 'numeric', month: 'long' 
   });
 
+  const stats = data.stats;
+  const completedToday = parseInt(stats.completed_today) || 0;
+  const failedToday = parseInt(stats.failed_today) || 0;
+  const createdToday = parseInt(stats.created_today) || 0;
+  const totalTodo = parseInt(stats.total_todo) || 0;
+  const totalInProgress = parseInt(stats.total_in_progress) || 0;
+
+  // Build task rows
+  let completedRows = '';
+  for (const t of data.completed.slice(0, 5)) {
+    completedRows += buildTaskRow(t, '✅', '#34d399');
+  }
+
+  let failedRows = '';
+  for (const t of data.failed.slice(0, 3)) {
+    failedRows += buildTaskRow(t, '❌', '#f87171');
+  }
+
+  let inProgressRows = '';
+  for (const t of data.inProgress.slice(0, 3)) {
+    inProgressRows += buildTaskRow(t, '⚡', '#fbbf24');
+  }
+
+  let backlogRows = '';
+  for (const t of data.backlog.slice(0, 5)) {
+    const prioIcon = t.priority === 'critical' ? '🔴' : t.priority === 'high' ? '🟡' : '🟢';
+    backlogRows += buildTaskRow(t, prioIcon, '#9ca3af');
+  }
+
+  // Content generated
+  let contentSection = '';
+  if (data.contentPieces.length > 0) {
+    const contentSummary = data.contentPieces.map(c => 
+      `${c.cnt}x ${c.type}${c.platform ? ` (${c.platform})` : ''} — ${c.status}`
+    ).join(', ');
+    contentSection = `
+      <div style="margin-top: 16px; padding: 12px; background: #1a1a2e; border-radius: 8px; border-left: 3px solid #8b5cf6;">
+        <p style="margin: 0; color: #a78bfa; font-size: 12px; font-weight: 600;">📣 Contenido generado</p>
+        <p style="margin: 4px 0 0; color: #9ca3af; font-size: 12px;">${contentSummary}</p>
+      </div>`;
+  }
+
+  const subject = isMorning
+    ? `☀️ ${companyName} — Briefing del día (${today})`
+    : `🌙 ${companyName} — Resumen del día (${today})`;
+
+  const html = `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 640px; margin: 0 auto; background: #0f1419; color: #e7e9ea;">
+      
+      <!-- Header -->
+      <div style="padding: 24px 24px 16px; border-bottom: 1px solid #2f3336;">
+        <table width="100%" cellpadding="0" cellspacing="0"><tr>
+          <td>
+            <h1 style="margin: 0; color: #10b981; font-size: 20px; font-weight: 700;">
+              ${isMorning ? '☀️' : '🌙'} ${isMorning ? 'Briefing' : 'Resumen'} — ${companyName}
+            </h1>
+            <p style="margin: 4px 0 0; color: #71767b; font-size: 13px;">${today}</p>
+          </td>
+          <td style="text-align: right; vertical-align: top;">
+            <span style="font-size: 11px; color: #6b7280; background: #1f2937; padding: 4px 10px; border-radius: 12px;">
+              ${isMorning ? 'Matutino' : 'Vespertino'}
+            </span>
+          </td>
+        </tr></table>
+      </div>
+
+      <!-- Stats Bar -->
+      <div style="padding: 16px 24px; background: #111827;">
+        <table width="100%" cellpadding="0" cellspacing="0">
+          <tr>
+            <td style="text-align: center; padding: 8px;">
+              <div style="font-size: 24px; font-weight: 700; color: #34d399;">${completedToday}</div>
+              <div style="font-size: 11px; color: #6b7280; margin-top: 2px;">Completadas</div>
+            </td>
+            <td style="text-align: center; padding: 8px;">
+              <div style="font-size: 24px; font-weight: 700; color: ${failedToday > 0 ? '#f87171' : '#6b7280'};">${failedToday}</div>
+              <div style="font-size: 11px; color: #6b7280; margin-top: 2px;">Errores</div>
+            </td>
+            <td style="text-align: center; padding: 8px;">
+              <div style="font-size: 24px; font-weight: 700; color: #fbbf24;">${totalInProgress}</div>
+              <div style="font-size: 11px; color: #6b7280; margin-top: 2px;">En curso</div>
+            </td>
+            <td style="text-align: center; padding: 8px;">
+              <div style="font-size: 24px; font-weight: 700; color: #60a5fa;">${totalTodo}</div>
+              <div style="font-size: 11px; color: #6b7280; margin-top: 2px;">En cola</div>
+            </td>
+            <td style="text-align: center; padding: 8px;">
+              <div style="font-size: 24px; font-weight: 700; color: #a78bfa;">${createdToday}</div>
+              <div style="font-size: 11px; color: #6b7280; margin-top: 2px;">Nuevas</div>
+            </td>
+          </tr>
+        </table>
+      </div>
+
+      <!-- Narrative from Co-Founder -->
+      ${narrative ? `
+      <div style="padding: 20px 24px; border-bottom: 1px solid #2f3336;">
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+          <span style="font-size: 11px; font-weight: 600; color: #10b981; background: #10b98120; padding: 3px 8px; border-radius: 6px;">🧠 Co-Founder</span>
+        </div>
+        <div style="color: #d1d5db; font-size: 14px; line-height: 1.7; white-space: pre-line;">${narrative}</div>
+      </div>
+      ` : ''}
+
+      <!-- Completed Tasks -->
+      ${data.completed.length > 0 ? `
+      <div style="padding: 16px 24px;">
+        <h3 style="margin: 0 0 10px; color: #34d399; font-size: 14px; font-weight: 600;">✅ Completadas hoy (${data.completed.length})</h3>
+        <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse: collapse;">
+          ${completedRows}
+        </table>
+      </div>
+      ` : ''}
+
+      <!-- Failed Tasks -->
+      ${data.failed.length > 0 ? `
+      <div style="padding: 16px 24px;">
+        <h3 style="margin: 0 0 10px; color: #f87171; font-size: 14px; font-weight: 600;">❌ Errores hoy (${data.failed.length})</h3>
+        <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse: collapse;">
+          ${failedRows}
+        </table>
+        <p style="color: #71767b; font-size: 11px; margin: 8px 0 0;">No se ha cobrado ningún crédito por tareas fallidas.</p>
+      </div>
+      ` : ''}
+
+      <!-- In Progress -->
+      ${data.inProgress.length > 0 ? `
+      <div style="padding: 16px 24px;">
+        <h3 style="margin: 0 0 10px; color: #fbbf24; font-size: 14px; font-weight: 600;">⚡ En progreso (${data.inProgress.length})</h3>
+        <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse: collapse;">
+          ${inProgressRows}
+        </table>
+      </div>
+      ` : ''}
+
+      <!-- Backlog -->
+      ${data.backlog.length > 0 ? `
+      <div style="padding: 16px 24px;">
+        <h3 style="margin: 0 0 10px; color: #60a5fa; font-size: 14px; font-weight: 600;">📋 Cola de tareas (${data.backlog.length})</h3>
+        <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse: collapse;">
+          ${backlogRows}
+        </table>
+      </div>
+      ` : ''}
+
+      <!-- Content Section -->
+      ${contentSection ? `<div style="padding: 0 24px 16px;">${contentSection}</div>` : ''}
+
+      <!-- CTA -->
+      <div style="padding: 20px 24px; text-align: center; border-top: 1px solid #2f3336;">
+        <a href="https://www.lanzalo.pro" style="display: inline-block; background: #10b981; color: white; text-decoration: none; padding: 12px 32px; border-radius: 8px; font-weight: 600; font-size: 14px;">
+          Abrir Lánzalo →
+        </a>
+        <p style="margin: 12px 0 0; color: #71767b; font-size: 12px;">
+          Habla con tu Co-Founder para crear nuevas tareas o ajustar prioridades.
+        </p>
+      </div>
+
+      <!-- Footer -->
+      <div style="padding: 16px 24px; border-top: 1px solid #2f3336; text-align: center;">
+        <p style="margin: 0; color: #4b5563; font-size: 11px;">
+          Lánzalo · Tu co-fundador IA · <a href="https://www.lanzalo.pro" style="color: #6b7280;">lanzalo.pro</a>
+        </p>
+        <p style="margin: 4px 0 0; color: #374151; font-size: 10px;">
+          Recibes este email 2 veces al día (08:00 y 20:00 CET). Toda la actividad de tus agentes aquí.
+        </p>
+      </div>
+    </div>
+  `;
+
   try {
     await resend.emails.send({
       from: FROM_EMAIL,
-      to: [userEmail],
-      subject: `☕ ${companyName} — Plan del día (${today})`,
-      html: `
-        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; background: #0f1419; color: #e7e9ea; padding: 32px; border-radius: 12px;">
-          <div style="border-bottom: 1px solid #2f3336; padding-bottom: 16px; margin-bottom: 24px;">
-            <h2 style="margin: 0; color: #1d9bf0; font-size: 18px;">🚀 Tu Co-Founder — Briefing del día</h2>
-            <p style="margin: 4px 0 0; color: #71767b; font-size: 14px;">${companyName} · ${today}</p>
-          </div>
-          
-          <div style="white-space: pre-line; line-height: 1.6; font-size: 15px;">
-${briefing}
-          </div>
-          
-          <div style="margin-top: 32px; padding-top: 16px; border-top: 1px solid #2f3336; text-align: center;">
-            <a href="https://lanzalo.pro" style="display: inline-block; background: #1d9bf0; color: white; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; font-size: 14px;">
-              Abrir Lánzalo y responder
-            </a>
-          </div>
-          
-          <p style="margin-top: 24px; color: #71767b; font-size: 12px; text-align: center;">
-            Lánzalo · Tu co-fundador IA · <a href="https://lanzalo.pro" style="color: #1d9bf0;">lanzalo.pro</a>
-          </p>
-        </div>
-      `
+      to: [email],
+      subject,
+      html,
     });
-
-    console.log(`[Co-Founder Daily] Email enviado a ${userEmail}`);
+    console.log(`[Daily Briefing] Email enviado a ${email}`);
   } catch (error) {
-    console.error('[Co-Founder Daily] Error enviando email:', error.message);
+    console.error('[Daily Briefing] Error enviando email:', error.message);
   }
 }
+
+// Keep old function name for backwards compat
+const generateDailyBriefing = (project) => generateAndSendBriefing(project, 'morning');
 
 module.exports = {
   scheduleCofounderDaily,
   runDailyBriefingForAll,
-  generateDailyBriefing
+  runBriefingForAll,
+  generateDailyBriefing,
+  generateAndSendBriefing,
+  gatherBriefingData
 };
