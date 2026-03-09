@@ -28,6 +28,7 @@ const migrationFiles = [
   { name: '017_add_email_pro.sql', file: path.join(__dirname, '..', 'database', 'migrations', '017_add_email_pro.sql') },
   { name: '018_add_marketing_content.sql', file: path.join(__dirname, '..', 'database', 'migrations', '018_add_marketing_content.sql') },
   { name: '019_add_brand_config.sql', file: path.join(__dirname, '..', 'database', 'migrations', '019_add_brand_config.sql') },
+  { name: '020_fix_tasks_columns.sql', file: path.join(__dirname, '..', 'database', 'migrations', '020_fix_tasks_columns.sql') },
 ];
 
 async function runMigrations() {

@@ -425,8 +425,8 @@ Genera contenido/estrategia específica y accionable. Sigue la guía de marca.`;
 
   async createTask(companyId, title, description) {
     const result = await pool.query(
-      `INSERT INTO tasks (company_id, agent_type, tag, title, description, status, created_at)
-       VALUES ($1, 'marketing', 'marketing', $2, $3, 'todo', NOW()) RETURNING *`,
+      `INSERT INTO tasks (company_id, tag, title, description, status, created_at)
+       VALUES ($1, 'marketing', $2, $3, 'todo', NOW()) RETURNING *`,
       [companyId, title, description]
     );
     return result.rows[0];

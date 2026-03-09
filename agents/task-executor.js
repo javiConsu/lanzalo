@@ -94,7 +94,9 @@ class TaskExecutor {
   async getNextTasks(limit = 5) {
     try {
       const result = await pool.query(
-        `SELECT * FROM tasks WHERE status = 'todo' ORDER BY priority DESC, created_at ASC LIMIT $1`,
+        `SELECT * FROM tasks WHERE status = 'todo' ORDER BY 
+         CASE priority WHEN 'critical' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 WHEN 'low' THEN 4 ELSE 5 END ASC,
+         created_at ASC LIMIT $1`,
         [limit]
       );
       return result.rows || [];
@@ -144,7 +146,7 @@ class TaskExecutor {
           global.broadcastActivity({
             companyId: task.company_id,
             type: 'task_completed',
-            agentType: task.tag || task.agent_type,
+            agentType: task.tag,
             taskTitle: task.title,
             message: `Tarea completada: ${task.title}`,
             timestamp: new Date().toISOString()
@@ -173,10 +175,18 @@ class TaskExecutor {
       console.error(`[Task Executor] ❌ Task ${taskId} failed:`, error.message);
       const retryCount = task.retry_count || 0;
       if (retryCount < 3) {
-        await pool.query(
-          `UPDATE tasks SET status = 'todo', retry_count = $1, error_message = $2 WHERE id = $3`,
-          [retryCount + 1, error.message, taskId]
-        );
+        try {
+          await pool.query(
+            `UPDATE tasks SET status = 'todo', retry_count = $1, error_message = $2 WHERE id = $3`,
+            [retryCount + 1, error.message, taskId]
+          );
+        } catch (retryErr) {
+          // Fallback if retry_count column doesn't exist yet
+          await pool.query(
+            `UPDATE tasks SET status = 'failed', error_message = $1, completed_at = CURRENT_TIMESTAMP WHERE id = $2`,
+            [error.message, taskId]
+          );
+        }
       } else {
         await pool.query(
           `UPDATE tasks SET status = 'failed', error_message = $1, completed_at = CURRENT_TIMESTAMP WHERE id = $2`,

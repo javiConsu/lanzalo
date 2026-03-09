@@ -481,7 +481,7 @@ router.get('/companies/:companyId/marketing', requireAuth, requireCompanyAccess,
     ).catch(() => ({ rows: [] }));
 
     const adTasks = await pool.query(
-      `SELECT id, COALESCE(tag, agent_type) as agent_tag, title, description, status, priority,
+      `SELECT id, tag as agent_tag, title, description, status, priority,
               started_at, completed_at, created_at
        FROM tasks WHERE company_id = $1
        AND (title ILIKE '%ads%' OR title ILIKE '%ad campaign%' OR title ILIKE '%publicidad%'
@@ -504,10 +504,10 @@ router.get('/companies/:companyId/marketing', requireAuth, requireCompanyAccess,
 
     // ─── Marketing tasks (all tasks from marketing/email/twitter agents) ──
     const mktTasks = await pool.query(
-      `SELECT id, COALESCE(tag, agent_type) as agent_tag, title, description, status, priority,
+      `SELECT id, tag as agent_tag, title, description, status, priority,
               started_at, completed_at, created_at
        FROM tasks WHERE company_id = $1
-       AND COALESCE(tag, agent_type) IN ('marketing', 'email', 'twitter')
+       AND tag IN ('marketing', 'email', 'twitter')
        ORDER BY created_at DESC LIMIT 30`,
       [companyId]
     ).catch(() => ({ rows: [] }));
@@ -718,7 +718,7 @@ router.get('/companies/:companyId/agents/status', requireAuth, requireCompanyAcc
     
     // Get all active tasks for this company
     const result = await pool.query(
-      `SELECT COALESCE(tag, agent_type) as agent_tag, status, title, started_at, created_at
+      `SELECT tag as agent_tag, status, title, started_at, created_at
        FROM tasks 
        WHERE company_id = $1 AND status IN ('todo', 'in_progress')
        ORDER BY created_at DESC`,
@@ -727,7 +727,7 @@ router.get('/companies/:companyId/agents/status', requireAuth, requireCompanyAcc
     
     // Get recent completed tasks (last hour) for "syncing" state
     const recentDone = await pool.query(
-      `SELECT COALESCE(tag, agent_type) as agent_tag, title, completed_at
+      `SELECT tag as agent_tag, title, completed_at
        FROM tasks 
        WHERE company_id = $1 AND status = 'completed' AND completed_at > NOW() - INTERVAL '1 hour'
        ORDER BY completed_at DESC`,
@@ -736,7 +736,7 @@ router.get('/companies/:companyId/agents/status', requireAuth, requireCompanyAcc
     
     // Get recent failed tasks for "error" state
     const recentFailed = await pool.query(
-      `SELECT COALESCE(tag, agent_type) as agent_tag, title, completed_at
+      `SELECT tag as agent_tag, title, completed_at
        FROM tasks 
        WHERE company_id = $1 AND status = 'failed' AND completed_at > NOW() - INTERVAL '30 minutes'
        ORDER BY completed_at DESC`,
@@ -808,12 +808,12 @@ router.get('/companies/:companyId/agents/status', requireAuth, requireCompanyAcc
     
     // Get ALL tasks for backlog (last 50 completed + pending + in_progress)
     const allTasks = await pool.query(
-      `(SELECT id, COALESCE(tag, agent_type) as agent_tag, title, description, status, priority,
+      `(SELECT id, tag as agent_tag, title, description, status, priority,
               started_at, completed_at, created_at
        FROM tasks WHERE company_id = $1 AND status IN ('todo', 'in_progress')
        ORDER BY created_at DESC)
        UNION ALL
-       (SELECT id, COALESCE(tag, agent_type) as agent_tag, title, description, status, priority,
+       (SELECT id, tag as agent_tag, title, description, status, priority,
               started_at, completed_at, created_at
        FROM tasks WHERE company_id = $1 AND status IN ('completed', 'failed')
        ORDER BY completed_at DESC LIMIT 30)`,
