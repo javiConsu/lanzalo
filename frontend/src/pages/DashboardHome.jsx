@@ -377,7 +377,7 @@ function CreditsWidget() {
               <div className="text-center py-4">
                 <div className="text-4xl mb-3">✅</div>
                 <h3 className="text-lg font-bold text-white mb-2">Idea recibida</h3>
-                <p className="text-sm text-gray-400 mb-4">La revisamos en 24-48h. Si la implementamos, te avisamos por email y sumamos el crédito automáticamente.</p>
+                <p className="text-sm text-gray-400 mb-4">Nuestro equipo la revisará en 24-48h. Si la aprobamos, te avisaremos por email y sumaremos el crédito automáticamente a tu cuenta.</p>
                 <button onClick={() => { setShowIdeasModal(false); setIdeaSubmitted(false); setIdeaText(''); }} className="px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-lg text-sm font-medium transition-colors">
                   Cerrar
                 </button>
@@ -386,23 +386,23 @@ function CreditsWidget() {
               <>
                 <div className="flex items-start justify-between mb-4">
                   <div>
-                    <h3 className="text-lg font-bold text-white">💡 Manda una idea</h3>
-                    <p className="text-xs text-gray-400 mt-1">Valoramos todas las ideas. Si la implementamos, +1 crédito gratis en tu cuenta.</p>
+                    <h3 className="text-lg font-bold text-white">💡 Mejora Lánzalo</h3>
+                    <p className="text-xs text-gray-400 mt-1">Propón ideas para mejorar la plataforma Lánzalo. Cuantas más ideas envíes, más créditos puedes conseguir (+1 por idea aprobada).</p>
                   </div>
                   <button onClick={() => setShowIdeasModal(false)} className="text-gray-500 hover:text-gray-300 text-xl leading-none">×</button>
                 </div>
                 <textarea
                   value={ideaText}
                   onChange={e => setIdeaText(e.target.value)}
-                  placeholder="¿Qué mejorarías de Lánzalo? ¿Qué te falta? ¿Qué te haría la vida más fácil? Cuantas más ideas mandes, más créditos puedes conseguir."
+                  placeholder="¿Qué mejorarías de Lánzalo como plataforma? ¿Qué funcionalidad echas en falta? ¿Qué te haría la vida más fácil? Esto NO es para tu proyecto — es para mejorar Lánzalo para todos."
                   className="w-full h-32 bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-500 resize-none focus:outline-none focus:border-violet-500 transition-colors"
                   disabled={ideaSubmitting}
                 />
                 <div className="flex items-center justify-between mt-3">
-                  <span className="text-[11px] text-gray-500">{ideaText.length}/500 • Mínimo 10 caracteres</span>
+                  <span className="text-[11px] text-gray-500">{ideaText.length}/500 • Mínimo 50 caracteres</span>
                   <button
                     onClick={async () => {
-                      if (ideaText.trim().length < 10 || ideaSubmitting) return;
+                      if (ideaText.trim().length < 50 || ideaSubmitting) return;
                       setIdeaSubmitting(true);
                       try {
                         // Necesitamos un companyId — usamos el primero disponible
@@ -410,7 +410,7 @@ function CreditsWidget() {
                         const companiesData = await companiesRes.json();
                         const firstCompanyId = companiesData?.companies?.[0]?.id || companiesData?.[0]?.id;
                         if (!firstCompanyId) throw new Error('No company');
-                        const res = await fetch(apiUrl(`/api/user/companies/${firstCompanyId}/support/feedback`), {
+                        const res = await fetch(apiUrl(`/api/companies/${firstCompanyId}/support/feedback`), {
                           method: 'POST',
                           headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
                           body: JSON.stringify({ message: ideaText.trim() })
@@ -424,7 +424,7 @@ function CreditsWidget() {
                         setIdeaSubmitting(false);
                       }
                     }}
-                    disabled={ideaText.trim().length < 10 || ideaSubmitting}
+                    disabled={ideaText.trim().length < 50 || ideaSubmitting}
                     className="px-4 py-2 bg-violet-600 hover:bg-violet-700 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-lg text-sm font-medium transition-colors"
                   >
                     {ideaSubmitting ? 'Enviando...' : 'Enviar idea'}

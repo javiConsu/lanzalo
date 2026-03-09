@@ -282,7 +282,7 @@ export default function Chat() {
 
   // ─── Submit Feedback ───
   const handleFeedbackSubmit = async () => {
-    if (!feedbackText.trim() || feedbackText.trim().length < 10) return
+    if (!feedbackText.trim() || feedbackText.trim().length < 50) return
     setSubmitting(true)
     try {
       const res = await fetch(apiUrl(`/api/companies/${selectedCompany}/support/feedback`), {
@@ -546,15 +546,15 @@ export default function Chat() {
               <FeedbackIcon />
             </div>
             <div>
-              <h3 className="text-white font-semibold">Dar Feedback</h3>
-              <p className="text-xs text-gray-400">Propón mejoras o funcionalidades nuevas</p>
+              <h3 className="text-white font-semibold">Mejora Lánzalo</h3>
+              <p className="text-xs text-gray-400">Propón ideas para mejorar la plataforma (no tu proyecto)</p>
             </div>
           </div>
 
           <textarea
             value={feedbackText}
             onChange={(e) => setFeedbackText(e.target.value)}
-            placeholder="¿Qué te gustaría que hiciera diferente? ¿Qué funcionalidad echas en falta? Cuanto más detalle, mejor..."
+            placeholder="¿Qué mejorarías de Lánzalo como plataforma? ¿Qué funcionalidad echas en falta? Esto es para mejorar Lánzalo, no tu proyecto. Mínimo 50 caracteres — cuanto más detalle, mejor."
             className="w-full h-32 px-3 py-2.5 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 resize-none"
             autoFocus
           />
@@ -562,10 +562,10 @@ export default function Chat() {
           {/* Credit info */}
           <div className="mt-3 bg-violet-500/10 border border-violet-500/20 rounded-lg px-3 py-2.5">
             <p className="text-xs text-violet-300">
-              <span className="font-semibold">+1 crédito</span> si aprobamos tu feedback para desarrollo.
+              <span className="font-semibold">+1 crédito</span> por cada idea aprobada. Cuantas más ideas envíes, más créditos puedes conseguir.
             </p>
             <p className="text-[11px] text-violet-300/60 mt-1">
-              Cada crédito = 1 tarea nueva que tu Co-Founder resolverá. Bastante generoso, ¿no? 😏
+              Cada crédito = 1 tarea nueva que tu Co-Founder ejecutará. Explícate bien (mín. 50 caracteres).
             </p>
             <p className="text-[11px] text-amber-300/80 mt-1">
               ✨ En tu periodo trial: <span className="font-semibold">+2 créditos</span> por feedback aprobado — aprovecha estos primeros días
@@ -583,7 +583,7 @@ export default function Chat() {
               </button>
               <button
                 onClick={handleFeedbackSubmit}
-                disabled={submitting || feedbackText.trim().length < 10}
+                disabled={submitting || feedbackText.trim().length < 50}
                 className="px-4 py-2 text-sm bg-violet-500/20 text-violet-300 hover:bg-violet-500/30 border border-violet-500/30 rounded-lg transition-colors disabled:opacity-50"
               >
                 {submitting ? 'Enviando...' : 'Enviar feedback'}

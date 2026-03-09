@@ -129,8 +129,8 @@ router.post('/companies/:companyId/support/feedback', requireCompanyAccess, asyn
     const { companyId } = req.params;
     const { message, contextMessageId } = req.body;
 
-    if (!message || message.trim().length < 10) {
-      return res.status(400).json({ error: 'Cuéntanos más detalle para que podamos valorarlo bien' });
+    if (!message || message.trim().length < 50) {
+      return res.status(400).json({ error: 'Necesitamos al menos 50 caracteres para poder valorar bien tu idea. Cuanto más detalle, mejor.' });
     }
 
     // Comprobar si está en trial (primeros 15 días)
@@ -162,7 +162,7 @@ router.post('/companies/:companyId/support/feedback', requireCompanyAccess, asyn
     console.error('[Support] Feedback error:', error.message);
     res.status(500).json({ error: 'Error del servidor' });
   }
-});;
+});
 
 // ═══════════════════════════════════════════════════════
 // ADMIN: Listar tickets pendientes
@@ -414,14 +414,14 @@ Responde en formato JSON con estos campos:
 - recomendacion: "aprobar" | "rechazar" | "revisar" (tu recomendación)
 - razon: string de 1-2 frases explicando la recomendación`,
       {
-        taskType: 'analytics',
+        taskType: 'ceo_chat',
         temperature: 0.3,
         maxTokens: 500,
         systemPrompt: 'Eres un analista de producto para una startup SaaS. Responde SOLO con JSON válido, sin markdown.'
       }
     );
 
-    const content = analysisResponse?.choices?.[0]?.message?.content || '';
+    const content = analysisResponse?.content || '';
     const jsonMatch = content.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
       aiAnalysis = JSON.parse(jsonMatch[0]);
