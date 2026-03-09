@@ -534,7 +534,8 @@ async function getAllRealCosts(period = '30d') {
   };
 
   // Servicios fijos: prorratear según periodo
-  const vercelCost = prorateCost(vercel.monthly || 20, period, getMonths(vercel.started_at));
+  // Note: use !== undefined/null check, NOT ||, because monthly=0 (Hobby) is valid
+  const vercelCost = prorateCost(vercel.monthly != null ? vercel.monthly : 20, period, getMonths(vercel.started_at));
   const instantlyCost = prorateCost(instantly.monthly || 0, period, getMonths(instantly.started_at));
   const domainCost = prorateCost(domain.monthly || 1.50, period, getMonths(domain.started_at));
   const resendCost = prorateCost(resend.monthly || 0, period, getMonths(resend.started_at));
