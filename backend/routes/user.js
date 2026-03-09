@@ -738,6 +738,9 @@ router.get('/companies/:companyId/chat/history', requireAuth, requireCompanyAcce
 router.get('/companies/:companyId/documents', requireAuth, requireCompanyAccess, async (req, res) => {
   try {
     const companyId = req.params.companyId;
+    // Solo informes y análisis: research, data, trends.
+    // Excluir tareas operativas (marketing diario, code, email, twitter)
+    // y títulos genéricos repetitivos
     const result = await pool.query(
       `SELECT id, title, tag, output, created_at, completed_at
        FROM tasks
@@ -745,6 +748,8 @@ router.get('/companies/:companyId/documents', requireAuth, requireCompanyAccess,
          AND status = 'completed'
          AND output IS NOT NULL
          AND output != ''
+         AND tag IN ('research', 'data', 'trends')
+         AND title NOT ILIKE '%marketing diario%'
        ORDER BY completed_at DESC NULLS LAST, created_at DESC
        LIMIT 10`,
       [companyId]

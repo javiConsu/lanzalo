@@ -636,17 +636,15 @@ function LinksWidget({ company, companyId }) {
 
   const DOC_ICONS = {
     research: '📊',
-    marketing: '📣',
-    code: '💻',
     data: '📈',
-    email: '📧'
+    trends: '🌐'
   }
 
   return (
     <div className="bg-gray-900/50 rounded-2xl border border-gray-700/50 overflow-hidden">
       <div className="px-4 py-3 border-b border-gray-700/50">
         <span className="text-sm font-semibold text-white flex items-center gap-2">
-          <span className="text-xs">🔗</span> Links y documentos
+          <span className="text-xs">🔗</span> Web e informes
         </span>
       </div>
       <div className="p-3 space-y-2">
