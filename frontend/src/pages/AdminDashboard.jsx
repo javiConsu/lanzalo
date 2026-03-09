@@ -71,7 +71,8 @@ function getLLMCostForPeriod(llm, period) {
     case '24h': return or.usage_daily || llm?.cost_24h || 0
     case '7d': return or.usage_weekly || llm?.cost_7d || 0
     case '30d': return or.usage_monthly || llm?.cost_30d || 0
-    case 'total': return or.usage_total || llm?.cost_total || 0
+    // Use account-level total (all API keys) for true total spend
+    case 'total': return or.account_total || or.usage_total || llm?.cost_total || 0
     default: return llm?.cost_30d || 0
   }
 }
@@ -594,6 +595,17 @@ export default function AdminDashboard() {
               <div onClick={() => setPeriod('total')} className={`cursor-pointer rounded-xl p-4 border transition-colors ${period === 'total' ? 'bg-blue-600/10 border-blue-500/50' : 'bg-gray-800/60 border-gray-700/50 hover:border-gray-600'}`}>
                 <span className="text-xs font-medium text-gray-500 uppercase">LLM Total</span>
                 <div className={`text-2xl font-bold tabular-nums ${period === 'total' ? 'text-blue-400' : 'text-red-400'}`}>{fmtUSD(llm.cost_total)}</div>
+                {llm.openrouter_real?.account_credits > 0 && (
+                  <div className="mt-1">
+                    <div className="flex justify-between text-[9px] text-gray-500 mb-0.5">
+                      <span>Crédito</span>
+                      <span>{fmtUSD(llm.openrouter_real.account_remaining)} restante</span>
+                    </div>
+                    <div className="w-full h-1 bg-gray-700 rounded-full overflow-hidden">
+                      <div className="h-full bg-orange-500 rounded-full" style={{ width: `${Math.min(100, ((llm.openrouter_real.account_total || 0) / (llm.openrouter_real.account_credits || 1)) * 100)}%` }} />
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="bg-gray-800/60 border border-gray-700/50 rounded-xl p-4">
                 <span className="text-xs font-medium text-gray-500 uppercase">Total Infra ({periodLabel})</span>

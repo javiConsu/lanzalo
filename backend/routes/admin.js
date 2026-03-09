@@ -589,7 +589,8 @@ router.get('/live', async (req, res) => {
           cost_30d: openrouterReal.usage_monthly || parseFloat(llmCosts30d.rows[0].cost),
           cost_7d: openrouterReal.usage_weekly || parseFloat(llmCosts7d.rows[0].cost),
           cost_24h: openrouterReal.usage_daily || parseFloat(llmCosts24h.rows[0].cost),
-          cost_total: openrouterReal.usage_total || parseFloat(llmCostsTotal.rows[0].cost),
+          // Use account-level total (all keys) for the real total spend
+          cost_total: openrouterReal.account_total || openrouterReal.usage_total || parseFloat(llmCostsTotal.rows[0].cost),
           tokens_30d: parseInt(llmCosts30d.rows[0].tokens),
           tokens_total: parseInt(llmCostsTotal.rows[0].tokens),
           byModel: llmByModel.rows,
@@ -599,6 +600,10 @@ router.get('/live', async (req, res) => {
             usage_weekly: openrouterReal.usage_weekly || 0,
             usage_daily: openrouterReal.usage_daily || 0,
             usage_total: openrouterReal.usage_total || 0,
+            // Account-level totals (all API keys combined)
+            account_total: openrouterReal.account_total || 0,
+            account_credits: openrouterReal.account_credits || 0,
+            account_remaining: openrouterReal.account_remaining || 0,
             limit: openrouterReal.limit,
             limit_remaining: openrouterReal.limit_remaining,
             source: openrouterReal.error ? 'error' : 'api'

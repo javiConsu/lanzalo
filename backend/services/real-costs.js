@@ -53,33 +53,47 @@ async function getOpenRouterCosts() {
   if (cached) return cached;
 
   const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) return { error: 'No API key', usage_daily: 0, usage_weekly: 0, usage_monthly: 0, usage_total: 0 };
+  if (!apiKey) return { error: 'No API key', usage_daily: 0, usage_weekly: 0, usage_monthly: 0, usage_total: 0, account_total: 0, account_credits: 0 };
 
   try {
-    const res = await axios.get('https://openrouter.ai/api/v1/key', {
-      headers: { 'Authorization': `Bearer ${apiKey}` },
-      timeout: 10000
-    });
+    // Fetch both key-level usage AND account-level credits in parallel
+    const [keyRes, creditsRes] = await Promise.all([
+      axios.get('https://openrouter.ai/api/v1/key', {
+        headers: { 'Authorization': `Bearer ${apiKey}` },
+        timeout: 10000
+      }),
+      axios.get('https://openrouter.ai/api/v1/credits', {
+        headers: { 'Authorization': `Bearer ${apiKey}` },
+        timeout: 10000
+      }).catch(() => ({ data: { data: { total_usage: 0, total_credits: 0 } } }))
+    ]);
 
-    const data = res.data?.data || {};
+    const keyData = keyRes.data?.data || {};
+    const creditsData = creditsRes.data?.data || {};
+
     const result = {
       source: 'openrouter_api',
-      label: data.label || 'default',
-      usage_total: data.usage || 0,
-      usage_daily: data.usage_daily || 0,
-      usage_weekly: data.usage_weekly || 0,
-      usage_monthly: data.usage_monthly || 0,
-      limit: data.limit || null,
-      limit_remaining: data.limit_remaining || null,
-      is_free_tier: data.is_free_tier || false,
-      raw: data
+      label: keyData.label || 'default',
+      // Key-level usage (current key only)
+      usage_total: keyData.usage || 0,
+      usage_daily: keyData.usage_daily || 0,
+      usage_weekly: keyData.usage_weekly || 0,
+      usage_monthly: keyData.usage_monthly || 0,
+      // Account-level usage (ALL keys, all time)
+      account_total: creditsData.total_usage || 0,
+      account_credits: creditsData.total_credits || 0,
+      account_remaining: (creditsData.total_credits || 0) - (creditsData.total_usage || 0),
+      limit: keyData.limit || null,
+      limit_remaining: keyData.limit_remaining || null,
+      is_free_tier: keyData.is_free_tier || false,
+      raw: keyData
     };
 
     setCache('openrouter', result);
     return result;
   } catch (e) {
     console.error('OpenRouter costs error:', e.message);
-    return { error: e.message, usage_daily: 0, usage_weekly: 0, usage_monthly: 0, usage_total: 0 };
+    return { error: e.message, usage_daily: 0, usage_weekly: 0, usage_monthly: 0, usage_total: 0, account_total: 0, account_credits: 0 };
   }
 }
 
@@ -89,7 +103,8 @@ function getOpenRouterForPeriod(openrouter, period) {
     case '24h': return openrouter.usage_daily || 0;
     case '7d': return openrouter.usage_weekly || 0;
     case '30d': return openrouter.usage_monthly || 0;
-    case 'total': return openrouter.usage_total || 0;
+    // For 'total', use account-level total (all keys) instead of current key only
+    case 'total': return openrouter.account_total || openrouter.usage_total || 0;
     default: return openrouter.usage_monthly || 0;
   }
 }
