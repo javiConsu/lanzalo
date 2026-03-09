@@ -281,14 +281,9 @@ Responde en JSON:
             account_ids: [subscription.instantly_account_id],
           });
 
-          // Set sequences
+          // Set sequences (service converts to Instantly's nested format)
           if (campaign.steps && instantlyCampaign.id) {
-            await instantly.setCampaignSequences(instantlyCampaign.id, campaign.steps.map((step, i) => ({
-              step: i + 1,
-              subject: step.subject,
-              body: step.body,
-              delay_days: step.delay_days || 0,
-            })));
+            await instantly.setCampaignSequences(instantlyCampaign.id, campaign.steps);
 
             // Add leads to Instantly campaign
             for (const lead of leads.rows.slice(0, 50)) {

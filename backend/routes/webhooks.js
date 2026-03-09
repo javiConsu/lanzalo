@@ -221,13 +221,13 @@ async function handleEmailProActivation(session) {
         const suggestedDomain = `${domainBase}-mail.com`;
 
         // Simulate order first to check pricing
-        const quote = await instantly.simulateOrder(suggestedDomain, ['hello']);
+        const quote = await instantly.simulateOrder(suggestedDomain, 'Team', companyName);
         console.log('[Email Pro] DFY quote:', quote);
 
         // Place actual order
         const order = await instantly.orderDFYAccount({
           domain: suggestedDomain,
-          accounts: ['hello'],
+          accounts: [{ email_address_prefix: 'hello', first_name: 'Team', last_name: companyName }],
           order_type: 'dfy',
         });
 

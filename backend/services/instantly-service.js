@@ -60,9 +60,11 @@ class InstantlyService {
 
   /**
    * Check domain availability for DFY setup
+   * @param {string|string[]} domains - Single domain or array of domains to check
    */
-  async checkDomainAvailability(domain) {
-    return this.request('POST', '/dfy-email-account-orders/domains/check', { domain });
+  async checkDomainAvailability(domains) {
+    const domainList = Array.isArray(domains) ? domains : [domains];
+    return this.request('POST', '/dfy-email-account-orders/domains/check', { domains: domainList });
   }
 
   /**
@@ -83,29 +85,35 @@ class InstantlyService {
    * Order DFY email account (buys domain + creates sending account)
    * @param {Object} options
    * @param {string} options.domain - Domain to purchase (.com/.org only)
-   * @param {Array<string>} options.accounts - 1-5 email account names (e.g. ['hello', 'info'])
+   * @param {Array<Object>} options.accounts - 1-5 accounts [{email_address_prefix, first_name, last_name}]
    * @param {string} [options.forwarding_domain] - Optional forwarding domain
    * @param {string} [options.order_type='dfy'] - 'dfy', 'pre_warmed_up', or 'extra_accounts'
    * @param {boolean} [options.simulate=false] - True to get quote without charging
    */
   async orderDFYAccount({ domain, accounts, forwarding_domain, order_type = 'dfy', simulate = false }) {
     return this.request('POST', '/dfy-email-account-orders', {
-      domain,
-      email_provider: 1, // Google only
-      accounts: accounts.map(name => ({ name })),
-      forwarding_domain,
       order_type,
       simulate,
+      items: [{
+        domain,
+        email_provider: 1, // Google only
+        accounts: accounts.map(a => ({
+          email_address_prefix: a.email_address_prefix || a.name || 'hello',
+          first_name: a.first_name || 'Team',
+          last_name: a.last_name || domain.split('.')[0],
+        })),
+        ...(forwarding_domain ? { forwarding_domain } : {}),
+      }],
     });
   }
 
   /**
    * Simulate order to get pricing quote
    */
-  async simulateOrder(domain, accountNames = ['hello']) {
+  async simulateOrder(domain, firstName = 'Team', lastName = 'Outreach') {
     return this.orderDFYAccount({
       domain,
-      accounts: accountNames,
+      accounts: [{ email_address_prefix: 'hello', first_name: firstName, last_name: lastName }],
       simulate: true,
     });
   }
@@ -150,11 +158,23 @@ class InstantlyService {
 
   /**
    * Create a new campaign
+   * @param {string} name - Campaign name
+   * @param {string[]} [account_ids] - Sending account IDs
+   * @param {string} [timezone='Africa/Ceuta'] - Timezone (Africa/Ceuta = CET/Spain)
    */
-  async createCampaign({ name, account_ids = [], schedule = null }) {
-    const body = { name };
+  async createCampaign({ name, account_ids = [], timezone = 'Africa/Ceuta' }) {
+    const body = {
+      name,
+      campaign_schedule: {
+        schedules: [{
+          name: 'Default',
+          days: { '1': true, '2': true, '3': true, '4': true, '5': true },
+          timezone,
+          timing: { from: '09:00', to: '17:00' },
+        }],
+      },
+    };
     if (account_ids.length > 0) body.account_ids = account_ids;
-    if (schedule) body.campaign_schedule = schedule;
     return this.request('POST', '/campaigns', body);
   }
 
@@ -189,11 +209,23 @@ class InstantlyService {
   }
 
   /**
-   * Set email sequence steps for a campaign
+   * Set email sequence steps for a campaign.
+   * Format: steps = [{ subject, body, delay_days }]
+   * Converts to Instantly's nested format:
+   *   sequences: [{ steps: [{ type: 'email', delay, variants: [{ subject, body }] }] }]
    */
-  async setCampaignSequences(campaignId, sequences) {
+  async setCampaignSequences(campaignId, steps) {
+    const instantlySteps = steps.map((step, i) => ({
+      type: 'email',
+      delay: i === 0 ? 0 : (step.delay_days || step.delay || 1),
+      variants: [{
+        subject: step.subject,
+        body: step.body,
+      }],
+    }));
+
     return this.request('PATCH', `/campaigns/${campaignId}`, {
-      sequences,
+      sequences: [{ steps: instantlySteps }],
     });
   }
 
