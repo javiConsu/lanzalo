@@ -10,7 +10,6 @@ import api from '../lib/api';
 
 export default function OnboardingDescribeIdea() {
   const navigate = useNavigate();
-  const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [audience, setAudience] = useState('');
   const [launching, setLaunching] = useState(false);
@@ -18,7 +17,7 @@ export default function OnboardingDescribeIdea() {
 
   async function handleSubmit(e) {
     e.preventDefault();
-    if (!name.trim() || !description.trim()) return;
+    if (!description.trim()) return;
 
     setLaunching(true);
     setError(null);
@@ -26,7 +25,6 @@ export default function OnboardingDescribeIdea() {
     try {
       const result = await api.post('/api/onboarding/create-company', {
         source: 'user_idea',
-        name: name.trim(),
         description: description.trim(),
         audience: audience.trim() || 'General'
       });
@@ -51,7 +49,7 @@ export default function OnboardingDescribeIdea() {
         <div className="text-center max-w-md">
           <Loader2 className="w-16 h-16 text-emerald-500 animate-spin mx-auto mb-6" />
           <h2 className="text-2xl font-bold text-white mb-4">
-            Creando {name}...
+            Creando tu proyecto...
           </h2>
           <p className="text-gray-400">
             Tu Co-Fundador IA está preparando todo. Un momento.
@@ -83,30 +81,12 @@ export default function OnboardingDescribeIdea() {
             Describe tu idea
           </h1>
           <p className="text-gray-400">
-            No hace falta que sea perfecta. Tu Co-Fundador IA te ayudará a refinarla.
+            No hace falta que sea perfecta. Tu Co-Fundador IA te ayudará a refinarla y te propondrá nombres.
           </p>
         </div>
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-6">
-
-          {/* Name */}
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              Nombre del proyecto
-            </label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Ej: FitMeal, PetCare Pro, TaxBot..."
-              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3
-                       text-white placeholder-gray-500 focus:border-emerald-500 
-                       focus:ring-1 focus:ring-emerald-500 outline-none"
-              required
-              maxLength={100}
-            />
-          </div>
 
           {/* Description */}
           <div>
@@ -153,7 +133,7 @@ export default function OnboardingDescribeIdea() {
           {/* Submit */}
           <button
             type="submit"
-            disabled={!name.trim() || !description.trim()}
+            disabled={!description.trim()}
             className="w-full flex items-center justify-center gap-2 px-6 py-4
                      bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg
                      transition-colors disabled:opacity-40 disabled:cursor-not-allowed

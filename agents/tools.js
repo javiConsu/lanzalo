@@ -181,6 +181,21 @@ const TOOL_DEFS = {
   },
 
   // --- Company ---
+  rename_company: {
+    type: 'function',
+    function: {
+      name: 'rename_company',
+      description: 'Renombrar la empresa. Actualiza el nombre y subdomain en toda la plataforma (perfil, filtros, cola de tareas, chat, etc.)',
+      parameters: {
+        type: 'object',
+        required: ['new_name'],
+        properties: {
+          new_name: { type: 'string', description: 'Nuevo nombre para la empresa (max 100 chars)' }
+        }
+      }
+    }
+  },
+
   get_company_info: {
     type: 'function',
     function: {
@@ -363,6 +378,32 @@ function createToolHandlers(companyId, userId) {
       return { success: true, tweetId: result.rows[0].id, status: 'draft' };
     },
 
+    rename_company: async (args) => {
+      const newName = (args.new_name || '').trim();
+      if (!newName || newName.length > 100) {
+        return { error: 'El nombre debe tener entre 1 y 100 caracteres' };
+      }
+      const newSubdomain = newName
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '-')
+        .replace(/-+/g, '-')
+        .substring(0, 30);
+      
+      const result = await pool.query(
+        `UPDATE companies SET name = $1, subdomain = $2 WHERE id = $3 RETURNING id, name, subdomain`,
+        [newName, newSubdomain, companyId]
+      );
+      if (!result.rows[0]) return { error: 'Empresa no encontrada' };
+      
+      console.log(`[CEO Tools] Empresa renombrada: ${result.rows[0].name} (subdomain: ${result.rows[0].subdomain})`);
+      return {
+        success: true,
+        name: result.rows[0].name,
+        subdomain: result.rows[0].subdomain,
+        note: 'Nombre actualizado en toda la plataforma (perfil, agentes, cola de tareas, métricas).'
+      };
+    },
+
     get_company_info: async () => {
       const result = await pool.query(
         'SELECT * FROM companies WHERE id = $1', [companyId]
@@ -395,7 +436,7 @@ function createToolHandlers(companyId, userId) {
 // ═══════════════════════════════════════
 
 const AGENT_TOOLS = {
-  ceo: ['create_task', 'get_tasks', 'read_memory', 'update_memory', 'web_search', 'get_company_info', 'create_plan'],
+  ceo: ['create_task', 'get_tasks', 'read_memory', 'update_memory', 'web_search', 'get_company_info', 'rename_company', 'create_plan'],
   code: ['read_memory', 'update_memory', 'query_db', 'create_report', 'get_company_info'],
   research: ['web_search', 'read_memory', 'update_memory', 'create_report', 'query_db', 'get_company_info'],
   marketing: ['read_memory', 'web_search', 'create_report', 'get_company_info'],

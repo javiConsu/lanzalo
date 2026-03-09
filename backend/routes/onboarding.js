@@ -213,12 +213,21 @@ router.post('/create-company', authenticate, async (req, res) => {
       
     } else {
       // User's own idea
-      if (!name || !description) {
-        return res.status(400).json({ error: 'Name and description required' });
+      if (!description) {
+        return res.status(400).json({ error: 'Description required' });
       }
       
+      // Auto-generate placeholder name from description (first 3-4 meaningful words)
+      const placeholderName = name || description
+        .replace(/[^a-zA-ZáéíóúñÁÉÍÓÚÑ\s]/g, '')
+        .split(/\s+/)
+        .filter(w => w.length > 2)
+        .slice(0, 3)
+        .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+        .join(' ') || 'Mi Proyecto';
+      
       companyData = {
-        name,
+        name: placeholderName,
         description,
         audience: audience || 'General',
         source: 'user_idea',
