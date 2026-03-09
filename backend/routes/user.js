@@ -835,4 +835,52 @@ router.get('/companies/:companyId/agents/status', requireAuth, requireCompanyAcc
   }
 });
 
+/**
+ * Cola de Tareas — endpoint dedicado
+ * GET /api/user/companies/:companyId/backlog
+ */
+router.get('/companies/:companyId/backlog', requireAuth, requireCompanyAccess, async (req, res) => {
+  try {
+    const { companyId } = req.params;
+
+    // Tareas activas (todo + in_progress)
+    const activeTasks = await pool.query(
+      `SELECT id, COALESCE(tag, agent_type) as agent_tag, title, description, status, priority,
+              error_message, output, started_at, completed_at, created_at
+       FROM tasks
+       WHERE company_id = $1 AND status IN ('todo', 'in_progress')
+       ORDER BY created_at DESC`,
+      [companyId]
+    );
+
+    // Tareas completadas/fallidas (last 50)
+    const completedTasks = await pool.query(
+      `SELECT id, COALESCE(tag, agent_type) as agent_tag, title, description, status, priority,
+              error_message, output, started_at, completed_at, created_at
+       FROM tasks
+       WHERE company_id = $1 AND status IN ('completed', 'failed')
+       ORDER BY completed_at DESC LIMIT 50`,
+      [companyId]
+    );
+
+    // Mensajes de chat recientes (last 10)
+    const recentChat = await pool.query(
+      `SELECT id, role, content, created_at
+       FROM chat_messages WHERE company_id = $1
+       ORDER BY created_at DESC LIMIT 10`,
+      [companyId]
+    ).catch(() => ({ rows: [] }));
+
+    res.json({
+      backlog: activeTasks.rows,
+      completed: completedTasks.rows,
+      recentChat: recentChat.rows.reverse()
+    });
+
+  } catch (error) {
+    console.error('Error obteniendo cola de tareas:', error);
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
 module.exports = router;
