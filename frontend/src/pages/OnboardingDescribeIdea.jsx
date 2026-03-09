@@ -30,10 +30,12 @@ export default function OnboardingDescribeIdea() {
       });
 
       if (result.success && result.company) {
+        // Set the newly created company as the active selection
+        localStorage.setItem('lanzalo_selected_company', result.company.id);
         // Force full reload so App re-fetches profile with onboardingCompleted=true
-        window.location.href = '/chat';
+        window.location.href = '/';
       } else if (result.code === 'NO_SLOTS') {
-        setError(`Has alcanzado el l\u00edmite de negocios (${result.used}/${result.slots}). Compra un hueco extra desde tu panel.`);
+        setError(`Has alcanzado el límite de negocios (${result.used}/${result.slots}). Compra un hueco extra desde tu panel.`);
         setLaunching(false);
       } else {
         setError(result.error || 'Error creando la empresa');

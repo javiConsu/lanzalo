@@ -43,14 +43,18 @@ export default function OnboardingChooseIdea() {
       });
 
       if (result.code === 'NO_SLOTS') {
-        alert(`Has alcanzado el l\u00edmite de negocios (${result.used}/${result.slots}). Compra un hueco extra desde tu panel.`);
+        alert(`Has alcanzado el límite de negocios (${result.used}/${result.slots}). Compra un hueco extra desde tu panel.`);
         setLaunching(false);
         setSelectedIdea(null);
         return;
       }
 
+      // Set the newly created company as the active selection
+      if (result.company?.id) {
+        localStorage.setItem('lanzalo_selected_company', result.company.id);
+      }
       // Force full reload so App re-fetches profile with onboardingCompleted=true
-      window.location.href = '/chat';
+      window.location.href = '/';
     } catch (err) {
       console.error('Error launching idea:', err);
       if (err?.code === 'NO_SLOTS') {
