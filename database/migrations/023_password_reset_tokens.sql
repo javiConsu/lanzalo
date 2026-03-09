@@ -2,7 +2,7 @@
 DROP TABLE IF EXISTS password_reset_tokens;
 CREATE TABLE password_reset_tokens (
   id SERIAL PRIMARY KEY,
-  user_id INTEGER NOT NULL,
+  user_id UUID NOT NULL,
   token VARCHAR(255) UNIQUE NOT NULL,
   expires_at TIMESTAMP NOT NULL,
   used BOOLEAN DEFAULT FALSE,

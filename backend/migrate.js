@@ -31,6 +31,7 @@ const migrationFiles = [
   { name: '020_fix_tasks_columns.sql', file: path.join(__dirname, '..', 'database', 'migrations', '020_fix_tasks_columns.sql') },
   { name: '021_business_slots.sql', file: path.join(__dirname, '..', 'database', 'migrations', '021_business_slots.sql') },
   { name: '022_referral_system.sql', file: path.join(__dirname, '..', 'database', 'migrations', '022_referral_system.sql') },
+  { name: '023_password_reset_tokens.sql', file: path.join(__dirname, '..', 'database', 'migrations', '023_password_reset_tokens.sql') },
 ];
 
 async function runMigrations() {
