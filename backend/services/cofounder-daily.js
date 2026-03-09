@@ -60,7 +60,13 @@ async function runBriefingForAll(type = 'morning') {
              u.id as user_id, u.email, u.name as user_name
       FROM companies c
       JOIN users u ON c.user_id = u.id
-      WHERE c.status = 'active'
+      WHERE c.status IN ('active', 'planning')
+        AND u.email NOT LIKE '%@test.com'
+        AND u.email NOT LIKE 'e2e_%'
+        AND u.email NOT LIKE 'test_%'
+        AND u.email NOT LIKE 'debug_%'
+        AND u.email NOT LIKE 'welcome-test%'
+        AND u.email NOT LIKE 'dashboard-test%'
     `);
 
     const projects = result.rows;
@@ -100,9 +106,9 @@ async function gatherBriefingData(companyId) {
 
   // Tasks failed in last 24h
   const failed = await pool.query(
-    `SELECT id, title, tag, error_message, updated_at FROM tasks 
+    `SELECT id, title, tag, error_message, COALESCE(failed_at, completed_at, created_at) as failed_at FROM tasks 
      WHERE company_id = $1 AND status = 'failed'
-       AND updated_at >= NOW() - INTERVAL '24 hours'
+       AND COALESCE(failed_at, completed_at, created_at) >= NOW() - INTERVAL '24 hours'
      LIMIT 10`,
     [companyId]
   );
@@ -137,7 +143,7 @@ async function gatherBriefingData(companyId) {
        COUNT(*) FILTER (WHERE status = 'todo') as total_todo,
        COUNT(*) FILTER (WHERE status = 'in_progress') as total_in_progress,
        COUNT(*) FILTER (WHERE status = 'completed' AND completed_at >= NOW() - INTERVAL '24 hours') as completed_today,
-       COUNT(*) FILTER (WHERE status = 'failed' AND updated_at >= NOW() - INTERVAL '24 hours') as failed_today,
+       COUNT(*) FILTER (WHERE status = 'failed' AND COALESCE(failed_at, completed_at, created_at) >= NOW() - INTERVAL '24 hours') as failed_today,
        COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '24 hours') as created_today
      FROM tasks WHERE company_id = $1`,
     [companyId]
