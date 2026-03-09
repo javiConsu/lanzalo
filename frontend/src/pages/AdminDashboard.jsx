@@ -1,182 +1,690 @@
 /**
- * Admin Dashboard — Stats + Soporte (tickets de feedback y bugs)
+ * Admin Live Panel — Estilo Polsia/Clawport
+ * 
+ * Single-page dashboard with:
+ * - KPI cards (users, MRR, costs, profit)
+ * - LLM cost breakdown by model + daily trend
+ * - Infrastructure costs
+ * - Tasks live feed
+ * - Companies & users overview
+ * - Recent activity (chats, feedback)
+ * - Growth Agent reports
  */
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { apiUrl } from '../api.js'
 
+// ─── Helpers ──────────────────────────────────────────────
+const fmt = (n, decimals = 2) => {
+  if (n === null || n === undefined || isNaN(n)) return '0'
+  return parseFloat(n).toLocaleString('en-US', { 
+    minimumFractionDigits: decimals, 
+    maximumFractionDigits: decimals 
+  })
+}
+const fmtInt = (n) => parseInt(n || 0).toLocaleString('en-US')
+const fmtUSD = (n) => `$${fmt(n)}`
+const fmtTokens = (n) => {
+  const num = parseInt(n || 0)
+  if (num >= 1_000_000) return `${(num / 1_000_000).toFixed(1)}M`
+  if (num >= 1_000) return `${(num / 1_000).toFixed(1)}K`
+  return num.toString()
+}
+const timeAgo = (date) => {
+  if (!date) return ''
+  const s = Math.floor((Date.now() - new Date(date).getTime()) / 1000)
+  if (s < 60) return `${s}s`
+  if (s < 3600) return `${Math.floor(s / 60)}m`
+  if (s < 86400) return `${Math.floor(s / 3600)}h`
+  return `${Math.floor(s / 86400)}d`
+}
+const statusColor = {
+  completed: 'text-green-400',
+  failed: 'text-red-400',
+  in_progress: 'text-blue-400',
+  todo: 'text-gray-400',
+  blocked: 'text-yellow-400'
+}
+const statusIcon = {
+  completed: '✓',
+  failed: '✗',
+  in_progress: '◉',
+  todo: '○',
+  blocked: '⊘'
+}
+const modelShortName = (model) => {
+  if (!model) return '?'
+  return model.replace('anthropic/', '').replace('openai/', '').replace('google/', '')
+}
+
+// ─── Sparkline (pure CSS) ────────────────────────────────
+function MiniBar({ data, color = '#3b82f6', height = 32 }) {
+  if (!data || data.length === 0) return null
+  const max = Math.max(...data.map(d => parseFloat(d.cost || 0)), 0.01)
+  return (
+    <div className="flex items-end gap-px" style={{ height }}>
+      {data.map((d, i) => (
+        <div
+          key={i}
+          className="flex-1 rounded-t-sm opacity-80 hover:opacity-100 transition-opacity"
+          style={{
+            backgroundColor: color,
+            height: `${Math.max((parseFloat(d.cost || 0) / max) * 100, 4)}%`,
+            minWidth: 3
+          }}
+          title={`${d.date}: $${fmt(d.cost)}`}
+        />
+      ))}
+    </div>
+  )
+}
+
+// ─── KPI Card ────────────────────────────────────────────
+function KPI({ label, value, sub, color = 'text-white', icon }) {
+  return (
+    <div className="bg-gray-800/60 border border-gray-700/50 rounded-xl p-4 hover:border-gray-600 transition-colors">
+      <div className="flex items-center justify-between mb-1">
+        <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">{label}</span>
+        {icon && <span className="text-lg">{icon}</span>}
+      </div>
+      <div className={`text-2xl font-bold ${color} tabular-nums`}>{value}</div>
+      {sub && <div className="text-xs text-gray-500 mt-1">{sub}</div>}
+    </div>
+  )
+}
+
+// ─── Section Header ──────────────────────────────────────
+function SectionHeader({ icon, title, badge }) {
+  return (
+    <div className="flex items-center gap-2 mb-3">
+      <span className="text-base">{icon}</span>
+      <h2 className="text-sm font-semibold text-gray-300 uppercase tracking-wider">{title}</h2>
+      {badge !== undefined && (
+        <span className="ml-auto px-2 py-0.5 text-xs font-medium bg-gray-700/50 text-gray-400 rounded-full">{badge}</span>
+      )}
+    </div>
+  )
+}
+
+// ─── Main Component ──────────────────────────────────────
 export default function AdminDashboard() {
-  const [stats, setStats] = useState(null)
-  const [tickets, setTickets] = useState([])
-  const [ticketCounts, setTicketCounts] = useState({})
-  const [activeTab, setActiveTab] = useState('pending')
-  const [resolving, setResolving] = useState(null)
+  const [data, setData] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+  const [lastUpdate, setLastUpdate] = useState(null)
+  const [activeTab, setActiveTab] = useState('overview') // overview | costs | users | activity
   const token = localStorage.getItem('token')
+  const refreshRef = useRef(null)
 
-  useEffect(() => {
-    fetch(apiUrl('/api/admin/stats'), {
-      headers: { 'Authorization': `Bearer ${token}` }
-    })
-      .then(res => res.json())
-      .then(data => setStats(data))
-      .catch(console.error)
-  }, [])
-
-  const loadTickets = useCallback(async (status = activeTab) => {
+  const fetchData = useCallback(async () => {
     try {
-      const res = await fetch(apiUrl(`/api/admin/support/tickets?status=${status}`), {
+      const res = await fetch(apiUrl('/api/admin/live'), {
         headers: { 'Authorization': `Bearer ${token}` }
       })
-      const data = await res.json()
-      setTickets(data.tickets || [])
-      setTicketCounts(data.counts || {})
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const json = await res.json()
+      setData(json)
+      setLastUpdate(new Date())
+      setError(null)
     } catch (e) {
-      console.error('Error loading tickets:', e)
-    }
-  }, [activeTab, token])
-
-  useEffect(() => { loadTickets() }, [activeTab])
-
-  const handleResolve = async (ticketId, status) => {
-    setResolving(ticketId)
-    try {
-      await fetch(apiUrl(`/api/admin/support/tickets/${ticketId}/resolve`), {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ status, adminNotes: '' })
-      })
-      await loadTickets()
-    } catch (e) {
-      console.error('Error resolving ticket:', e)
+      setError(e.message)
     } finally {
-      setResolving(null)
+      setLoading(false)
     }
+  }, [token])
+
+  useEffect(() => {
+    fetchData()
+    // Auto-refresh every 30s
+    refreshRef.current = setInterval(fetchData, 30000)
+    return () => clearInterval(refreshRef.current)
+  }, [fetchData])
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-950 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+          <div className="text-gray-500 text-sm">Cargando panel admin...</div>
+        </div>
+      </div>
+    )
   }
 
-  const tabStyle = (tab) =>
-    `px-3 py-1.5 text-sm rounded-lg transition-colors ${
-      activeTab === tab
-        ? 'bg-violet-500/20 text-violet-300 border border-violet-500/30'
-        : 'text-gray-400 hover:text-white hover:bg-gray-800'
-    }`
+  if (error && !data) {
+    return (
+      <div className="min-h-screen bg-gray-950 flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-red-400 text-lg mb-2">Error: {error}</div>
+          <button onClick={fetchData} className="text-blue-400 hover:text-blue-300 text-sm">Reintentar</button>
+        </div>
+      </div>
+    )
+  }
+
+  const d = data || {}
+  const users = d.users || {}
+  const companies = d.companies || {}
+  const revenue = d.revenue || {}
+  const costs = d.costs || {}
+  const llm = costs.llm || {}
+  const infra = costs.infra || {}
+  const profit = d.profit || {}
+  const tasks = d.tasks || {}
+  const activity = d.activity || {}
+
+  const taskSummaryMap = {}
+  ;(tasks.summary || []).forEach(t => { taskSummaryMap[t.status] = parseInt(t.count) })
+  const totalTasks = Object.values(taskSummaryMap).reduce((a, b) => a + b, 0)
+
+  const tabs = [
+    { id: 'overview', label: 'Overview', icon: '📊' },
+    { id: 'costs', label: 'Costes', icon: '💰' },
+    { id: 'users', label: 'Usuarios', icon: '👥' },
+    { id: 'activity', label: 'Actividad', icon: '⚡' }
+  ]
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 p-8">
-      <div className="max-w-6xl mx-auto">
-        <div className="flex items-center gap-3 mb-8">
-          <span className="text-3xl">👑</span>
-          <h1 className="text-2xl font-bold text-white">Admin Panel</h1>
-          <a href="/" className="ml-auto text-sm text-gray-400 hover:text-white">← Volver al dashboard</a>
-        </div>
-
-        {/* Stats */}
-        {stats ? (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-            <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-700/50">
-              <div className="text-gray-400 text-sm mb-1">Usuarios totales</div>
-              <div className="text-2xl font-bold text-white">{stats.total_users || 0}</div>
-            </div>
-            <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-700/50">
-              <div className="text-gray-400 text-sm mb-1">Empresas activas</div>
-              <div className="text-2xl font-bold text-white">{stats.total_companies || 0}</div>
-            </div>
-            <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-700/50">
-              <div className="text-gray-400 text-sm mb-1">Usuarios Pro</div>
-              <div className="text-2xl font-bold text-white">{stats.pro_users || 0}</div>
-            </div>
+    <div className="min-h-screen bg-gray-950 text-white">
+      {/* ─── Top Bar ─────────────────────────────── */}
+      <div className="sticky top-0 z-50 bg-gray-950/95 backdrop-blur-sm border-b border-gray-800">
+        <div className="max-w-[1600px] mx-auto px-4 py-3 flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <span className="text-xl">🚀</span>
+            <span className="font-bold text-lg">Lanzalo</span>
+            <span className="text-xs px-2 py-0.5 bg-red-500/20 text-red-400 rounded-full font-medium">ADMIN</span>
           </div>
-        ) : (
-          <div className="text-gray-400 mb-8">Cargando estadísticas...</div>
+
+          {/* Tabs */}
+          <div className="flex items-center gap-1 ml-6">
+            {tabs.map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${
+                  activeTab === tab.id
+                    ? 'bg-gray-800 text-white font-medium'
+                    : 'text-gray-500 hover:text-gray-300 hover:bg-gray-800/50'
+                }`}
+              >
+                <span className="mr-1.5">{tab.icon}</span>
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="ml-auto flex items-center gap-3">
+            {lastUpdate && (
+              <span className="text-xs text-gray-600">
+                Actualizado {lastUpdate.toLocaleTimeString()}
+              </span>
+            )}
+            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" title="Live — auto-refresh 30s" />
+            <a href="/" className="text-xs text-gray-500 hover:text-gray-300">← Dashboard</a>
+          </div>
+        </div>
+      </div>
+
+      {/* ─── Content ─────────────────────────────── */}
+      <div className="max-w-[1600px] mx-auto px-4 py-6">
+
+        {/* ─── OVERVIEW TAB ──────────────────────── */}
+        {activeTab === 'overview' && (
+          <>
+            {/* KPI Row */}
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 mb-6">
+              <KPI label="Usuarios" value={fmtInt(users.total)} sub={`+${fmtInt(users.new_7d)} esta semana`} icon="👤" />
+              <KPI label="Pro" value={fmtInt(users.pro)} sub={`${fmtInt(users.total - users.pro)} free`} color="text-purple-400" icon="⭐" />
+              <KPI label="MRR" value={fmtUSD(revenue.mrr)} sub={`${fmtInt(revenue.proCount)} × $39`} color="text-green-400" icon="💵" />
+              <KPI label="Costes (30d)" value={fmtUSD(costs.total)} sub={`LLM: ${fmtUSD(llm.cost_30d)}`} color="text-red-400" icon="🔥" />
+              <KPI label="Beneficio" value={fmtUSD(profit.amount)} sub={`Margen: ${profit.margin}%`} color={profit.amount >= 0 ? 'text-green-400' : 'text-red-400'} icon="📈" />
+              <KPI label="Empresas" value={fmtInt(companies.total)} sub={`${fmtInt(companies.live)} live · ${fmtInt(companies.building)} building`} icon="🏢" />
+            </div>
+
+            {/* Two-column layout */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Left column (2/3) */}
+              <div className="lg:col-span-2 space-y-6">
+                {/* LLM Cost Trend */}
+                <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-5">
+                  <SectionHeader icon="📉" title="Coste LLM (14 días)" badge={fmtUSD(llm.cost_30d) + ' /30d'} />
+                  <MiniBar data={llm.daily || []} color="#ef4444" height={48} />
+                  <div className="flex items-center gap-4 mt-3 text-xs text-gray-500">
+                    <span>24h: {fmtUSD(llm.cost_24h)}</span>
+                    <span>7d: {fmtUSD(llm.cost_7d)}</span>
+                    <span>30d: {fmtUSD(llm.cost_30d)}</span>
+                    <span className="ml-auto">{fmtTokens(llm.tokens_30d)} tokens</span>
+                  </div>
+                </div>
+
+                {/* Recent Tasks */}
+                <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-5">
+                  <SectionHeader icon="📋" title="Tareas recientes" badge={totalTasks} />
+                  <div className="flex gap-3 mb-4 text-xs">
+                    {['todo', 'in_progress', 'completed', 'failed'].map(s => (
+                      <span key={s} className={`${statusColor[s]} tabular-nums`}>
+                        {statusIcon[s]} {taskSummaryMap[s] || 0} {s}
+                      </span>
+                    ))}
+                  </div>
+                  <div className="space-y-2 max-h-80 overflow-y-auto">
+                    {(tasks.recent || []).map(task => (
+                      <div key={task.id} className="flex items-center gap-3 py-2 border-b border-gray-800/50 last:border-0">
+                        <span className={`text-sm ${statusColor[task.status]}`}>{statusIcon[task.status]}</span>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm text-gray-300 truncate">{task.title}</div>
+                          <div className="text-xs text-gray-600">{task.company_name} · {task.tag}</div>
+                        </div>
+                        <span className="text-xs text-gray-600 shrink-0">{timeAgo(task.created_at)}</span>
+                      </div>
+                    ))}
+                    {(!tasks.recent || tasks.recent.length === 0) && (
+                      <div className="text-gray-600 text-sm py-4 text-center">Sin tareas</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Right column (1/3) */}
+              <div className="space-y-6">
+                {/* Infrastructure Costs */}
+                <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-5">
+                  <SectionHeader icon="🏗️" title="Infraestructura (mes)" />
+                  <div className="space-y-2">
+                    {[
+                      { name: 'Railway', cost: infra.railway, color: 'bg-purple-500' },
+                      { name: 'Vercel', cost: infra.vercel, color: 'bg-white' },
+                      { name: 'Neon (PG)', cost: infra.neon, color: 'bg-green-500' },
+                      { name: 'OpenRouter', cost: infra.openrouter, color: 'bg-orange-500' },
+                      { name: 'Resend', cost: infra.resend, color: 'bg-blue-500' },
+                      { name: 'Dominio', cost: infra.domain, color: 'bg-gray-500' }
+                    ].map(item => (
+                      <div key={item.name} className="flex items-center justify-between text-sm">
+                        <div className="flex items-center gap-2">
+                          <div className={`w-2 h-2 rounded-full ${item.color}`} />
+                          <span className="text-gray-400">{item.name}</span>
+                        </div>
+                        <span className="text-gray-300 tabular-nums">{fmtUSD(item.cost)}</span>
+                      </div>
+                    ))}
+                    <div className="flex items-center justify-between text-sm pt-2 border-t border-gray-700 font-medium">
+                      <span className="text-gray-300">Total</span>
+                      <span className="text-red-400 tabular-nums">{fmtUSD(infra.total)}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* LLM by Model */}
+                <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-5">
+                  <SectionHeader icon="🤖" title="Coste por modelo" />
+                  <div className="space-y-2">
+                    {(llm.byModel || []).map((m, i) => {
+                      const maxCost = Math.max(...(llm.byModel || []).map(x => parseFloat(x.cost || 0)), 0.01)
+                      const pct = (parseFloat(m.cost || 0) / maxCost) * 100
+                      return (
+                        <div key={i}>
+                          <div className="flex items-center justify-between text-xs mb-1">
+                            <span className="text-gray-400 truncate max-w-[140px]">{modelShortName(m.model)}</span>
+                            <span className="text-gray-300 tabular-nums">{fmtUSD(m.cost)}</span>
+                          </div>
+                          <div className="w-full h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-gradient-to-r from-orange-500 to-red-500 rounded-full"
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                          <div className="text-[10px] text-gray-600 mt-0.5">{fmtInt(m.calls)} calls · {fmtTokens(m.tokens)} tokens</div>
+                        </div>
+                      )
+                    })}
+                    {(!llm.byModel || llm.byModel.length === 0) && (
+                      <div className="text-gray-600 text-sm py-2 text-center">Sin datos</div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Top Cost Companies */}
+                <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-5">
+                  <SectionHeader icon="🏷️" title="Top coste por empresa" />
+                  <div className="space-y-2">
+                    {(activity.topCostCompanies || []).slice(0, 5).map((c, i) => (
+                      <div key={i} className="flex items-center justify-between text-sm">
+                        <div className="flex-1 min-w-0">
+                          <div className="text-gray-300 truncate text-xs">{c.name || 'Sin nombre'}</div>
+                          <div className="text-[10px] text-gray-600 truncate">{c.owner}</div>
+                        </div>
+                        <div className="text-right shrink-0 ml-2">
+                          <div className="text-xs text-red-400 tabular-nums">{fmtUSD(c.cost)}</div>
+                          <div className="text-[10px] text-gray-600">{fmtInt(c.calls)} calls</div>
+                        </div>
+                      </div>
+                    ))}
+                    {(!activity.topCostCompanies || activity.topCostCompanies.length === 0) && (
+                      <div className="text-gray-600 text-sm py-2 text-center">Sin datos</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </>
         )}
 
-        {/* ═══ Soporte / Feedback Tickets ═══ */}
-        <div className="bg-gray-800/50 rounded-xl border border-gray-700/50 overflow-hidden">
-          <div className="p-6 border-b border-gray-700/50">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <span className="text-xl">🎫</span>
-                <h2 className="text-lg font-semibold text-white">Soporte & Feedback</h2>
-              </div>
-              <div className="flex gap-2">
-                {['pending', 'approved', 'resolved', 'rejected'].map(tab => (
-                  <button key={tab} onClick={() => setActiveTab(tab)} className={tabStyle(tab)}>
-                    {tab === 'pending' ? 'Pendientes' : tab === 'approved' ? 'Aprobados' : tab === 'resolved' ? 'Resueltos' : 'Rechazados'}
-                    {ticketCounts[tab] ? ` (${ticketCounts[tab]})` : ''}
-                  </button>
-                ))}
-              </div>
+        {/* ─── COSTS TAB ─────────────────────────── */}
+        {activeTab === 'costs' && (
+          <>
+            {/* Cost KPIs */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+              <KPI label="LLM (24h)" value={fmtUSD(llm.cost_24h)} color="text-orange-400" icon="⏰" />
+              <KPI label="LLM (7d)" value={fmtUSD(llm.cost_7d)} color="text-orange-400" icon="📅" />
+              <KPI label="LLM (30d)" value={fmtUSD(llm.cost_30d)} color="text-red-400" icon="🔥" />
+              <KPI label="Total Infra" value={fmtUSD(infra.total)} sub="LLM + servicios fijos" color="text-red-400" icon="🏗️" />
             </div>
-          </div>
 
-          <div className="divide-y divide-gray-700/50">
-            {tickets.length === 0 ? (
-              <div className="p-8 text-center text-gray-500">
-                No hay tickets {activeTab === 'pending' ? 'pendientes' : `con estado "${activeTab}"`}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Daily cost trend */}
+              <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-5">
+                <SectionHeader icon="📊" title="Coste diario LLM (14d)" />
+                <MiniBar data={llm.daily || []} color="#f97316" height={80} />
+                <div className="grid grid-cols-7 gap-px mt-2">
+                  {(llm.daily || []).slice(-7).map((d, i) => (
+                    <div key={i} className="text-center">
+                      <div className="text-[10px] text-gray-600">{new Date(d.date).toLocaleDateString('es', { weekday: 'narrow' })}</div>
+                      <div className="text-xs text-gray-400 tabular-nums">${fmt(d.cost, 2)}</div>
+                    </div>
+                  ))}
+                </div>
               </div>
-            ) : tickets.map(ticket => (
-              <div key={ticket.id} className="p-5 hover:bg-gray-800/30 transition-colors">
-                <div className="flex items-start gap-4">
-                  {/* Type badge */}
-                  <div className={`mt-0.5 px-2 py-1 rounded text-xs font-medium ${
-                    ticket.type === 'bug'
-                      ? 'bg-red-500/15 text-red-400 border border-red-500/20'
-                      : 'bg-violet-500/15 text-violet-400 border border-violet-500/20'
-                  }`}>
-                    {ticket.type === 'bug' ? '🐛 Bug' : '💡 Feedback'}
-                  </div>
 
-                  {/* Content */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-sm font-medium text-white">{ticket.user_email || 'Usuario'}</span>
-                      <span className="text-xs text-gray-500">{ticket.company_name}</span>
-                      {ticket.user_plan === 'trial' && (
-                        <span className="text-[10px] px-1.5 py-0.5 bg-amber-500/15 text-amber-400 rounded-full">trial</span>
-                      )}
+              {/* Cost by model detailed */}
+              <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-5">
+                <SectionHeader icon="🤖" title="Desglose por modelo (30d)" />
+                <div className="space-y-3">
+                  {(llm.byModel || []).map((m, i) => {
+                    const totalCost = (llm.byModel || []).reduce((a, x) => a + parseFloat(x.cost || 0), 0)
+                    const pct = totalCost > 0 ? ((parseFloat(m.cost || 0) / totalCost) * 100).toFixed(1) : 0
+                    const colors = ['bg-red-500', 'bg-orange-500', 'bg-yellow-500', 'bg-blue-500', 'bg-green-500', 'bg-purple-500']
+                    return (
+                      <div key={i} className="flex items-center gap-3">
+                        <div className={`w-3 h-3 rounded-sm ${colors[i % colors.length]}`} />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-gray-300 truncate">{modelShortName(m.model)}</span>
+                            <span className="text-sm text-gray-300 tabular-nums ml-2">{fmtUSD(m.cost)}</span>
+                          </div>
+                          <div className="flex items-center justify-between text-[10px] text-gray-600">
+                            <span>{pct}% del total</span>
+                            <span>{fmtInt(m.calls)} llamadas · {fmtTokens(m.tokens)} tokens</span>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* P&L Summary */}
+              <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-5">
+                <SectionHeader icon="💵" title="P&L Mensual" />
+                <div className="space-y-3">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-400">Ingresos (MRR)</span>
+                    <span className="text-green-400 tabular-nums font-medium">+{fmtUSD(revenue.mrr)}</span>
+                  </div>
+                  <div className="border-t border-gray-800 pt-2 space-y-1">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-gray-500">Railway</span>
+                      <span className="text-red-400 tabular-nums">-{fmtUSD(infra.railway)}</span>
                     </div>
-                    <p className="text-sm text-gray-300 whitespace-pre-wrap">{ticket.message}</p>
-                    <div className="mt-2 text-xs text-gray-500">
-                      {new Date(ticket.created_at).toLocaleString('es-ES')}
-                      {ticket.credits_awarded > 0 && (
-                        <span className="ml-2 text-emerald-400">+{ticket.credits_awarded} créditos otorgados</span>
-                      )}
+                    <div className="flex justify-between text-xs">
+                      <span className="text-gray-500">Vercel</span>
+                      <span className="text-red-400 tabular-nums">-{fmtUSD(infra.vercel)}</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-gray-500">Neon (PostgreSQL)</span>
+                      <span className="text-red-400 tabular-nums">-{fmtUSD(infra.neon)}</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-gray-500">OpenRouter (LLMs)</span>
+                      <span className="text-red-400 tabular-nums">-{fmtUSD(infra.openrouter)}</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-gray-500">Resend + Dominio</span>
+                      <span className="text-red-400 tabular-nums">-{fmtUSD((infra.resend || 0) + (infra.domain || 0))}</span>
                     </div>
                   </div>
-
-                  {/* Actions */}
-                  {activeTab === 'pending' && (
-                    <div className="flex gap-2 flex-shrink-0">
-                      {ticket.type === 'feedback' && (
-                        <button
-                          onClick={() => handleResolve(ticket.id, 'approved')}
-                          disabled={resolving === ticket.id}
-                          className="px-3 py-1.5 text-xs bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 border border-emerald-500/20 rounded-lg transition-colors disabled:opacity-50"
-                        >
-                          {resolving === ticket.id ? '...' : '✅ Aprobar (+créditos)'}
-                        </button>
-                      )}
-                      <button
-                        onClick={() => handleResolve(ticket.id, 'resolved')}
-                        disabled={resolving === ticket.id}
-                        className="px-3 py-1.5 text-xs bg-blue-500/15 text-blue-400 hover:bg-blue-500/25 border border-blue-500/20 rounded-lg transition-colors disabled:opacity-50"
-                      >
-                        {resolving === ticket.id ? '...' : ticket.type === 'bug' ? '🔧 Resuelto' : 'Resolver'}
-                      </button>
-                      <button
-                        onClick={() => handleResolve(ticket.id, 'rejected')}
-                        disabled={resolving === ticket.id}
-                        className="px-3 py-1.5 text-xs text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors disabled:opacity-50"
-                      >
-                        ✗
-                      </button>
+                  <div className="border-t border-gray-700 pt-2 flex justify-between text-sm font-bold">
+                    <span className="text-gray-300">Beneficio neto</span>
+                    <span className={profit.amount >= 0 ? 'text-green-400' : 'text-red-400'}>
+                      {profit.amount >= 0 ? '+' : ''}{fmtUSD(profit.amount)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-gray-500">Margen</span>
+                    <span className={`tabular-nums ${profit.margin >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                      {profit.margin}%
+                    </span>
+                  </div>
+                  {profit.amount < 0 && (
+                    <div className="text-xs text-yellow-500/80 bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-2 mt-2">
+                      Break-even: {Math.ceil(costs.total / 39)} usuarios Pro necesarios
                     </div>
                   )}
                 </div>
               </div>
-            ))}
-          </div>
+
+              {/* Cost per company */}
+              <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-5">
+                <SectionHeader icon="🏷️" title="Coste por empresa (30d)" />
+                <div className="space-y-2 max-h-72 overflow-y-auto">
+                  {(activity.topCostCompanies || []).map((c, i) => (
+                    <div key={i} className="flex items-center gap-3 py-1.5 border-b border-gray-800/50 last:border-0">
+                      <div className="w-6 h-6 rounded-full bg-gray-700 flex items-center justify-center text-xs font-bold text-gray-400">
+                        {i + 1}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm text-gray-300 truncate">{c.name || 'Sin nombre'}</div>
+                        <div className="text-[10px] text-gray-600 truncate">{c.owner}</div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-sm text-red-400 tabular-nums">{fmtUSD(c.cost)}</div>
+                        <div className="text-[10px] text-gray-600">{fmtInt(c.calls)} API calls</div>
+                      </div>
+                    </div>
+                  ))}
+                  {(!activity.topCostCompanies || activity.topCostCompanies.length === 0) && (
+                    <div className="text-gray-600 text-sm py-4 text-center">Sin datos de costes</div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* ─── USERS TAB ─────────────────────────── */}
+        {activeTab === 'users' && (
+          <UsersTab token={token} users={users} companies={companies} />
+        )}
+
+        {/* ─── ACTIVITY TAB ──────────────────────── */}
+        {activeTab === 'activity' && (
+          <>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Recent Chats */}
+              <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-5">
+                <SectionHeader icon="💬" title="Chat reciente" badge={(activity.recentChats || []).length} />
+                <div className="space-y-3 max-h-[500px] overflow-y-auto">
+                  {(activity.recentChats || []).map((msg, i) => (
+                    <div key={i} className="border-b border-gray-800/50 pb-3 last:border-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${
+                          msg.role === 'assistant' 
+                            ? 'bg-blue-500/20 text-blue-400' 
+                            : 'bg-gray-700 text-gray-400'
+                        }`}>
+                          {msg.role === 'assistant' ? 'Co-Founder' : 'Usuario'}
+                        </span>
+                        <span className="text-xs text-gray-600">{msg.company_name}</span>
+                        <span className="text-xs text-gray-700 ml-auto">{timeAgo(msg.created_at)}</span>
+                      </div>
+                      <div className="text-sm text-gray-400 line-clamp-2">{msg.content}</div>
+                    </div>
+                  ))}
+                  {(!activity.recentChats || activity.recentChats.length === 0) && (
+                    <div className="text-gray-600 text-sm py-4 text-center">Sin mensajes recientes</div>
+                  )}
+                </div>
+              </div>
+
+              {/* Recent Tasks */}
+              <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-5">
+                <SectionHeader icon="📋" title="Todas las tareas" badge={totalTasks} />
+                <div className="flex gap-3 mb-4 text-xs flex-wrap">
+                  {Object.entries(taskSummaryMap).map(([status, count]) => (
+                    <span key={status} className={`${statusColor[status] || 'text-gray-400'} tabular-nums`}>
+                      {statusIcon[status] || '·'} {count} {status}
+                    </span>
+                  ))}
+                </div>
+                <div className="space-y-2 max-h-[420px] overflow-y-auto">
+                  {(tasks.recent || []).map(task => (
+                    <div key={task.id} className="flex items-start gap-3 py-2 border-b border-gray-800/50 last:border-0">
+                      <span className={`text-sm mt-0.5 ${statusColor[task.status]}`}>{statusIcon[task.status]}</span>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm text-gray-300">{task.title}</div>
+                        <div className="flex items-center gap-2 text-[10px] text-gray-600 mt-0.5">
+                          <span>{task.company_name}</span>
+                          <span>·</span>
+                          <span>{task.tag}</span>
+                          {task.assigned_to && <><span>·</span><span>{task.assigned_to}</span></>}
+                          <span>·</span>
+                          <span className={`font-medium ${
+                            task.priority === 'critical' ? 'text-red-500' :
+                            task.priority === 'high' ? 'text-orange-500' : 'text-gray-500'
+                          }`}>{task.priority}</span>
+                        </div>
+                      </div>
+                      <span className="text-xs text-gray-600 shrink-0">{timeAgo(task.created_at)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ─── Users Sub-Tab (separate fetch) ──────────────────────
+function UsersTab({ token, users: userStats, companies: companyStats }) {
+  const [usersList, setUsersList] = useState(null)
+  const [companiesList, setCompaniesList] = useState(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const [usersRes, companiesRes] = await Promise.all([
+          fetch(apiUrl('/api/admin/users'), { headers: { 'Authorization': `Bearer ${token}` } }),
+          fetch(apiUrl('/api/admin/companies'), { headers: { 'Authorization': `Bearer ${token}` } })
+        ])
+        const usersData = await usersRes.json()
+        const companiesData = await companiesRes.json()
+        setUsersList(usersData.users || [])
+        setCompaniesList(companiesData.companies || [])
+      } catch (e) {
+        console.error('Error loading users/companies:', e)
+      } finally {
+        setLoading(false)
+      }
+    }
+    load()
+  }, [token])
+
+  if (loading) {
+    return <div className="text-gray-500 text-center py-12">Cargando...</div>
+  }
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Users Table */}
+      <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-5">
+        <SectionHeader icon="👤" title="Usuarios" badge={usersList?.length} />
+        <div className="overflow-x-auto max-h-[500px] overflow-y-auto">
+          <table className="w-full text-sm">
+            <thead className="sticky top-0 bg-gray-900">
+              <tr className="text-gray-500 text-xs uppercase">
+                <th className="text-left py-2 pr-3">Email</th>
+                <th className="text-left py-2 pr-3">Plan</th>
+                <th className="text-right py-2 pr-3">Empresas</th>
+                <th className="text-right py-2">Coste LLM</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(usersList || []).map(u => (
+                <tr key={u.id} className="border-t border-gray-800/50 hover:bg-gray-800/30">
+                  <td className="py-2 pr-3">
+                    <div className="text-gray-300 truncate max-w-[200px]">{u.email}</div>
+                    <div className="text-[10px] text-gray-600">{u.name || 'Sin nombre'} · {timeAgo(u.created_at)}</div>
+                  </td>
+                  <td className="py-2 pr-3">
+                    <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${
+                      u.plan === 'pro' ? 'bg-purple-500/20 text-purple-400' : 'bg-gray-700/50 text-gray-500'
+                    }`}>
+                      {u.plan}
+                    </span>
+                  </td>
+                  <td className="py-2 pr-3 text-right text-gray-400 tabular-nums">{u.companies_count}</td>
+                  <td className="py-2 text-right text-red-400/80 tabular-nums text-xs">{fmtUSD(u.total_cost)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {(!usersList || usersList.length === 0) && (
+            <div className="text-gray-600 text-sm py-8 text-center">Sin usuarios</div>
+          )}
+        </div>
+      </div>
+
+      {/* Companies Table */}
+      <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-5">
+        <SectionHeader icon="🏢" title="Empresas" badge={companiesList?.length} />
+        <div className="overflow-x-auto max-h-[500px] overflow-y-auto">
+          <table className="w-full text-sm">
+            <thead className="sticky top-0 bg-gray-900">
+              <tr className="text-gray-500 text-xs uppercase">
+                <th className="text-left py-2 pr-3">Empresa</th>
+                <th className="text-left py-2 pr-3">Estado</th>
+                <th className="text-right py-2 pr-3">Tareas</th>
+                <th className="text-right py-2">Coste</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(companiesList || []).map(c => (
+                <tr key={c.id} className="border-t border-gray-800/50 hover:bg-gray-800/30">
+                  <td className="py-2 pr-3">
+                    <div className="text-gray-300 truncate max-w-[180px]">{c.name}</div>
+                    <div className="text-[10px] text-gray-600 truncate">{c.owner_email}</div>
+                  </td>
+                  <td className="py-2 pr-3">
+                    <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${
+                      c.status === 'live' ? 'bg-green-500/20 text-green-400' :
+                      c.status === 'building' ? 'bg-blue-500/20 text-blue-400' :
+                      c.status === 'paused' ? 'bg-yellow-500/20 text-yellow-400' :
+                      'bg-gray-700/50 text-gray-500'
+                    }`}>
+                      {c.status || 'new'}
+                    </span>
+                  </td>
+                  <td className="py-2 pr-3 text-right text-gray-400 tabular-nums">{c.tasks_count}</td>
+                  <td className="py-2 text-right text-red-400/80 tabular-nums text-xs">{fmtUSD(c.llm_cost)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {(!companiesList || companiesList.length === 0) && (
+            <div className="text-gray-600 text-sm py-8 text-center">Sin empresas</div>
+          )}
         </div>
       </div>
     </div>
