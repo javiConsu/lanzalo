@@ -13,6 +13,17 @@
 const { pool } = require('../backend/db');
 const { callLLM } = require('../backend/llm');
 const instantly = require('../backend/services/instantly-service');
+const fs = require('fs');
+const path = require('path');
+
+// Load cold email playbook as reference for campaign creation
+const PLAYBOOK_PATH = path.join(__dirname, '..', 'docs', 'cold-email-playbook.md');
+let coldEmailPlaybook = '';
+try {
+  coldEmailPlaybook = fs.readFileSync(PLAYBOOK_PATH, 'utf8');
+} catch (e) {
+  console.warn('[EmailAgent] Cold email playbook not found at', PLAYBOOK_PATH);
+}
 
 class EmailAgent {
   async execute(company) {
@@ -194,23 +205,38 @@ Responde en JSON:
       return null;
     }
 
-    // Generate campaign content with LLM
-    const prompt = `Eres el agente de cold email de "${company.name}".
+    // Generate campaign content with LLM using the cold email playbook
+    const prompt = `Eres el estratega de cold email de "${company.name}".
 Descripción: ${company.description}
 Industria: ${company.industry}
 
-Crea una campaña de cold email con una secuencia de 3 emails.
+═══════════════════════════════════════
+PLAYBOOK DE REFERENCIA (usa como guía de estructura, tono y estrategia):
+═══════════════════════════════════════
+${coldEmailPlaybook ? coldEmailPlaybook.substring(0, 6000) : 'No disponible — usa las reglas de abajo.'}
+═══════════════════════════════════════
 
 Tienes ${leads.rows.length} leads. Ejemplo de lead: ${leads.rows[0].company_name || 'empresa'} (${leads.rows[0].job_title || 'decisor'}).
 
-REGLAS:
-- Email 1: Presentación + valor. Corto (80-100 palabras). CTA suave.
-- Email 2 (3 días después): Follow-up con dato/caso de éxito. Más corto.
-- Email 3 (5 días después): Último intento. Directo. "¿Te interesa o lo dejamos?"
-- Asuntos: cortos, sin mayúsculas innecesarias, personalizados con {{first_name}}
-- Cuerpo: usa {{first_name}} y {{company_name}} como variables
-- Tono: profesional pero cercano. Como un email de persona a persona.
-- Firma: "Equipo de ${company.name}"
+Crea una secuencia de 4 emails ADAPTADA al negocio del cliente, siguiendo la estructura del playbook:
+
+ESTRUCTURA OBLIGATORIA:
+- Email 1 (Day 0): LA VISIÓN — Historia de éxito rápida, genera FOMO. Hook con caso relatable.
+- Email 2 (Day +3): LA HISTORIA — Social proof con números concretos. Antes/después.
+- Email 3 (Day +7): LA PROVOCACIÓN — Comparativa escenarios (manual vs automatizado). Urgencia competitiva.
+- Email 4 (Day +12): EL CIERRE — Decision binary. Sin vueltas. 2 opciones claras.
+
+REGLAS DE TONO (del playbook):
+- Español coloquial, narrativo, provocador pero cercano
+- Plain text only — sin HTML, sin imágenes, sin emojis
+- Frases cortas: 2-3 líneas máximo por párrafo
+- Historias específicas con números concretos
+- CTA binary — quita fricción
+- Firma con nombre real + rol (no "Equipo")
+- Usa {{first_name}} y {{company_name}} como variables de personalización
+
+IMPORTANTE: Adapta los casos de éxito y dolor al sector/industria del cliente (${company.industry || 'general'}).
+No copies el playbook literal — úsalo como guía de estructura y tono, pero personaliza al negocio.
 
 Responde en JSON:
 {
@@ -218,19 +244,24 @@ Responde en JSON:
   "target_audience": "Descripción breve del público objetivo",
   "steps": [
     {
-      "subject": "Asunto del email 1",
-      "body": "Cuerpo del email 1",
+      "subject": "asunto del email 1 (minúsculas, sin caps innecesarias)",
+      "body": "cuerpo completo del email 1",
       "delay_days": 0
     },
     {
-      "subject": "Asunto del email 2",
-      "body": "Cuerpo del email 2",
+      "subject": "asunto del email 2",
+      "body": "cuerpo completo del email 2",
       "delay_days": 3
     },
     {
-      "subject": "Asunto del email 3",
-      "body": "Cuerpo del email 3",
-      "delay_days": 5
+      "subject": "asunto del email 3",
+      "body": "cuerpo completo del email 3",
+      "delay_days": 7
+    },
+    {
+      "subject": "asunto del email 4",
+      "body": "cuerpo completo del email 4",
+      "delay_days": 12
     }
   ]
 }`;
@@ -435,12 +466,18 @@ JSON:
     // Check if Email Pro is active
     const sub = await this.getEmailProSubscription(company.id);
     
-    const prompt = `Eres el agente de email de "${company.name}".
+    const prompt = `Eres el estratega de cold email de "${company.name}".
 ${sub ? 'Email Pro ACTIVO — puedes crear campañas y buscar leads.' : 'Email Pro NO ACTIVO — solo puedes sugerir acciones.'}
 
 Tarea del fundador: ${taskDescription}
 
-${sub ? 'Ejecuta la tarea. Si necesitas buscar leads o crear una campaña, responde con las acciones que tomarás.' : 'Explica que necesita activar Email Pro para usar cold email y qué podría lograr con ello.'}
+═══ PLAYBOOK DE REFERENCIA (estructura, tono, estrategia) ═══
+${coldEmailPlaybook ? coldEmailPlaybook.substring(0, 4000) : 'No disponible.'}
+════════════════════════════════════════════════════════
+
+USA el playbook como guía de tono, estructura de secuencia (4 emails: Visión → Historia → Provocación → Cierre) y reglas de formato.
+Adapta siempre al sector/industria del cliente (${company.industry || 'general'}).
+${sub ? 'Ejecuta la tarea. Si necesitas buscar leads o crear campaña, hazlo.' : 'Explica que necesita activar Email Pro para usar cold email y qué podría lograr con ello.'}
 
 Responde de forma directa y práctica.`;
 
