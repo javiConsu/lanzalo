@@ -22,12 +22,14 @@ import Paywall from './components/Paywall'
 function App() {
   const [token, setToken] = useState(localStorage.getItem('token'))
   const [user, setUser] = useState(null)
+  const [loading, setLoading] = useState(!!localStorage.getItem('token'))
   const [showLogin, setShowLogin] = useState(false)
   const [loginMode, setLoginMode] = useState('register')
 
   useEffect(() => {
     if (token) {
       // Verificar token válido
+      setLoading(true)
       fetch(apiUrl('/api/user/profile'), {
         headers: { 'Authorization': `Bearer ${token}` }
       })
@@ -44,6 +46,7 @@ function App() {
           localStorage.removeItem('token')
           setToken(null)
         })
+        .finally(() => setLoading(false))
     }
   }, [token])
 
@@ -66,6 +69,18 @@ function App() {
   const handleNavigateToLogin = (mode) => {
     setLoginMode(mode || 'register')
     setShowLogin(true)
+  }
+
+  // Loading user profile
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#0a0a0a', color: '#888' }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>⚡</div>
+          <div>Cargando...</div>
+        </div>
+      </div>
+    )
   }
 
   // Not authenticated: show landing or login
