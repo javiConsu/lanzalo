@@ -732,19 +732,54 @@ function OfficeCanvas({ agents, width, height, companyName }) {
   )
 }
 
-// ─── Agent Status Panel (sidebar) ──────────────────────────
-function AgentPanel({ agents, totalActive, totalInProgress }) {
+// ─── Helper: time ago in Spanish ────────────────────────────
+function timeAgo(dateStr) {
+  if (!dateStr) return ''
+  const now = new Date()
+  const date = new Date(dateStr)
+  const diff = Math.floor((now - date) / 1000)
+  if (diff < 60) return 'hace un momento'
+  if (diff < 3600) return `hace ${Math.floor(diff / 60)}m`
+  if (diff < 86400) return `hace ${Math.floor(diff / 3600)}h`
+  if (diff < 604800) return `hace ${Math.floor(diff / 86400)}d`
+  return date.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })
+}
+
+const PRIORITY_STYLES = {
+  critical: { bg: 'bg-red-500/15', text: 'text-red-400', border: 'border-red-500/20', label: 'Crítica' },
+  high:     { bg: 'bg-orange-500/15', text: 'text-orange-400', border: 'border-orange-500/20', label: 'Alta' },
+  medium:   { bg: 'bg-blue-500/15', text: 'text-blue-400', border: 'border-blue-500/20', label: 'Media' },
+  low:      { bg: 'bg-gray-500/15', text: 'text-gray-400', border: 'border-gray-500/20', label: 'Baja' },
+}
+
+const STATUS_STYLES = {
+  todo:        { bg: 'bg-gray-500/15', text: 'text-gray-400', icon: '⏳', label: 'Pendiente' },
+  in_progress: { bg: 'bg-emerald-500/15', text: 'text-emerald-400', icon: '⚡', label: 'En progreso' },
+  completed:   { bg: 'bg-green-500/15', text: 'text-green-400', icon: '✅', label: 'Completada' },
+  failed:      { bg: 'bg-red-500/15', text: 'text-red-400', icon: '❌', label: 'Fallida' },
+}
+
+// ─── Agent Status Panel (sidebar) with tabs ─────────────────
+function AgentPanel({ agents, totalActive, totalInProgress, backlog, recentChat }) {
+  const [tab, setTab] = useState('equipo')
   const agentList = Object.entries(agents)
 
+  const pendingTasks = (backlog || []).filter(t => t.status === 'todo')
+  const inProgressTasks = (backlog || []).filter(t => t.status === 'in_progress')
+  const completedTasks = (backlog || []).filter(t => t.status === 'completed')
+  const failedTasks = (backlog || []).filter(t => t.status === 'failed')
+
+  const tabs = [
+    { id: 'equipo', label: 'Equipo', icon: '🤖' },
+    { id: 'backlog', label: 'Backlog', icon: '📋', count: pendingTasks.length + inProgressTasks.length },
+    { id: 'actividad', label: 'Actividad', icon: '💬' },
+  ]
+
   return (
-    <div className="flex flex-col gap-3 overflow-y-auto">
-      {/* Summary */}
+    <div className="flex flex-col gap-3 overflow-y-auto h-full">
+      {/* Summary counters */}
       <div className="bg-gray-900/50 rounded-2xl border border-gray-700/50 p-4">
-        <div className="flex items-center gap-2 mb-3">
-          <span className="text-sm">🏢</span>
-          <span className="text-sm font-semibold text-white">Estado del equipo</span>
-        </div>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-4 gap-2">
           <div className="text-center">
             <div className="text-lg font-bold text-emerald-400">{agentList.length}</div>
             <div className="text-xs text-gray-500">Agentes</div>
@@ -754,84 +789,267 @@ function AgentPanel({ agents, totalActive, totalInProgress }) {
             <div className="text-xs text-gray-500">Activos</div>
           </div>
           <div className="text-center">
-            <div className="text-lg font-bold text-blue-400">{totalActive}</div>
-            <div className="text-xs text-gray-500">Tareas</div>
+            <div className="text-lg font-bold text-blue-400">{pendingTasks.length}</div>
+            <div className="text-xs text-gray-500">Pendientes</div>
+          </div>
+          <div className="text-center">
+            <div className="text-lg font-bold text-green-400">{completedTasks.length}</div>
+            <div className="text-xs text-gray-500">Hechas</div>
           </div>
         </div>
       </div>
 
-      {/* Agent list */}
-      <div className="bg-gray-900/50 rounded-2xl border border-gray-700/50 overflow-hidden">
-        <div className="px-4 py-3 border-b border-gray-700/50">
-          <span className="text-sm font-semibold text-white flex items-center gap-2">
-            <span className="text-xs">🤖</span> Agentes en vivo
-          </span>
-        </div>
-        <div className="divide-y divide-gray-800/50">
-          {agentList.map(([type, agent]) => {
-            const stateInfo = STATE_INFO[agent.state] || STATE_INFO.idle
-            const def = AGENT_DEFS[type] || {}
-            const isActive = agent.state !== 'idle'
-            const isError = agent.state === 'error'
-
-            return (
-              <div key={type} className="px-4 py-3 hover:bg-gray-800/30 transition-colors">
-                <div className="flex items-center gap-3">
-                  <div
-                    className={`w-10 h-10 rounded-xl flex items-center justify-center overflow-hidden flex-shrink-0 ${
-                      isError ? 'bg-red-500/20' : isActive ? 'bg-emerald-500/20' : 'bg-gray-800/80'
-                    }`}
-                    style={isActive && !isError ? { boxShadow: `0 0 10px ${def.color}30` } : {}}
-                  >
-                    <img
-                      src={def.sprite}
-                      alt={def.name}
-                      className="w-8 h-8"
-                      style={{ imageRendering: 'pixelated' }}
-                      onError={(e) => { e.target.style.display = 'none'; e.target.parentElement.textContent = def.emoji }}
-                    />
-                  </div>
-
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-white">{def.name}</span>
-                      {isActive && (
-                        <span className={`w-1.5 h-1.5 rounded-full ${isError ? 'bg-red-400' : 'bg-emerald-400'} animate-pulse`} />
-                      )}
-                    </div>
-                    <p className="text-xs text-gray-500 truncate">
-                      {stateInfo.icon} {agent.detail || stateInfo.label}
-                    </p>
-                  </div>
-
-                  <div className="flex items-center gap-1 flex-shrink-0">
-                    {agent.tasksInProgress > 0 && (
-                      <span className="text-xs px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">
-                        {agent.tasksInProgress}
-                      </span>
-                    )}
-                    {agent.tasksQueued > 0 && (
-                      <span className="text-xs px-1.5 py-0.5 rounded-full bg-gray-700 text-gray-400">
-                        +{agent.tasksQueued}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )
-          })}
-        </div>
+      {/* Tab bar */}
+      <div className="flex gap-1 bg-gray-900/50 rounded-xl border border-gray-700/50 p-1">
+        {tabs.map(t => (
+          <button
+            key={t.id}
+            onClick={() => setTab(t.id)}
+            className={`flex-1 flex items-center justify-center gap-1.5 px-2 py-2 rounded-lg text-xs font-medium transition-all ${
+              tab === t.id
+                ? 'bg-gray-700/80 text-white shadow-sm'
+                : 'text-gray-500 hover:text-gray-300 hover:bg-gray-800/50'
+            }`}
+          >
+            <span className="text-xs">{t.icon}</span>
+            <span>{t.label}</span>
+            {t.count > 0 && (
+              <span className="text-xs px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-400 leading-none">
+                {t.count}
+              </span>
+            )}
+          </button>
+        ))}
       </div>
 
-      {/* Legend */}
-      <div className="bg-gray-900/50 rounded-2xl border border-gray-700/50 p-3">
-        <div className="flex flex-wrap gap-x-4 gap-y-1">
-          {Object.entries(STATE_INFO).map(([state, info]) => (
-            <div key={state} className="flex items-center gap-1.5">
-              <span className="text-xs">{info.icon}</span>
-              <span className="text-xs text-gray-500">{info.label}</span>
+      {/* ─── Tab: Equipo ───────────────────────── */}
+      {tab === 'equipo' && (
+        <>
+          <div className="bg-gray-900/50 rounded-2xl border border-gray-700/50 overflow-hidden">
+            <div className="divide-y divide-gray-800/50">
+              {agentList.map(([type, agent]) => {
+                const stateInfo = STATE_INFO[agent.state] || STATE_INFO.idle
+                const def = AGENT_DEFS[type] || {}
+                const isActive = agent.state !== 'idle'
+                const isError = agent.state === 'error'
+
+                return (
+                  <div key={type} className="px-4 py-3 hover:bg-gray-800/30 transition-colors">
+                    <div className="flex items-center gap-3">
+                      <div
+                        className={`w-10 h-10 rounded-xl flex items-center justify-center overflow-hidden flex-shrink-0 ${
+                          isError ? 'bg-red-500/20' : isActive ? 'bg-emerald-500/20' : 'bg-gray-800/80'
+                        }`}
+                        style={isActive && !isError ? { boxShadow: `0 0 10px ${def.color}30` } : {}}
+                      >
+                        <img
+                          src={def.sprite}
+                          alt={def.name}
+                          className="w-8 h-8"
+                          style={{ imageRendering: 'pixelated' }}
+                          onError={(e) => { e.target.style.display = 'none'; e.target.parentElement.textContent = def.emoji }}
+                        />
+                      </div>
+
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium text-white">{def.name}</span>
+                          {isActive && (
+                            <span className={`w-1.5 h-1.5 rounded-full ${isError ? 'bg-red-400' : 'bg-emerald-400'} animate-pulse`} />
+                          )}
+                        </div>
+                        <p className="text-xs text-gray-500 truncate">
+                          {stateInfo.icon} {agent.detail || stateInfo.label}
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        {agent.tasksInProgress > 0 && (
+                          <span className="text-xs px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">
+                            {agent.tasksInProgress}
+                          </span>
+                        )}
+                        {agent.tasksQueued > 0 && (
+                          <span className="text-xs px-1.5 py-0.5 rounded-full bg-gray-700 text-gray-400">
+                            +{agent.tasksQueued}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
             </div>
-          ))}
+          </div>
+
+          {/* Legend */}
+          <div className="bg-gray-900/50 rounded-2xl border border-gray-700/50 p-3">
+            <div className="flex flex-wrap gap-x-4 gap-y-1">
+              {Object.entries(STATE_INFO).map(([state, info]) => (
+                <div key={state} className="flex items-center gap-1.5">
+                  <span className="text-xs">{info.icon}</span>
+                  <span className="text-xs text-gray-500">{info.label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* ─── Tab: Backlog ──────────────────────── */}
+      {tab === 'backlog' && (
+        <div className="flex flex-col gap-3">
+          {/* In progress */}
+          {inProgressTasks.length > 0 && (
+            <div className="bg-gray-900/50 rounded-2xl border border-gray-700/50 overflow-hidden">
+              <div className="px-4 py-2.5 border-b border-gray-700/50 flex items-center gap-2">
+                <span className="text-xs">⚡</span>
+                <span className="text-xs font-semibold text-emerald-400">En progreso ({inProgressTasks.length})</span>
+              </div>
+              <div className="divide-y divide-gray-800/30">
+                {inProgressTasks.map(task => (
+                  <TaskRow key={task.id} task={task} />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Pending */}
+          {pendingTasks.length > 0 && (
+            <div className="bg-gray-900/50 rounded-2xl border border-gray-700/50 overflow-hidden">
+              <div className="px-4 py-2.5 border-b border-gray-700/50 flex items-center gap-2">
+                <span className="text-xs">⏳</span>
+                <span className="text-xs font-semibold text-amber-400">Pendientes ({pendingTasks.length})</span>
+              </div>
+              <div className="divide-y divide-gray-800/30">
+                {pendingTasks.map(task => (
+                  <TaskRow key={task.id} task={task} />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Completed */}
+          {completedTasks.length > 0 && (
+            <div className="bg-gray-900/50 rounded-2xl border border-gray-700/50 overflow-hidden">
+              <div className="px-4 py-2.5 border-b border-gray-700/50 flex items-center gap-2">
+                <span className="text-xs">✅</span>
+                <span className="text-xs font-semibold text-green-400">Completadas ({completedTasks.length})</span>
+              </div>
+              <div className="divide-y divide-gray-800/30">
+                {completedTasks.map(task => (
+                  <TaskRow key={task.id} task={task} />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Failed */}
+          {failedTasks.length > 0 && (
+            <div className="bg-gray-900/50 rounded-2xl border border-gray-700/50 overflow-hidden">
+              <div className="px-4 py-2.5 border-b border-gray-700/50 flex items-center gap-2">
+                <span className="text-xs">❌</span>
+                <span className="text-xs font-semibold text-red-400">Fallidas ({failedTasks.length})</span>
+              </div>
+              <div className="divide-y divide-gray-800/30">
+                {failedTasks.map(task => (
+                  <TaskRow key={task.id} task={task} />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Empty state */}
+          {(backlog || []).length === 0 && (
+            <div className="bg-gray-900/50 rounded-2xl border border-gray-700/50 p-8 text-center">
+              <span className="text-3xl">📋</span>
+              <p className="text-sm text-gray-400 mt-3">Sin tareas todavía</p>
+              <p className="text-xs text-gray-600 mt-1">Habla con tu Co-Founder para crear tareas</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ─── Tab: Actividad (chat) ─────────────── */}
+      {tab === 'actividad' && (
+        <div className="bg-gray-900/50 rounded-2xl border border-gray-700/50 overflow-hidden">
+          <div className="px-4 py-2.5 border-b border-gray-700/50 flex items-center justify-between">
+            <span className="text-xs font-semibold text-white flex items-center gap-2">
+              <span className="text-xs">💬</span> Últimas conversaciones
+            </span>
+            <a href="/" className="text-xs text-emerald-400 hover:text-emerald-300 transition-colors">
+              Ir al Chat →
+            </a>
+          </div>
+          {(recentChat || []).length > 0 ? (
+            <div className="divide-y divide-gray-800/30 max-h-96 overflow-y-auto">
+              {(recentChat || []).map((msg, i) => (
+                <div key={msg.id || i} className="px-4 py-3">
+                  <div className="flex items-start gap-2.5">
+                    <span className="text-xs mt-0.5 flex-shrink-0">
+                      {msg.role === 'user' ? '👤' : '🧠'}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <span className={`text-xs font-medium ${
+                          msg.role === 'user' ? 'text-blue-400' : 'text-emerald-400'
+                        }`}>
+                          {msg.role === 'user' ? 'Tú' : 'Co-Founder'}
+                        </span>
+                        <span className="text-xs text-gray-600">{timeAgo(msg.created_at)}</span>
+                      </div>
+                      <p className="text-xs text-gray-400 leading-relaxed line-clamp-3">
+                        {msg.content?.substring(0, 200)}{msg.content?.length > 200 ? '...' : ''}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="p-8 text-center">
+              <span className="text-3xl">💬</span>
+              <p className="text-sm text-gray-400 mt-3">Sin conversaciones aún</p>
+              <p className="text-xs text-gray-600 mt-1">Chatea con tu Co-Founder para empezar</p>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── Task Row Component ─────────────────────────────────────
+function TaskRow({ task }) {
+  const status = STATUS_STYLES[task.status] || STATUS_STYLES.todo
+  const priority = PRIORITY_STYLES[task.priority] || PRIORITY_STYLES.medium
+  const agentDef = AGENT_DEFS[task.agent_tag] || {}
+  const time = task.completed_at || task.started_at || task.created_at
+
+  return (
+    <div className="px-4 py-3 hover:bg-gray-800/20 transition-colors">
+      <div className="flex items-start gap-2.5">
+        <span className="text-sm mt-0.5 flex-shrink-0">{status.icon}</span>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm text-white leading-snug">{task.title}</p>
+          <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+            {/* Agent badge */}
+            <span className="text-xs px-1.5 py-0.5 rounded-md bg-gray-800 text-gray-400 flex items-center gap-1">
+              <span style={{ color: agentDef.color }}>{agentDef.emoji || '🤖'}</span>
+              {agentDef.name || task.agent_tag}
+            </span>
+            {/* Priority badge */}
+            {task.priority && task.priority !== 'medium' && (
+              <span className={`text-xs px-1.5 py-0.5 rounded-md ${priority.bg} ${priority.text} border ${priority.border}`}>
+                {priority.label}
+              </span>
+            )}
+            {/* Time */}
+            <span className="text-xs text-gray-600">{timeAgo(time)}</span>
+          </div>
+          {task.description && (
+            <p className="text-xs text-gray-500 mt-1 line-clamp-2">{task.description}</p>
+          )}
         </div>
       </div>
     </div>
@@ -848,6 +1066,8 @@ export default function AgentOffice() {
 
   const [agents, setAgents] = useState(DEFAULT_AGENTS)
   const [stats, setStats] = useState({ totalActive: 0, totalInProgress: 0, totalQueued: 0 })
+  const [backlog, setBacklog] = useState([])
+  const [recentChat, setRecentChat] = useState([])
   const [companyId, setCompanyId] = useState(null)
   const [companies, setCompanies] = useState([])
   const [loading, setLoading] = useState(true)
@@ -885,6 +1105,8 @@ export default function AgentOffice() {
               totalInProgress: data.totalInProgress || 0,
               totalQueued: data.totalQueued || 0,
             })
+            if (data.backlog) setBacklog(data.backlog)
+            if (data.recentChat) setRecentChat(data.recentChat)
           }
         })
         .catch(() => {})
@@ -917,6 +1139,8 @@ export default function AgentOffice() {
                 totalInProgress: data.totalInProgress || 0,
                 totalQueued: data.totalQueued || 0,
               })
+              if (data.backlog) setBacklog(data.backlog)
+              if (data.recentChat) setRecentChat(data.recentChat)
             }
           })
           .catch(() => {})
@@ -1023,6 +1247,8 @@ export default function AgentOffice() {
             agents={agents}
             totalActive={stats.totalActive}
             totalInProgress={stats.totalInProgress}
+            backlog={backlog}
+            recentChat={recentChat}
           />
         </div>
       </div>

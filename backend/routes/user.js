@@ -647,11 +647,35 @@ router.get('/companies/:companyId/agents/status', requireAuth, requireCompanyAcc
       agents.ceo.detail = `Coordinando ${activeTasks.length} tareas`;
     }
     
+    // Get ALL tasks for backlog (last 50 completed + pending + in_progress)
+    const allTasks = await pool.query(
+      `(SELECT id, COALESCE(tag, agent_type) as agent_tag, title, description, status, priority,
+              started_at, completed_at, created_at
+       FROM tasks WHERE company_id = $1 AND status IN ('todo', 'in_progress')
+       ORDER BY created_at DESC)
+       UNION ALL
+       (SELECT id, COALESCE(tag, agent_type) as agent_tag, title, description, status, priority,
+              started_at, completed_at, created_at
+       FROM tasks WHERE company_id = $1 AND status IN ('completed', 'failed')
+       ORDER BY completed_at DESC LIMIT 30)`,
+      [companyId]
+    );
+
+    // Get recent chat messages (last 10)
+    const recentChat = await pool.query(
+      `SELECT id, role, content, created_at
+       FROM chat_messages WHERE company_id = $1
+       ORDER BY created_at DESC LIMIT 10`,
+      [companyId]
+    ).catch(() => ({ rows: [] }));
+
     res.json({
       agents,
       totalActive: activeTasks.length,
       totalQueued: activeTasks.filter(t => t.status === 'todo').length,
-      totalInProgress: activeTasks.filter(t => t.status === 'in_progress').length
+      totalInProgress: activeTasks.filter(t => t.status === 'in_progress').length,
+      backlog: allTasks.rows,
+      recentChat: recentChat.rows.reverse()
     });
     
   } catch (error) {
