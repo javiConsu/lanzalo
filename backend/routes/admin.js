@@ -566,6 +566,7 @@ router.get('/live', async (req, res) => {
     const neonReal = realCosts.services.neon;
     const railwayReal = realCosts.services.railway;
     const resendReal = realCosts.services.resend;
+    const instantlyReal = realCosts.services.instantly;
     const domainReal = realCosts.services.domain;
 
     // Use OpenRouter API for real LLM costs, DB estimates as fallback
@@ -580,10 +581,16 @@ router.get('/live', async (req, res) => {
       neon: { cost: neonReal.total, source: neonReal.source, breakdown: neonReal.breakdown },
       openrouter: { cost: llmCostReal30d, source: openrouterReal.error ? 'db_estimate' : 'openrouter_api' },
       resend: { cost: resendReal.total, source: resendReal.source, plan: resendReal.plan, emails_sent: resendReal.emails_sent_30d },
+      instantly: { 
+        cost: instantlyReal.total, source: instantlyReal.source, plan: instantlyReal.plan,
+        active_subscriptions: instantlyReal.active_subscriptions,
+        revenue_per_sub: instantlyReal.revenue_per_sub,
+        note: instantlyReal.note
+      },
       domain: { cost: domainReal.total, source: 'fixed' },
       total: Math.round((
         railwayReal.total + vercelReal.total + neonReal.total + 
-        llmCostReal30d + resendReal.total + domainReal.total
+        llmCostReal30d + resendReal.total + (instantlyReal.total || 0) + domainReal.total
       ) * 100) / 100
     };
 
@@ -631,8 +638,18 @@ router.get('/live', async (req, res) => {
           neon: neonReal.source || 'unknown',
           railway: railwayReal.source || 'unknown',
           resend: resendReal.source || 'unknown',
+          instantly: instantlyReal.source || 'unknown',
           cache_ttl: '5min'
         }
+      },
+      // Email Pro revenue (15€ × active subs, approx $16.5 USD)
+      emailProRevenue: {
+        activeSubs: instantlyReal.active_subscriptions || 0,
+        pricePerSub: 15,
+        currency: 'EUR',
+        monthlyRevenue: (instantlyReal.active_subscriptions || 0) * 15,
+        instantlyCost: instantlyReal.total || 0,
+        netMargin: ((instantlyReal.active_subscriptions || 0) * 15) - (instantlyReal.total || 0)
       },
       profit: { amount: profit, margin: parseFloat(margin) },
       tasks: {

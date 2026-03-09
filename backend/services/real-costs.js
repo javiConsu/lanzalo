@@ -288,6 +288,49 @@ async function getResendCosts() {
   }
 }
 
+// ─── Instantly.ai ──────────────────────────────────────────
+async function getInstantlyCosts() {
+  // Growth plan: $47/mo (required for DFY email accounts)
+  // This is a platform-level cost, not per-user
+  const cached = getCached('instantly');
+  if (cached) return cached;
+
+  const apiKey = process.env.INSTANTLY_API_KEY;
+  if (!apiKey) {
+    return { source: 'disabled', total: 0, note: 'Instantly no configurado' };
+  }
+
+  // Check if we have any active Email Pro subscriptions
+  try {
+    const { pool } = require('../db');
+    const subs = await pool.query(
+      `SELECT COUNT(*) as active FROM email_pro_subscriptions WHERE status IN ('active', 'setting_up')`
+    );
+    const activeSubs = parseInt(subs.rows[0]?.active || 0);
+
+    const result = {
+      source: 'fixed',
+      total: 47, // Growth plan $47/mo
+      plan: 'Growth',
+      plan_cost_monthly: 47,
+      active_subscriptions: activeSubs,
+      revenue_per_sub: 15, // 15€/mes per Email Pro subscriber
+      note: `Growth plan $47/mo — ${activeSubs} suscripciones Email Pro activas`
+    };
+
+    setCache('instantly', result);
+    return result;
+  } catch (e) {
+    return {
+      source: 'fixed',
+      total: 47,
+      plan: 'Growth',
+      note: 'Growth plan $47/mo',
+      error: e.message
+    };
+  }
+}
+
 // ─── Domain ────────────────────────────────────────────────
 function getDomainCosts() {
   // Fixed cost, roughly $18/year = $1.50/month
@@ -302,12 +345,13 @@ function getDomainCosts() {
 
 // ─── Aggregate All Costs ───────────────────────────────────
 async function getAllRealCosts() {
-  const [openrouter, vercel, neon, railway, resend] = await Promise.all([
+  const [openrouter, vercel, neon, railway, resend, instantly] = await Promise.all([
     getOpenRouterCosts(),
     getVercelCosts(),
     getNeonCosts(),
     getRailwayCosts(),
-    getResendCosts()
+    getResendCosts(),
+    getInstantlyCosts()
   ]);
 
   const domain = getDomainCosts();
@@ -318,6 +362,7 @@ async function getAllRealCosts() {
     neon,
     railway,
     resend,
+    instantly,
     domain
   };
 
@@ -328,6 +373,7 @@ async function getAllRealCosts() {
     (neon.total || 0) + 
     (railway.total || 0) + 
     (resend.total || 0) + 
+    (instantly.total || 0) + 
     (domain.total || 0);
 
   return {
@@ -344,6 +390,7 @@ module.exports = {
   getNeonCosts,
   getRailwayCosts,
   getResendCosts,
+  getInstantlyCosts,
   getDomainCosts,
   getAllRealCosts
 };

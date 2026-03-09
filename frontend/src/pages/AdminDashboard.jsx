@@ -295,6 +295,7 @@ export default function AdminDashboard() {
   const llm = costs.llm || {}
   const infra = costs.infra || {}
   const profit = d.profit || {}
+  const emailPro = d.emailProRevenue || {}
   const tasks = d.tasks || {}
   const activity = d.activity || {}
 
@@ -421,6 +422,7 @@ export default function AdminDashboard() {
                       { name: 'Vercel', data: infra.vercel, color: 'bg-white' },
                       { name: 'Neon (PG)', data: infra.neon, color: 'bg-green-500' },
                       { name: 'OpenRouter', data: infra.openrouter, color: 'bg-orange-500' },
+                      { name: 'Instantly', data: infra.instantly, color: 'bg-yellow-500' },
                       { name: 'Resend', data: infra.resend, color: 'bg-blue-500' },
                       { name: 'Dominio', data: infra.domain, color: 'bg-gray-500' }
                     ].map(item => {
@@ -571,6 +573,7 @@ export default function AdminDashboard() {
                       { name: 'Vercel', data: infra.vercel },
                       { name: 'Neon (PostgreSQL)', data: infra.neon },
                       { name: 'OpenRouter (LLMs)', data: infra.openrouter },
+                      { name: 'Instantly (Email)', data: infra.instantly },
                       { name: 'Resend', data: infra.resend },
                       { name: 'Dominio', data: infra.domain }
                     ].map(item => {
@@ -606,6 +609,38 @@ export default function AdminDashboard() {
                       {Object.entries(costs._sources).filter(([k]) => k !== 'cache_ttl').map(([k, v]) => (
                         <span key={k}>{k}: <span className={v.includes('api') ? 'text-green-600' : 'text-yellow-600'}>{v}</span></span>
                       ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Email Pro P&L */}
+              <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-5">
+                <SectionHeader icon="📧" title="Email Pro — P&L" />
+                <div className="space-y-3">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-400">Suscripciones activas</span>
+                    <span className="text-white tabular-nums font-medium">{emailPro.activeSubs || 0}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-400">Ingresos ({emailPro.activeSubs || 0} × {emailPro.pricePerSub || 15}€)</span>
+                    <span className="text-green-400 tabular-nums font-medium">+€{fmt(emailPro.monthlyRevenue || 0)}</span>
+                  </div>
+                  <div className="border-t border-gray-800 pt-2 space-y-1">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-gray-500">Instantly Growth plan</span>
+                      <span className="text-red-400 tabular-nums">-{fmtUSD(emailPro.instantlyCost || 0)}</span>
+                    </div>
+                  </div>
+                  <div className="border-t border-gray-700 pt-2 flex justify-between text-sm font-bold">
+                    <span className="text-gray-300">Margen Email Pro</span>
+                    <span className={(emailPro.netMargin || 0) >= 0 ? 'text-green-400' : 'text-red-400'}>
+                      {(emailPro.netMargin || 0) >= 0 ? '+' : ''}€{fmt(emailPro.netMargin || 0)}
+                    </span>
+                  </div>
+                  {(emailPro.activeSubs || 0) === 0 && (
+                    <div className="text-xs text-yellow-500/80 bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-2 mt-2">
+                      Break-even: {Math.ceil((emailPro.instantlyCost || 47) / (emailPro.pricePerSub || 15))} suscripciones necesarias (~{Math.ceil((emailPro.instantlyCost || 47) / (emailPro.pricePerSub || 15)) * 15}€/mes)
                     </div>
                   )}
                 </div>
