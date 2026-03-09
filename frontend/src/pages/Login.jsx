@@ -1,21 +1,75 @@
 import { apiUrl } from '../api.js'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
-export default function Login({ onLogin, initialMode, onBack }) {
-  const [mode, setMode] = useState(initialMode || 'login') // 'login' | 'register'
+export default function Login({ onLogin, initialMode, onBack, resetToken: propResetToken }) {
+  const [mode, setMode] = useState(propResetToken ? 'reset' : (initialMode || 'login'))
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
   const [loading, setLoading] = useState(false)
+  const [resetToken] = useState(propResetToken || '')
+
+  // If we receive a resetToken prop, switch to reset mode
+  useEffect(() => {
+    if (propResetToken) setMode('reset')
+  }, [propResetToken])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
+    setSuccess('')
     setLoading(true)
 
     try {
+      if (mode === 'forgot') {
+        const res = await fetch(apiUrl('/api/auth/forgot-password'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email })
+        })
+        const data = await res.json()
+        if (res.ok) {
+          setSuccess('Si el email existe, recibirás un enlace para restablecer tu contraseña. Revisa tu bandeja de entrada.')
+        } else {
+          setError(data.error || 'Error al enviar el email')
+        }
+        setLoading(false)
+        return
+      }
+
+      if (mode === 'reset') {
+        if (password !== confirmPassword) {
+          setError('Las contraseñas no coinciden')
+          setLoading(false)
+          return
+        }
+        const res = await fetch(apiUrl('/api/auth/reset-password'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: resetToken, password })
+        })
+        const data = await res.json()
+        if (res.ok) {
+          setSuccess(data.message || 'Contraseña actualizada. Ya puedes iniciar sesión.')
+          // Clean URL param
+          window.history.replaceState({}, '', window.location.pathname)
+          setTimeout(() => {
+            setMode('login')
+            setSuccess('')
+            setPassword('')
+            setConfirmPassword('')
+          }, 2500)
+        } else {
+          setError(data.error || 'Error al restablecer la contraseña')
+        }
+        setLoading(false)
+        return
+      }
+
+      // Login or Register
       const endpoint = mode === 'login' ? '/api/auth/login' : '/api/onboarding/register'
-      // Pass referral code on registration if present in URL
       const refCode = new URLSearchParams(window.location.search).get('ref') || localStorage.getItem('pendingRef') || ''
       const body = mode === 'register' && refCode
         ? { email, password, referralCode: refCode }
@@ -43,11 +97,24 @@ export default function Login({ onLogin, initialMode, onBack }) {
     }
   }
 
+  const getTitle = () => {
+    if (mode === 'forgot') return 'Recuperar contraseña'
+    if (mode === 'reset') return 'Nueva contraseña'
+    return null
+  }
+
+  const getSubmitLabel = () => {
+    if (loading) return 'Cargando...'
+    if (mode === 'forgot') return 'Enviar enlace'
+    if (mode === 'reset') return 'Cambiar contraseña'
+    return mode === 'login' ? 'Entrar' : 'Crear cuenta gratis (14 días)'
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center p-4">
       <div className="max-w-md w-full">
         <div className="text-center mb-8">
-          {onBack && (
+          {onBack && mode !== 'forgot' && mode !== 'reset' && (
             <button
               onClick={onBack}
               className="text-sm text-gray-500 hover:text-white transition-colors mb-4 inline-flex items-center gap-1"
@@ -58,49 +125,90 @@ export default function Login({ onLogin, initialMode, onBack }) {
               Volver
             </button>
           )}
+          {(mode === 'forgot' || mode === 'reset') && (
+            <button
+              onClick={() => { setMode('login'); setError(''); setSuccess('') }}
+              className="text-sm text-gray-500 hover:text-white transition-colors mb-4 inline-flex items-center gap-1"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
+              </svg>
+              Volver al login
+            </button>
+          )}
           <h1 className="text-4xl font-bold text-white mb-2">🚀 Lanzalo</h1>
-          <p className="text-gray-400">Tu co-fundador IA autónomo</p>
+          <p className="text-gray-400">
+            {getTitle() || 'Tu co-fundador IA autónomo'}
+          </p>
         </div>
 
         <div className="bg-gray-800 rounded-lg shadow-xl p-8 border border-gray-700">
-          {/* Tabs */}
-          <div className="flex gap-2 mb-6">
-            <button
-              onClick={() => { setMode('login'); setError('') }}
-              className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${mode === 'login' ? 'bg-emerald-600 text-white' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}
-            >
-              Iniciar sesión
-            </button>
-            <button
-              onClick={() => { setMode('register'); setError('') }}
-              className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${mode === 'register' ? 'bg-emerald-600 text-white' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}
-            >
-              Crear cuenta
-            </button>
-          </div>
+          {/* Tabs — only show for login/register */}
+          {(mode === 'login' || mode === 'register') && (
+            <div className="flex gap-2 mb-6">
+              <button
+                onClick={() => { setMode('login'); setError(''); setSuccess('') }}
+                className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${mode === 'login' ? 'bg-emerald-600 text-white' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}
+              >
+                Iniciar sesión
+              </button>
+              <button
+                onClick={() => { setMode('register'); setError(''); setSuccess('') }}
+                className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${mode === 'register' ? 'bg-emerald-600 text-white' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}
+              >
+                Crear cuenta
+              </button>
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Tu email"
-              required
-            />
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Contraseña (mínimo 8 caracteres)"
-              minLength={8}
-              required
-            />
+            {/* Email — show for login, register, forgot */}
+            {mode !== 'reset' && (
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Tu email"
+                required
+              />
+            )}
+
+            {/* Password — show for login, register, reset */}
+            {mode !== 'forgot' && (
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder={mode === 'reset' ? 'Nueva contraseña (mínimo 8 caracteres)' : 'Contraseña (mínimo 8 caracteres)'}
+                minLength={8}
+                required
+              />
+            )}
+
+            {/* Confirm password — only for reset */}
+            {mode === 'reset' && (
+              <input
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Confirmar nueva contraseña"
+                minLength={8}
+                required
+              />
+            )}
 
             {error && (
               <div className="bg-red-900/50 border border-red-700 text-red-200 px-4 py-3 rounded-lg text-sm">
                 {error}
+              </div>
+            )}
+
+            {success && (
+              <div className="bg-emerald-900/50 border border-emerald-700 text-emerald-200 px-4 py-3 rounded-lg text-sm">
+                {success}
               </div>
             )}
 
@@ -109,11 +217,19 @@ export default function Login({ onLogin, initialMode, onBack }) {
               disabled={loading}
               className="w-full bg-emerald-500 hover:bg-emerald-400 text-gray-950 font-semibold py-3 px-4 rounded-lg transition-colors disabled:opacity-50"
             >
-              {loading
-                ? 'Cargando...'
-                : mode === 'login' ? 'Entrar' : 'Crear cuenta gratis (14 días)'}
+              {getSubmitLabel()}
             </button>
           </form>
+
+          {/* Forgot password link — only show on login mode */}
+          {mode === 'login' && (
+            <button
+              onClick={() => { setMode('forgot'); setError(''); setSuccess('') }}
+              className="w-full text-center text-sm text-gray-500 hover:text-emerald-400 transition-colors mt-4"
+            >
+              ¿Olvidaste tu contraseña?
+            </button>
+          )}
 
           {mode === 'register' && (
             <p className="text-xs text-gray-500 text-center mt-4">

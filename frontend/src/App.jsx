@@ -106,6 +106,22 @@ function App() {
       localStorage.setItem('pendingRef', urlParams.get('ref'))
     }
 
+    // Detect password reset token in URL
+    const resetToken = urlParams.get('reset_token')
+    if (resetToken) {
+      return (
+        <Login
+          onLogin={handleLogin}
+          initialMode="login"
+          resetToken={resetToken}
+          onBack={() => {
+            window.history.replaceState({}, '', window.location.pathname)
+            setShowLogin(false)
+          }}
+        />
+      )
+    }
+
     // Preserve feedback deep-link params through login flow
     if (urlParams.get('feedback') && urlParams.get('company')) {
       localStorage.setItem('pendingFeedback', JSON.stringify({
