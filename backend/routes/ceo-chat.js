@@ -224,7 +224,7 @@ router.get('/companies/:companyId/backlog', requireCompanyAccess, async (req, re
 });
 
 /**
- * Crear tarea manualmente — consume 1 crédito
+ * Crear tarea manualmente — siempre se crea, créditos se consumen al ejecutar
  */
 router.post('/companies/:companyId/tasks', requireCompanyAccess, async (req, res) => {
   try {
@@ -232,19 +232,8 @@ router.post('/companies/:companyId/tasks', requireCompanyAccess, async (req, res
     const { title, description, tag, priority } = req.body;
     const userId = req.user.userId || req.user.id;
 
-    // Consumir 1 crédito
-    const { consumeCredit } = require('../middleware/credits');
-    const creditResult = await consumeCredit(userId, 'create_task', companyId);
-    if (!creditResult.success) {
-      return res.status(402).json({
-        error: 'credits_insufficient',
-        message: `Te queda${creditResult.current === 1 ? '' : 'n'} ${creditResult.current || 0} crédito${creditResult.current !== 1 ? 's' : ''} y necesitas 1. Compra un pack o envía feedback para ganar créditos gratis.`,
-        current: creditResult.current || 0,
-        needed: 1
-      });
-    }
-
     const { pool } = require('../db');
+    const { getCredits } = require('../middleware/credits');
     const crypto = require('crypto');
     const taskId = crypto.randomUUID();
 
@@ -260,11 +249,23 @@ router.post('/companies/:companyId/tasks', requireCompanyAccess, async (req, res
       [taskId]
     );
 
+    // Informar de créditos (la ejecución consumirá 1 cuando el executor la procese)
+    let creditsInfo = {};
+    try {
+      const credits = await getCredits(userId);
+      creditsInfo = {
+        credits_available: credits.total,
+        will_execute: credits.total > 0,
+        note: credits.total > 0
+          ? 'Tarea creada. Se ejecutará pronto (1 crédito se consume al ejecutar).'
+          : 'Tarea creada pero no se ejecutará hasta que haya créditos. Compra un pack o envía feedback.'
+      };
+    } catch (e) { /* silencioso */ }
+
     res.json({
       success: true,
       task: result.rows[0],
-      credits_used: 1,
-      credits_remaining: creditResult.remaining
+      ...creditsInfo
     });
 
   } catch (error) {

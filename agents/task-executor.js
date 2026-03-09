@@ -109,6 +109,28 @@ class TaskExecutor {
     const taskId = task.id;
     this.activeTasks.add(taskId);
     try {
+      // ═══ CONSUMIR CRÉDITO ANTES DE EJECUTAR ═══
+      // La creación de tareas es gratis. La ejecución cuesta 1 crédito.
+      try {
+        const { consumeCredit } = require('../backend/middleware/credits');
+        const ownerResult = await pool.query(
+          'SELECT user_id FROM companies WHERE id = $1', [task.company_id]
+        );
+        const ownerUserId = ownerResult.rows[0]?.user_id;
+        if (ownerUserId) {
+          const creditResult = await consumeCredit(ownerUserId, 'execute_task', task.company_id);
+          if (!creditResult.success) {
+            console.log(`[Task Executor] ⚠️ Sin créditos para ejecutar: ${task.title} (user: ${ownerUserId}, créditos: ${creditResult.current || 0})`);
+            // No ejecutar — dejar en todo para cuando haya créditos
+            this.activeTasks.delete(taskId);
+            return;
+          }
+          console.log(`[Task Executor] Crédito consumido para: ${task.title} (quedan: ${creditResult.remaining})`);
+        }
+      } catch (creditErr) {
+        console.warn('[Task Executor] Credit check error, executing anyway:', creditErr.message);
+      }
+
       console.log(`[Task Executor] Executing task ${task.id}: ${task.title}`);
       await pool.query(
         `UPDATE tasks SET status = 'in_progress', started_at = CURRENT_TIMESTAMP WHERE id = $1`,
