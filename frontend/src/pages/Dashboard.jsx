@@ -20,7 +20,6 @@ export default function Dashboard({ user, onLogout }) {
     { path: '/agents', icon: '🏢', label: 'Agentes' },
     { path: '/ideas', icon: '💡', label: 'Ideas' },
     { path: '/backlog', icon: '📋', label: 'Backlog' },
-    { path: '/marketing', icon: '📣', label: 'Marketing' },
     { path: '/metrics', icon: '📊', label: 'Métricas' },
   ]
 
@@ -70,6 +69,20 @@ export default function Dashboard({ user, onLogout }) {
 
         {/* Right side */}
         <div className="hidden md:flex items-center gap-2 ml-auto">
+          {/* Credits badge */}
+          {user?.credits && (
+            <span className={`text-xs px-2.5 py-1 rounded-full flex items-center gap-1.5 ${
+              user.credits.total <= 1
+                ? 'bg-red-500/15 text-red-400 border border-red-500/20'
+                : user.credits.total <= 3
+                  ? 'bg-orange-500/15 text-orange-400 border border-orange-500/20'
+                  : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+            }`}>
+              <span>🎫</span>
+              <span>{user.credits.total} crédito{user.credits.total !== 1 ? 's' : ''}</span>
+            </span>
+          )}
+
           {/* Trial badge */}
           {user?.plan === 'trial' && user?.trialEndsAt && (
             <span className="text-xs px-2.5 py-1 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/20">
@@ -121,11 +134,19 @@ export default function Dashboard({ user, onLogout }) {
               <span>{item.label}</span>
             </Link>
           ))}
-          <div className="pt-2 mt-2 border-t border-gray-800 flex items-center justify-between">
-            <span className="text-xs text-gray-500">{user?.email}</span>
-            <button onClick={onLogout} className="text-xs text-red-400 hover:text-red-300">
-              Cerrar sesión
-            </button>
+          <div className="pt-2 mt-2 border-t border-gray-800">
+            {user?.credits && (
+              <div className="flex items-center gap-1.5 text-xs text-emerald-400 mb-2">
+                <span>🎫</span>
+                <span>{user.credits.total} crédito{user.credits.total !== 1 ? 's' : ''}</span>
+              </div>
+            )}
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-gray-500">{user?.email}</span>
+              <button onClick={onLogout} className="text-xs text-red-400 hover:text-red-300">
+                Cerrar sesión
+              </button>
+            </div>
           </div>
         </div>
       )}

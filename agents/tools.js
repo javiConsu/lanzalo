@@ -198,9 +198,34 @@ const TOOL_DEFS = {
 function createToolHandlers(companyId, userId) {
   const MemorySystem = require('./memory-system');
   const memory = new MemorySystem(companyId);
+  const { consumeCredit, getCredits } = require('../backend/middleware/credits');
 
   return {
     create_task: async (args) => {
+      // ═══ SISTEMA DE CRÉDITOS: 1 crédito por tarea ═══
+      // Buscar el user_id real del owner de la empresa
+      let ownerUserId = userId;
+      if (!ownerUserId || ownerUserId === 'cofounder') {
+        const ownerResult = await pool.query(
+          'SELECT user_id FROM companies WHERE id = $1', [companyId]
+        );
+        ownerUserId = ownerResult.rows[0]?.user_id;
+      }
+
+      if (ownerUserId) {
+        const creditResult = await consumeCredit(ownerUserId, 'create_task', companyId);
+        if (!creditResult.success) {
+          console.log(`[CEO Tools] Sin créditos para tarea: ${args.title} (user: ${ownerUserId})`);
+          return {
+            success: false,
+            error: 'sin_creditos',
+            message: `No tienes créditos suficientes para crear esta tarea. Tienes ${creditResult.current || 0} créditos y necesitas 1. Puedes comprar un pack o enviar feedback para ganar créditos gratis.`,
+            current_credits: creditResult.current || 0
+          };
+        }
+        console.log(`[CEO Tools] Crédito consumido. Quedan: ${creditResult.remaining}`);
+      }
+
       const crypto = require('crypto');
       const taskId = crypto.randomUUID();
       const tag = args.agent_type || 'research';
@@ -209,10 +234,20 @@ function createToolHandlers(companyId, userId) {
       const result = await pool.query(
         `INSERT INTO tasks (id, company_id, created_by, title, description, tag, priority, status, created_at)
          VALUES ($1, $2, $3, $4, $5, $6, $7, 'todo', NOW()) RETURNING id, title, tag, priority, status`,
-        [taskId, companyId, userId || 'cofounder', args.title, args.description || '', tag, priority]
+        [taskId, companyId, ownerUserId || 'cofounder', args.title, args.description || '', tag, priority]
       );
       const task = result.rows[0];
-      console.log(`[CEO Tools] Tarea creada: [${task.tag}/${task.priority}] ${task.title}`);
+
+      // Obtener créditos restantes para informar
+      let remainingCredits = null;
+      if (ownerUserId) {
+        try {
+          const credits = await getCredits(ownerUserId);
+          remainingCredits = credits.total;
+        } catch (e) { /* silencioso */ }
+      }
+
+      console.log(`[CEO Tools] Tarea creada: [${task.tag}/${task.priority}] ${task.title} (créditos restantes: ${remainingCredits})`);
       // Broadcast al feed en vivo
       if (global.broadcastActivity) {
         global.broadcastActivity({
@@ -224,7 +259,16 @@ function createToolHandlers(companyId, userId) {
           timestamp: new Date().toISOString()
         });
       }
-      return { success: true, taskId: task.id, title: task.title, agent: task.tag, priority: task.priority, status: task.status };
+      return {
+        success: true,
+        taskId: task.id,
+        title: task.title,
+        agent: task.tag,
+        priority: task.priority,
+        status: task.status,
+        credits_used: 1,
+        credits_remaining: remainingCredits
+      };
     },
 
     get_tasks: async (args) => {

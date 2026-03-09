@@ -224,12 +224,25 @@ router.get('/companies/:companyId/backlog', requireCompanyAccess, async (req, re
 });
 
 /**
- * Crear tarea manualmente
+ * Crear tarea manualmente — consume 1 crédito
  */
 router.post('/companies/:companyId/tasks', requireCompanyAccess, async (req, res) => {
   try {
     const { companyId } = req.params;
     const { title, description, tag, priority } = req.body;
+    const userId = req.user.userId || req.user.id;
+
+    // Consumir 1 crédito
+    const { consumeCredit } = require('../middleware/credits');
+    const creditResult = await consumeCredit(userId, 'create_task', companyId);
+    if (!creditResult.success) {
+      return res.status(402).json({
+        error: 'credits_insufficient',
+        message: `Te queda${creditResult.current === 1 ? '' : 'n'} ${creditResult.current || 0} crédito${creditResult.current !== 1 ? 's' : ''} y necesitas 1. Compra un pack o envía feedback para ganar créditos gratis.`,
+        current: creditResult.current || 0,
+        needed: 1
+      });
+    }
 
     const { pool } = require('../db');
     const crypto = require('crypto');
@@ -239,7 +252,7 @@ router.post('/companies/:companyId/tasks', requireCompanyAccess, async (req, res
       `INSERT INTO tasks (
         id, company_id, created_by, title, description, tag, priority, status
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-      [taskId, companyId, req.user.id, title, description, tag, priority || 'medium', 'todo']
+      [taskId, companyId, userId, title, description, tag, priority || 'medium', 'todo']
     );
 
     const result = await pool.query(
@@ -249,7 +262,9 @@ router.post('/companies/:companyId/tasks', requireCompanyAccess, async (req, res
 
     res.json({
       success: true,
-      task: result.rows[0]
+      task: result.rows[0],
+      credits_used: 1,
+      credits_remaining: creditResult.remaining
     });
 
   } catch (error) {

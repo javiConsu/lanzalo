@@ -20,6 +20,7 @@ const CREDIT_CONFIG = {
 
 // Coste en créditos por tipo de generación
 const GENERATION_COSTS = {
+  create_task:        1,  // Cada tarea que crea el Co-Founder = 1 crédito
   create_business:    1,  // Incluye análisis mercado + landing
   market_analysis:    1,
   landing_page:       1,
