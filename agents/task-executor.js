@@ -37,7 +37,9 @@ class TaskExecutor {
       'data':        () => require('./executors/data-executor'),
       'analytics':   () => require('./executors/data-executor'),
       'trends':      () => require('./executors/trend-scout-executor'),
-      'ideas':       () => require('./executors/trend-scout-executor')
+      'ideas':       () => require('./executors/trend-scout-executor'),
+      'marketing':   () => require('./executors/marketing-executor'),
+      'content':     () => require('./executors/marketing-executor')
     };
 
     const loader = EXECUTORS[tag.toLowerCase()];
