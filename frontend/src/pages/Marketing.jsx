@@ -113,6 +113,15 @@ export default function Marketing() {
 
   const companyName = companies.find(c => c.id === selectedCompany)?.name || ''
 
+  // KPIs calculados
+  const totalContent = contentPieces.filter(p => p.status === 'ready' || p.status === 'posted').length + content.metrics.published
+  const totalEmails = emails.metrics.sent
+  const replyRate = emails.metrics.total > 0 ? Math.round((emails.metrics.replied / emails.metrics.total) * 100) : 0
+  const totalLeads = emailPro.leads.total || 0
+  const activeAds = ads.metrics.active || 0
+  const totalEngagement = (data?.content?.posts || []).reduce((s, p) => s + (p.engagement_likes || 0) + (p.engagement_retweets || 0), 0)
+    + contentPieces.reduce((s, p) => s + (p.engagement_likes || 0) + (p.engagement_shares || 0), 0)
+
   const tabs = [
     { id: 'marca', label: 'Marca', icon: '🎨' },
     { id: 'contenido', label: 'Contenido', icon: '📱', count: content.metrics.total },
@@ -123,79 +132,63 @@ export default function Marketing() {
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Header */}
-      <div className="px-6 pt-5 pb-3 flex-shrink-0">
-        <div className="flex items-center justify-between mb-4">
+      <div className="px-6 pt-5 pb-4 flex-shrink-0 border-b border-gray-800/60">
+        {/* Title row */}
+        <div className="flex items-center justify-between mb-5">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ backgroundColor: '#ec489918' }}>
-              <span className="text-lg">📣</span>
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-pink-500/20 to-rose-500/10 border border-pink-500/20 flex items-center justify-center">
+              <span className="text-base">📣</span>
             </div>
             <div>
-              <h1 className="text-lg font-bold text-white">
-                Marketing {companyName ? `— ${companyName}` : ''}
+              <h1 className="text-base font-bold text-white leading-tight">
+                Marketing{companyName ? <span className="text-gray-500 font-normal"> — {companyName}</span> : ''}
               </h1>
-              <p className="text-xs text-gray-500">CMO · Contenido, Emails y Ads</p>
+              <p className="text-xs text-gray-500">CMO · Contenido · Emails · Ads · Leads</p>
             </div>
           </div>
-
           {companies.length > 1 && (
             <select
               value={selectedCompany || ''}
               onChange={(e) => setSelectedCompany(e.target.value)}
-              className="text-sm px-3 py-1.5 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-pink-500"
+              className="text-xs px-2.5 py-1.5 bg-gray-800 border border-gray-700 rounded-lg text-gray-300 focus:outline-none focus:ring-1 focus:ring-pink-500/50"
             >
               {companies.map(company => (
-                <option key={company.id} value={company.id}>
-                  {company.name}
-                </option>
+                <option key={company.id} value={company.id}>{company.name}</option>
               ))}
             </select>
           )}
         </div>
 
-        {/* Summary counters */}
-        <div className="grid grid-cols-5 gap-2 mb-4">
-          <div className="bg-gray-800/60 rounded-xl border border-gray-700/50 p-2.5 text-center">
-            <div className="text-lg font-bold text-pink-400">{contentPieces.filter(p => p.status === 'ready' || p.status === 'posted').length + content.metrics.published}</div>
-            <div className="text-[10px] text-gray-500 mt-0.5">Contenido</div>
-          </div>
-          <div className="bg-gray-800/60 rounded-xl border border-gray-700/50 p-2.5 text-center">
-            <div className="text-lg font-bold text-violet-400">{gamma.totalGenerated}</div>
-            <div className="text-[10px] text-gray-500 mt-0.5">Gamma</div>
-          </div>
-          <div className="bg-gray-800/60 rounded-xl border border-gray-700/50 p-2.5 text-center">
-            <div className="text-lg font-bold text-blue-400">{emails.metrics.sent}</div>
-            <div className="text-[10px] text-gray-500 mt-0.5">Emails</div>
-          </div>
-          <div className="bg-gray-800/60 rounded-xl border border-gray-700/50 p-2.5 text-center">
-            <div className="text-lg font-bold text-amber-400">{ads.metrics.total}</div>
-            <div className="text-[10px] text-gray-500 mt-0.5">Campanas Ads</div>
-          </div>
-          <div className="bg-gray-800/60 rounded-xl border border-gray-700/50 p-2.5 text-center">
-            <div className="text-lg font-bold text-purple-400">{emailPro.leads.total || 0}</div>
-            <div className="text-[10px] text-gray-500 mt-0.5">Leads</div>
-          </div>
+        {/* KPI cards — clicables, llevan a la tab correspondiente */}
+        <div className="grid grid-cols-3 lg:grid-cols-6 gap-2 mb-4">
+          <MktKpiCard label="Contenido" value={totalContent} sub={`${content.metrics.drafts} borradores`} color="pink" icon="📱" onClick={() => setTab('contenido')} active={tab === 'contenido'} />
+          <MktKpiCard label="Emails" value={totalEmails} sub={replyRate > 0 ? `${replyRate}% respuesta` : 'sin respuestas aún'} color="blue" icon="📧" onClick={() => setTab('emails')} active={tab === 'emails'} />
+          <MktKpiCard label="Leads" value={totalLeads} sub={emailPro.leads.statusCounts?.interested ? `${emailPro.leads.statusCounts.interested} interesados` : 'pipeline'} color="emerald" icon="🎯" onClick={() => setTab('emails')} active={tab === 'emails'} />
+          <MktKpiCard label="Ads activas" value={activeAds} sub={`${ads.metrics.total} totales`} color="amber" icon="📢" onClick={() => setTab('ads')} active={tab === 'ads'} />
+          <MktKpiCard label="Engagement" value={totalEngagement} sub="likes + shares" color="rose" icon="❤️" onClick={() => setTab('contenido')} active={false} />
+          <MktKpiCard label="Gamma" value={gamma.totalGenerated} sub="presentaciones IA" color="violet" icon="✨" onClick={() => setTab('contenido')} active={false} />
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 bg-gray-800/60 rounded-xl border border-gray-700/50 p-1">
+        <div className="flex gap-1 flex-wrap">
           {tabs.map(t => (
             <button
               key={t.id}
               onClick={() => setTab(t.id)}
-              className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                 tab === t.id
-                  ? 'bg-gray-700 text-white shadow-sm'
-                  : 'text-gray-500 hover:text-gray-300 hover:bg-gray-700/50'
+                  ? 'bg-pink-500/15 text-pink-300 border border-pink-500/25'
+                  : 'text-gray-500 hover:text-gray-300 hover:bg-gray-800/60 border border-transparent'
               }`}
             >
-              <span>{t.icon}</span>
+              <span className="text-base leading-none">{t.icon}</span>
               <span>{t.label}</span>
               {t.costExtra && (
-                <span className="text-[10px] px-1 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/25 leading-none">$</span>
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/25 leading-none">Pro</span>
               )}
               {t.count > 0 && (
                 <span className={`text-xs px-1.5 py-0.5 rounded-full leading-none ${
-                  tab === t.id ? 'bg-gray-600 text-gray-200' : 'bg-gray-700 text-gray-400'
+                  tab === t.id ? 'bg-pink-500/20 text-pink-300' : 'bg-gray-700/80 text-gray-400'
                 }`}>
                   {t.count}
                 </span>
@@ -1672,6 +1665,42 @@ function AdsTab({ ads, companyId, token, onRefresh }) {
 }
 
 // ─── Shared Components ──────────────────────────────────────
+
+/**
+ * Tarjeta KPI del header de Marketing
+ * Clicable, con color por canal, muestra valor principal y subtexto
+ */
+const MKT_KPI_COLORS = {
+  pink:    { ring: 'ring-pink-500/30',    bg: 'bg-pink-500/10',    text: 'text-pink-400',    border: 'border-pink-500/20' },
+  blue:    { ring: 'ring-blue-500/30',    bg: 'bg-blue-500/10',    text: 'text-blue-400',    border: 'border-blue-500/20' },
+  emerald: { ring: 'ring-emerald-500/30', bg: 'bg-emerald-500/10', text: 'text-emerald-400', border: 'border-emerald-500/20' },
+  amber:   { ring: 'ring-amber-500/30',   bg: 'bg-amber-500/10',   text: 'text-amber-400',   border: 'border-amber-500/20' },
+  rose:    { ring: 'ring-rose-500/30',    bg: 'bg-rose-500/10',    text: 'text-rose-400',    border: 'border-rose-500/20' },
+  violet:  { ring: 'ring-violet-500/30',  bg: 'bg-violet-500/10',  text: 'text-violet-400',  border: 'border-violet-500/20' },
+}
+function MktKpiCard({ label, value, sub, color = 'pink', icon, onClick, active }) {
+  const c = MKT_KPI_COLORS[color] || MKT_KPI_COLORS.pink
+  return (
+    <button
+      onClick={onClick}
+      className={`group relative flex flex-col items-start p-3 rounded-xl border transition-all text-left w-full ${
+        active
+          ? `${c.bg} ${c.border} ring-1 ${c.ring}`
+          : 'bg-gray-800/50 border-gray-700/50 hover:bg-gray-800 hover:border-gray-600/60'
+      }`}
+    >
+      <div className="flex items-center justify-between w-full mb-1.5">
+        <span className="text-base leading-none">{icon}</span>
+        {active && <span className={`w-1.5 h-1.5 rounded-full ${c.text.replace('text-', 'bg-')}`} />}
+      </div>
+      <div className={`text-xl font-bold leading-none mb-1 ${active ? c.text : 'text-white'}`}>
+        {value}
+      </div>
+      <div className="text-[10px] text-gray-500 leading-tight">{label}</div>
+      {sub && <div className={`text-[10px] mt-0.5 leading-tight ${active ? c.text : 'text-gray-600'}`}>{sub}</div>}
+    </button>
+  )
+}
 
 function MetricCard({ label, value, icon, color }) {
   return (

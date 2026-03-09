@@ -32,7 +32,7 @@ export default function Dashboard({ user, onLogout }) {
     { path: '/', icon: '🏠', label: 'Dashboard' },
     { path: '/agents', icon: '🏢', label: 'Agentes' },
     { path: '/backlog', icon: '📋', label: 'Cola de Tareas' },
-    { path: '/metrics', icon: '📊', label: 'Métricas' },
+    { path: '/marketing', icon: '📣', label: 'Marketing' },
     { path: '/ideas', icon: '💡', label: 'Ideas' },
   ]
 

@@ -8,7 +8,6 @@ import DashboardHome from './pages/DashboardHome'
 import AgentOffice from './pages/AgentOffice'
 import Ideas from './pages/Ideas'
 import Backlog from './pages/Backlog'
-import Metrics from './pages/Metrics'
 import Marketing from './pages/Marketing'
 import Discovery from './pages/Discovery'
 import DiscoveryAnalysis from './pages/DiscoveryAnalysis'
@@ -171,7 +170,6 @@ function App() {
           <Route path="ideas" element={<Ideas />} />
           <Route path="backlog" element={user?.isTrialExpired ? <Paywall user={user} /> : <Backlog />} />
           <Route path="marketing" element={user?.isTrialExpired ? <Paywall user={user} /> : <Marketing />} />
-          <Route path="metrics" element={user?.isTrialExpired ? <Paywall user={user} /> : <Metrics />} />
           <Route path="settings" element={<Settings />} />
         </Route>
 
