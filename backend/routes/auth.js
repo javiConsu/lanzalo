@@ -145,18 +145,6 @@ router.post('/forgot-password', async (req, res) => {
 
     const user = userResult.rows[0];
 
-    // Create token table if not exists
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS password_reset_tokens (
-        id SERIAL PRIMARY KEY,
-        user_id INTEGER REFERENCES users(id),
-        token VARCHAR(255) UNIQUE NOT NULL,
-        expires_at TIMESTAMP NOT NULL,
-        used BOOLEAN DEFAULT FALSE,
-        created_at TIMESTAMP DEFAULT NOW()
-      )
-    `);
-
     // Invalidate any existing tokens for this user
     await pool.query('UPDATE password_reset_tokens SET used = TRUE WHERE user_id = $1 AND used = FALSE', [user.id]);
 
