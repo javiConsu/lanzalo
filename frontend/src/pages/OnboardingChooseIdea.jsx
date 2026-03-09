@@ -42,10 +42,20 @@ export default function OnboardingChooseIdea() {
         ideaId: idea.id
       });
 
+      if (result.code === 'NO_SLOTS') {
+        alert(`Has alcanzado el l\u00edmite de negocios (${result.used}/${result.slots}). Compra un hueco extra desde tu panel.`);
+        setLaunching(false);
+        setSelectedIdea(null);
+        return;
+      }
+
       // Force full reload so App re-fetches profile with onboardingCompleted=true
       window.location.href = '/chat';
     } catch (err) {
       console.error('Error launching idea:', err);
+      if (err?.code === 'NO_SLOTS') {
+        alert(`Has alcanzado el l\u00edmite de negocios de tu plan. Compra un hueco extra desde tu panel.`);
+      }
       setLaunching(false);
       setSelectedIdea(null);
     }

@@ -1179,6 +1179,7 @@ function UsersTab({ token, users: userStats, companies: companyStats }) {
                 <th className="text-left py-2 pr-3">Email</th>
                 <th className="text-left py-2 pr-3">Plan</th>
                 <th className="text-right py-2 pr-3">Empresas</th>
+                <th className="text-right py-2 pr-3">Slots</th>
                 <th className="text-right py-2">Coste LLM</th>
               </tr>
             </thead>
@@ -1197,6 +1198,15 @@ function UsersTab({ token, users: userStats, companies: companyStats }) {
                     </span>
                   </td>
                   <td className="py-2 pr-3 text-right text-gray-400 tabular-nums">{u.companies_count}</td>
+                  <td className="py-2 pr-3 text-right tabular-nums">
+                    <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${
+                      parseInt(u.companies_count) >= (u.business_slots || 1)
+                        ? 'bg-amber-500/20 text-amber-400'
+                        : 'bg-gray-700/50 text-gray-400'
+                    }`}>
+                      {u.companies_count}/{u.business_slots || 1}
+                    </span>
+                  </td>
                   <td className="py-2 text-right text-red-400/80 tabular-nums text-xs">{fmtUSD(u.total_cost)}</td>
                 </tr>
               ))}

@@ -23,8 +23,14 @@ const api = {
       },
       body: JSON.stringify(body),
     })
-    if (!res.ok) throw new Error(`API error: ${res.status}`)
-    return res.json()
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) {
+      const err = new Error(data.error || `API error: ${res.status}`)
+      err.response = data
+      err.code = data.code
+      throw err
+    }
+    return data
   },
 }
 

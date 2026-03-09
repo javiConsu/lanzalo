@@ -18,7 +18,7 @@ router.use(requireAuth);
 router.get('/profile', async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT id, email, name, role, plan, subscription_tier, trial_ends_at, onboarding_completed, created_at FROM users WHERE id = $1',
+      'SELECT id, email, name, role, plan, subscription_tier, trial_ends_at, onboarding_completed, business_slots, created_at FROM users WHERE id = $1',
       [req.user.id]
     );
 
@@ -40,6 +40,14 @@ router.get('/profile', async (req, res) => {
       credits = await getCredits(user.id);
     } catch (e) { /* tabla puede no existir aún */ }
 
+    // Business slots info
+    const companiesCount = await pool.query(
+      'SELECT COUNT(*)::int as count FROM companies WHERE user_id = $1',
+      [req.user.id]
+    );
+    const businessSlots = user.business_slots ?? 1;
+    const companiesUsed = companiesCount.rows[0]?.count ?? 0;
+
     res.json({
       user: {
         ...user,
@@ -48,7 +56,10 @@ router.get('/profile', async (req, res) => {
         trialDaysLeft,
         isTrialExpired,
         isPro,
-        credits
+        credits,
+        businessSlots,
+        companiesUsed,
+        slotsAvailable: businessSlots - companiesUsed
       }
     });
   } catch (error) {
@@ -94,6 +105,27 @@ router.post('/companies', checkQuota, async (req, res) => {
     if (!name || !description) {
       return res.status(400).json({ 
         error: 'name y description son requeridos' 
+      });
+    }
+
+    // ─── Check business slots ───
+    const slotCheck = await pool.query(
+      `SELECT u.business_slots, COUNT(c.id)::int as company_count
+       FROM users u
+       LEFT JOIN companies c ON u.id = c.user_id
+       WHERE u.id = $1
+       GROUP BY u.id`,
+      [req.user.id]
+    );
+    const slots = slotCheck.rows[0]?.business_slots ?? 1;
+    const used = slotCheck.rows[0]?.company_count ?? 0;
+    if (used >= slots) {
+      return res.status(403).json({
+        error: 'Has alcanzado el límite de negocios de tu plan.',
+        code: 'NO_SLOTS',
+        slots,
+        used,
+        message: 'Compra un hueco adicional para crear otro negocio.'
       });
     }
 

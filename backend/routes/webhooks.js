@@ -85,6 +85,16 @@ async function handleCheckoutComplete(session) {
     return;
   }
 
+  // ── Business slot purchase ───────────────────────────
+  if (session.metadata?.type === 'business_slot') {
+    await pool.query(
+      'UPDATE users SET business_slots = business_slots + 1 WHERE id = $1',
+      [userId]
+    );
+    console.log(`[Webhook] Business slot añadido a ${userId}`);
+    return;
+  }
+
   // ── Email Pro subscription ────────────────────────────
   if (session.metadata?.type === 'email_pro') {
     await handleEmailProActivation(session);

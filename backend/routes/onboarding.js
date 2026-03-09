@@ -181,6 +181,27 @@ router.post('/survey', authenticate, async (req, res) => {
 router.post('/create-company', authenticate, async (req, res) => {
   try {
     const { source, ideaId, name, description, audience } = req.body;
+
+    // ─── Check business slots ───
+    const slotCheck = await pool.query(
+      `SELECT u.business_slots, COUNT(c.id)::int as company_count
+       FROM users u
+       LEFT JOIN companies c ON u.id = c.user_id
+       WHERE u.id = $1
+       GROUP BY u.id`,
+      [req.user.id]
+    );
+    const slots = slotCheck.rows[0]?.business_slots ?? 1;
+    const used = slotCheck.rows[0]?.company_count ?? 0;
+    if (used >= slots) {
+      return res.status(403).json({
+        error: 'Has alcanzado el límite de negocios de tu plan.',
+        code: 'NO_SLOTS',
+        slots,
+        used,
+        message: 'Compra un hueco adicional para crear otro negocio.'
+      });
+    }
     
     let companyData = {};
     

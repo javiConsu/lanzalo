@@ -238,6 +238,94 @@ function TasksWidget({ companyId }) {
   )
 }
 
+// ─── Slots Widget ─────────────────────────────────────────────
+function SlotsWidget({ user }) {
+  const [buying, setBuying] = useState(false)
+  const token = localStorage.getItem('token')
+
+  if (!user) return null
+
+  const slots = user.businessSlots ?? 1
+  const used = user.companiesUsed ?? 0
+  const available = slots - used
+
+  const handleBuySlot = async () => {
+    setBuying(true)
+    try {
+      const res = await fetch(apiUrl('/api/credits/purchase-slot'), {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
+      })
+      const data = await res.json()
+      if (data.url) {
+        window.location.href = data.url
+      } else if (data.error) {
+        alert(data.error)
+      }
+    } catch (e) {
+      console.error('Error comprando slot:', e)
+    } finally {
+      setBuying(false)
+    }
+  }
+
+  return (
+    <div className="bg-gray-900/50 rounded-2xl border border-gray-700/50 overflow-hidden">
+      <div className="px-4 py-3 border-b border-gray-700/50">
+        <span className="text-sm font-semibold text-white flex items-center gap-2">
+          <span className="text-xs">🏢</span> Mis negocios
+        </span>
+      </div>
+      <div className="p-4">
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <div className="text-2xl font-bold text-white">
+              {used}<span className="text-base text-gray-500 font-normal">/{slots}</span>
+            </div>
+            <div className="text-xs text-gray-500">negocio{slots !== 1 ? 's' : ''} usado{used !== 1 ? 's' : ''}</div>
+          </div>
+          <div className="text-right">
+            {available > 0 ? (
+              <span className="text-xs px-2 py-1 bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 rounded-full font-medium">
+                {available} disponible{available !== 1 ? 's' : ''}
+              </span>
+            ) : (
+              <span className="text-xs px-2 py-1 bg-amber-500/15 text-amber-400 border border-amber-500/20 rounded-full font-medium">
+                Sin huecos
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Progress bar */}
+        <div className="w-full h-2 bg-gray-800 rounded-full overflow-hidden mb-3">
+          <div
+            className={`h-full rounded-full transition-all ${available > 0 ? 'bg-emerald-500' : 'bg-amber-500'}`}
+            style={{ width: `${Math.min((used / slots) * 100, 100)}%` }}
+          />
+        </div>
+
+        {available <= 0 && (
+          <div className="space-y-2">
+            <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
+              <p className="text-xs text-amber-400">
+                Has alcanzado el l\u00edmite de negocios de tu plan. Compra un hueco extra para crear otro.
+              </p>
+            </div>
+            <button
+              onClick={handleBuySlot}
+              disabled={buying}
+              className="w-full text-center px-3 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium rounded-xl transition-colors disabled:opacity-50"
+            >
+              {buying ? 'Redirigiendo...' : 'Comprar hueco extra — 39\u20ac/mes'}
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ─── Credits Widget ─────────────────────────────────────────
 function CreditsWidget() {
   const [credits, setCredits] = useState(null)
@@ -696,10 +784,11 @@ function ActivityWidget({ companyId }) {
 }
 
 // ─── Company Selector ──────────────────────────────────────
-function CompanySelector({ companies, selected, onSelect, onCreateNew }) {
+function CompanySelector({ companies, selected, onSelect, onCreateNew, slotsAvailable }) {
   const [open, setOpen] = useState(false)
 
   if (companies.length <= 1 && !onCreateNew) return null
+  const canCreate = slotsAvailable > 0
 
   return (
     <div className="relative">
@@ -724,13 +813,20 @@ function CompanySelector({ companies, selected, onSelect, onCreateNew }) {
               <span className="truncate">{c.name}</span>
             </button>
           ))}
-          <button
-            onClick={() => { onCreateNew(); setOpen(false) }}
-            className="w-full text-left px-4 py-2.5 text-sm text-emerald-400 hover:bg-gray-700/50 transition-colors border-t border-gray-700 flex items-center gap-2"
-          >
-            <span className="text-xs">+</span>
-            <span>Crear nuevo negocio</span>
-          </button>
+          {canCreate ? (
+            <button
+              onClick={() => { onCreateNew(); setOpen(false) }}
+              className="w-full text-left px-4 py-2.5 text-sm text-emerald-400 hover:bg-gray-700/50 transition-colors border-t border-gray-700 flex items-center gap-2"
+            >
+              <span className="text-xs">+</span>
+              <span>Crear nuevo negocio</span>
+            </button>
+          ) : (
+            <div className="w-full px-4 py-2.5 text-sm text-gray-500 border-t border-gray-700 flex items-center gap-2">
+              <span className="text-xs">🔒</span>
+              <span className="text-xs">Sin huecos — compra uno en el panel</span>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -741,9 +837,21 @@ function CompanySelector({ companies, selected, onSelect, onCreateNew }) {
 export default function DashboardHome() {
   const { companies, selectedCompany: company, selectCompany, loadingCompanies: loading } = useCompanySelection()
   const [feedbackMessage, setFeedbackMessage] = useState(null)
+  const [userProfile, setUserProfile] = useState(null)
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const token = localStorage.getItem('token')
+
+  // Fetch user profile (for slots info)
+  useEffect(() => {
+    if (!token) return
+    fetch(apiUrl('/api/user/profile'), {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+      .then(r => r.json())
+      .then(d => setUserProfile(d.user || null))
+      .catch(() => {})
+  }, [token])
 
   // Handle feedback deep link: ?feedback=web&company=xxx
   useEffect(() => {
@@ -815,6 +923,7 @@ export default function DashboardHome() {
             selected={company}
             onSelect={(c) => selectCompany(c.id)}
             onCreateNew={() => navigate('/onboarding/describe-idea')}
+            slotsAvailable={userProfile?.slotsAvailable ?? 1}
           />
         </div>
       )}
@@ -822,6 +931,7 @@ export default function DashboardHome() {
       <div className="flex-1 flex flex-col lg:flex-row gap-4 p-4 overflow-hidden">
         {/* Left: Widgets (40%) */}
         <div className="lg:w-2/5 flex flex-col gap-3 overflow-y-auto min-h-0">
+          <SlotsWidget user={userProfile} />
           <CreditsWidget />
           <ActivityWidget companyId={company.id} />
           <TasksWidget companyId={company.id} />

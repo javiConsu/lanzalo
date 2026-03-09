@@ -231,7 +231,7 @@ router.get('/users', async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT 
-        u.id, u.email, u.name, u.role, u.plan, u.created_at,
+        u.id, u.email, u.name, u.role, u.plan, u.business_slots, u.created_at,
         COUNT(DISTINCT c.id) as companies_count,
         COALESCE(SUM(l.estimated_cost), 0) as total_cost
        FROM users u
@@ -666,6 +666,28 @@ router.post('/test-briefing', async (req, res) => {
     res.json({ success: true, message: `Briefing ${type} disparado. Revisa tu email en ~30s.` });
   } catch (error) {
     res.status(500).json({ error: error.message });
+  }
+});
+
+// ─── Admin: Set business slots for a user ─────────────────
+router.post('/users/:userId/slots', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { slots } = req.body;
+
+    if (!slots || slots < 1) {
+      return res.status(400).json({ error: 'slots debe ser >= 1' });
+    }
+
+    await pool.query(
+      'UPDATE users SET business_slots = $1 WHERE id = $2',
+      [slots, userId]
+    );
+
+    res.json({ success: true, message: `Slots actualizados a ${slots} para ${userId}` });
+  } catch (error) {
+    console.error('Error actualizando slots:', error);
+    res.status(500).json({ error: 'Error del servidor' });
   }
 });
 

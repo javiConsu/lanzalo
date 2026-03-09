@@ -32,13 +32,21 @@ export default function OnboardingDescribeIdea() {
       if (result.success && result.company) {
         // Force full reload so App re-fetches profile with onboardingCompleted=true
         window.location.href = '/chat';
+      } else if (result.code === 'NO_SLOTS') {
+        setError(`Has alcanzado el l\u00edmite de negocios (${result.used}/${result.slots}). Compra un hueco extra desde tu panel.`);
+        setLaunching(false);
       } else {
         setError(result.error || 'Error creando la empresa');
         setLaunching(false);
       }
     } catch (err) {
       console.error('Error creating company:', err);
-      setError('Error al crear la empresa. Intenta de nuevo.');
+      // Check if the error response has NO_SLOTS code
+      if (err?.response?.code === 'NO_SLOTS' || err?.code === 'NO_SLOTS') {
+        setError('Has alcanzado el l\u00edmite de negocios de tu plan. Compra un hueco extra desde tu panel.');
+      } else {
+        setError('Error al crear la empresa. Intenta de nuevo.');
+      }
       setLaunching(false);
     }
   }

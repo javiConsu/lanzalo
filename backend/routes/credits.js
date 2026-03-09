@@ -128,4 +128,59 @@ router.post('/purchase', async (req, res) => {
   }
 });
 
+/**
+ * POST /api/credits/purchase-slot — Comprar hueco de negocio adicional via Stripe
+ * Precio: 39€/mes por negocio adicional (suscripción)
+ */
+router.post('/purchase-slot', async (req, res) => {
+  try {
+    if (!process.env.STRIPE_SECRET_KEY) {
+      return res.status(503).json({ error: 'Stripe no configurado' });
+    }
+
+    const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+    const userId = req.user.userId || req.user.id;
+
+    // Get current slots info
+    const slotCheck = await pool.query(
+      `SELECT u.business_slots, COUNT(c.id)::int as company_count
+       FROM users u
+       LEFT JOIN companies c ON u.id = c.user_id
+       WHERE u.id = $1
+       GROUP BY u.id`,
+      [userId]
+    );
+    const currentSlots = slotCheck.rows[0]?.business_slots ?? 1;
+
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      line_items: [{
+        price_data: {
+          currency: 'eur',
+          product_data: {
+            name: 'Lánzalo — Negocio adicional',
+            description: `Hueco para 1 negocio extra (slot #${currentSlots + 1})`
+          },
+          unit_amount: 3900, // 39€
+          recurring: { interval: 'month' }
+        },
+        quantity: 1
+      }],
+      mode: 'subscription',
+      success_url: `${process.env.FRONTEND_URL || 'https://www.lanzalo.pro'}/?slot_purchased=true`,
+      cancel_url: `${process.env.FRONTEND_URL || 'https://www.lanzalo.pro'}/?slot_canceled=true`,
+      metadata: {
+        userId,
+        type: 'business_slot',
+        newSlotNumber: (currentSlots + 1).toString()
+      }
+    });
+
+    res.json({ url: session.url, sessionId: session.id });
+  } catch (error) {
+    console.error('Error creando checkout de slot:', error);
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
 module.exports = router;
