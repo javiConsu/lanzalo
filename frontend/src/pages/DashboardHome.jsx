@@ -309,7 +309,7 @@ function SlotsWidget({ user }) {
           <div className="space-y-2">
             <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
               <p className="text-xs text-amber-400">
-                Has alcanzado el l\u00edmite de negocios de tu plan. Compra un hueco extra para crear otro.
+                Has alcanzado el límite de negocios de tu plan. Compra un hueco extra para crear otro.
               </p>
             </div>
             <button

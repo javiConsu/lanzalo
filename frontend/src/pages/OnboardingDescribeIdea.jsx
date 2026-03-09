@@ -45,7 +45,7 @@ export default function OnboardingDescribeIdea() {
       console.error('Error creating company:', err);
       // Check if the error response has NO_SLOTS code
       if (err?.response?.code === 'NO_SLOTS' || err?.code === 'NO_SLOTS') {
-        setError('Has alcanzado el l\u00edmite de negocios de tu plan. Compra un hueco extra desde tu panel.');
+        setError('Has alcanzado el límite de negocios de tu plan. Compra un hueco extra desde tu panel.');
       } else {
         setError('Error al crear la empresa. Intenta de nuevo.');
       }

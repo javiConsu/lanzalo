@@ -58,7 +58,7 @@ export default function OnboardingChooseIdea() {
     } catch (err) {
       console.error('Error launching idea:', err);
       if (err?.code === 'NO_SLOTS') {
-        alert(`Has alcanzado el l\u00edmite de negocios de tu plan. Compra un hueco extra desde tu panel.`);
+        alert(`Has alcanzado el límite de negocios de tu plan. Compra un hueco extra desde tu panel.`);
       }
       setLaunching(false);
       setSelectedIdea(null);
