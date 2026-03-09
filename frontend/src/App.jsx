@@ -99,6 +99,20 @@ function App() {
 
   // Not authenticated: show landing or login
   if (!token) {
+    // Preserve feedback deep-link params through login flow
+    const urlParams = new URLSearchParams(window.location.search)
+    if (urlParams.get('feedback') && urlParams.get('company')) {
+      localStorage.setItem('pendingFeedback', JSON.stringify({
+        feedback: urlParams.get('feedback'),
+        company: urlParams.get('company')
+      }))
+      // Auto-show login for feedback deep-links
+      if (!showLogin) {
+        setLoginMode('login')
+        setShowLogin(true)
+      }
+    }
+
     if (showLogin) {
       return (
         <Login

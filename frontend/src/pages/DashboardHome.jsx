@@ -711,9 +711,21 @@ export default function DashboardHome() {
         const list = d.companies || []
         setCompanies(list)
 
-        // Handle feedback deep link: ?feedback=web&company=xxx
-        const feedbackParam = searchParams.get('feedback')
-        const companyParam = searchParams.get('company')
+        // Handle feedback deep link: ?feedback=web&company=xxx (or from localStorage)
+        let feedbackParam = searchParams.get('feedback')
+        let companyParam = searchParams.get('company')
+
+        // Also check localStorage (survives login redirect)
+        if (!feedbackParam) {
+          try {
+            const pending = JSON.parse(localStorage.getItem('pendingFeedback'))
+            if (pending?.feedback && pending?.company) {
+              feedbackParam = pending.feedback
+              companyParam = pending.company
+              localStorage.removeItem('pendingFeedback')
+            }
+          } catch(e) {}
+        }
 
         if (feedbackParam === 'web' && companyParam) {
           // Find the matching company and select it
