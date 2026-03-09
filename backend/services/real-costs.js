@@ -1,12 +1,16 @@
 /**
  * Real Costs Service — Obtener costes reales de APIs externas
  * 
+ * Soporta periodos: 24h | 7d | 30d | total
+ * 
  * Fuentes:
- * - OpenRouter: GET /api/v1/key (uso de créditos real)
- * - Vercel: GET /v1/billing/charges (costes de hosting)
- * - Neon: API de consumo por proyecto
- * - Railway: GraphQL API (estimaciones o fallback)
- * - Resend: Free tier tracking
+ * - OpenRouter: GET /api/v1/key (uso de créditos real — daily/weekly/monthly/total)
+ * - Vercel: Estimación Pro Plan (VERCEL_TOKEN pendiente)
+ * - Neon: API de proyecto (compute, storage, transfer)
+ * - Railway: GraphQL workspace.customer (currentUsage + billingPeriod)
+ * - Instantly: Fijo $49/mo (Growth plan)
+ * - Resend: Free tier
+ * - Dominio: Fijo $18/año
  * 
  * Cache: 5 minutos para no saturar APIs externas
  */
@@ -27,16 +31,31 @@ function setCache(key, data) {
   cache[key] = { data, timestamp: Date.now() };
 }
 
+/**
+ * Helper: prorratea un coste mensual según el periodo
+ * @param {number} monthlyCost - Coste mensual
+ * @param {string} period - 24h | 7d | 30d | total
+ * @param {number} totalMonths - Meses totales de servicio (para 'total')
+ */
+function prorateCost(monthlyCost, period, totalMonths = 1) {
+  switch (period) {
+    case '24h': return monthlyCost / 30;
+    case '7d': return monthlyCost / 4.286; // ~7/30
+    case '30d': return monthlyCost;
+    case 'total': return monthlyCost * totalMonths;
+    default: return monthlyCost;
+  }
+}
+
 // ─── OpenRouter ────────────────────────────────────────────
 async function getOpenRouterCosts() {
   const cached = getCached('openrouter');
   if (cached) return cached;
 
   const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) return { error: 'No API key', usage_daily: 0, usage_weekly: 0, usage_monthly: 0 };
+  if (!apiKey) return { error: 'No API key', usage_daily: 0, usage_weekly: 0, usage_monthly: 0, usage_total: 0 };
 
   try {
-    // GET /api/v1/key — returns real credit usage
     const res = await axios.get('https://openrouter.ai/api/v1/key', {
       headers: { 'Authorization': `Bearer ${apiKey}` },
       timeout: 10000
@@ -46,10 +65,10 @@ async function getOpenRouterCosts() {
     const result = {
       source: 'openrouter_api',
       label: data.label || 'default',
-      usage_total: data.usage || 0,           // All-time credits used
-      usage_daily: data.usage_daily || 0,     // Today (UTC)
-      usage_weekly: data.usage_weekly || 0,   // This week (Mon-Sun UTC)
-      usage_monthly: data.usage_monthly || 0, // This month (UTC)
+      usage_total: data.usage || 0,
+      usage_daily: data.usage_daily || 0,
+      usage_weekly: data.usage_weekly || 0,
+      usage_monthly: data.usage_monthly || 0,
       limit: data.limit || null,
       limit_remaining: data.limit_remaining || null,
       is_free_tier: data.is_free_tier || false,
@@ -60,7 +79,18 @@ async function getOpenRouterCosts() {
     return result;
   } catch (e) {
     console.error('OpenRouter costs error:', e.message);
-    return { error: e.message, usage_daily: 0, usage_weekly: 0, usage_monthly: 0 };
+    return { error: e.message, usage_daily: 0, usage_weekly: 0, usage_monthly: 0, usage_total: 0 };
+  }
+}
+
+/** Selecciona el coste de OpenRouter según periodo */
+function getOpenRouterForPeriod(openrouter, period) {
+  switch (period) {
+    case '24h': return openrouter.usage_daily || 0;
+    case '7d': return openrouter.usage_weekly || 0;
+    case '30d': return openrouter.usage_monthly || 0;
+    case 'total': return openrouter.usage_total || 0;
+    default: return openrouter.usage_monthly || 0;
   }
 }
 
@@ -70,10 +100,15 @@ async function getVercelCosts() {
   if (cached) return cached;
 
   const token = process.env.VERCEL_TOKEN;
-  if (!token) return { source: 'fallback', total: 20, breakdown: [{ service: 'Pro Plan (estimado)', cost: 20 }], note: 'No VERCEL_TOKEN configurado' };
+  if (!token) return { 
+    source: 'fallback', 
+    monthly: 20, 
+    breakdown: [{ service: 'Pro Plan (estimado)', cost: 20 }], 
+    note: 'No VERCEL_TOKEN configurado',
+    started_at: '2026-03-01T00:00:00Z' // Fecha aprox inicio
+  };
 
   try {
-    // Get billing period dates (current month)
     const now = new Date();
     const from = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
     const to = now.toISOString();
@@ -82,15 +117,12 @@ async function getVercelCosts() {
       headers: { 'Authorization': `Bearer ${token}` },
       params: { from, to },
       timeout: 15000,
-      // Response is JSONL - handle as text
       responseType: 'text'
     });
 
-    // Parse JSONL response
     const lines = (res.data || '').split('\n').filter(l => l.trim());
     const charges = lines.map(l => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean);
     
-    // Aggregate by service
     const byService = {};
     let total = 0;
     for (const c of charges) {
@@ -100,35 +132,38 @@ async function getVercelCosts() {
       total += cost;
     }
 
-    const result = {
-      source: 'vercel_api',
-      total: Math.round(total * 100) / 100,
-      period: { from, to },
-      breakdown: Object.entries(byService).map(([service, cost]) => ({
-        service,
-        cost: Math.round(cost * 100) / 100
-      })),
-      raw_count: charges.length
-    };
-
-    // If API returned empty/0, use Pro plan fallback
-    if (result.total === 0 && result.raw_count === 0) {
+    if (total === 0 && charges.length === 0) {
       const fallback = {
         source: 'fallback',
-        total: 20,
+        monthly: 20,
         breakdown: [{ service: 'Pro Plan (estimado)', cost: 20 }],
-        note: 'API vacía - configurar VERCEL_TOKEN con permisos de billing'
+        note: 'API vacía - configurar VERCEL_TOKEN con permisos de billing',
+        started_at: '2026-03-01T00:00:00Z'
       };
       setCache('vercel', fallback);
       return fallback;
     }
 
+    const result = {
+      source: 'vercel_api',
+      monthly: Math.round(total * 100) / 100,
+      period: { from, to },
+      breakdown: Object.entries(byService).map(([service, cost]) => ({
+        service,
+        cost: Math.round(cost * 100) / 100
+      })),
+      started_at: '2026-03-01T00:00:00Z'
+    };
+
     setCache('vercel', result);
     return result;
   } catch (e) {
     console.error('Vercel costs error:', e.message);
-    // Fallback: $20/mo Pro plan
-    return { error: e.message, total: 20, breakdown: [{ service: 'Pro Plan (estimado)', cost: 20 }], source: 'fallback' };
+    return { 
+      error: e.message, monthly: 20, source: 'fallback',
+      breakdown: [{ service: 'Pro Plan (estimado)', cost: 20 }],
+      started_at: '2026-03-01T00:00:00Z'
+    };
   }
 }
 
@@ -141,14 +176,14 @@ async function getNeonCosts() {
   if (!apiKey) {
     return { 
       source: 'fallback',
-      total: 0,
+      monthly: 0,
       note: 'Estimado - configurar NEON_API_KEY para datos reales',
-      breakdown: [{ item: 'Free tier (estimado)', cost: 0 }]
+      breakdown: [{ item: 'Free tier (estimado)', cost: 0 }],
+      started_at: '2026-03-06T00:00:00Z'
     };
   }
 
   try {
-    // Step 1: List projects to get IDs
     const projectsRes = await axios.get('https://console.neon.tech/api/v2/projects', {
       headers: { 'Authorization': `Bearer ${apiKey}`, 'Accept': 'application/json' },
       timeout: 10000
@@ -160,9 +195,10 @@ async function getNeonCosts() {
     let totalDataTransfer = 0;
     let totalWrittenData = 0;
     const projectBreakdown = [];
+    let oldestCreated = new Date();
+    let subscriptionType = 'unknown';
 
     for (const p of projects) {
-      // Get fresh project details with usage metrics
       try {
         const detailRes = await axios.get(`https://console.neon.tech/api/v2/projects/${p.id}`, {
           headers: { 'Authorization': `Bearer ${apiKey}`, 'Accept': 'application/json' },
@@ -174,65 +210,54 @@ async function getNeonCosts() {
         const storageBH = proj.data_storage_bytes_hour || 0;
         const dataTransfer = proj.data_transfer_bytes || 0;
         const writtenData = proj.written_data_bytes || 0;
-        const activeTimeSec = proj.active_time_seconds || 0;
 
         totalComputeSeconds += computeSec;
         totalStorageBytesHour += storageBH;
         totalDataTransfer += dataTransfer;
         totalWrittenData += writtenData;
 
+        if (proj.owner?.subscription_type) subscriptionType = proj.owner.subscription_type;
+
+        const created = new Date(proj.created_at);
+        if (created < oldestCreated) oldestCreated = created;
+
         projectBreakdown.push({
           name: proj.name,
           id: proj.id,
           compute_seconds: computeSec,
-          active_time_seconds: activeTimeSec,
-          storage_bytes_hour: storageBH,
-          data_transfer_bytes: dataTransfer,
-          written_data_bytes: writtenData,
-          created_at: proj.created_at,
-          subscription_type: proj.owner?.subscription_type || 'unknown'
+          active_time_seconds: proj.active_time_seconds || 0,
+          created_at: proj.created_at
         });
       } catch (detailErr) {
-        // Use data from list response
         totalComputeSeconds += p.compute_time_seconds || 0;
         totalStorageBytesHour += p.data_storage_bytes_hour || 0;
       }
     }
 
-    // Calculate costs based on Neon Launch plan pricing
-    // Compute: $0.16/CU-hour (Launch plan)
+    // Neon pricing
     const computeHours = totalComputeSeconds / 3600;
     const computeCost = computeHours * 0.16;
-    // Storage: $0.000164/GiB-hour (~$0.12/GiB-month)
     const storageGiB = totalStorageBytesHour / (1024 * 1024 * 1024);
     const storageCost = storageGiB * 0.000164;
-    // Data transfer: $0.09/GiB  
     const dataTransferGiB = totalDataTransfer / (1024 * 1024 * 1024);
     const dataTransferCost = dataTransferGiB * 0.09;
-    // Written data: $0.096/GiB
     const writtenGiB = totalWrittenData / (1024 * 1024 * 1024);
     const writtenCost = writtenGiB * 0.096;
 
-    // Extrapolate to full month based on project age
-    const oldestProject = projects.reduce((min, p) => {
-      const created = new Date(p.created_at);
-      return created < min ? created : min;
-    }, new Date());
-    const daysSinceCreation = Math.max(1, (Date.now() - oldestProject.getTime()) / (1000 * 60 * 60 * 24));
+    const daysSinceCreation = Math.max(1, (Date.now() - oldestCreated.getTime()) / (1000 * 60 * 60 * 24));
     const rawTotal = computeCost + storageCost + dataTransferCost + writtenCost;
     const estimatedMonthly = (rawTotal / daysSinceCreation) * 30;
 
-    // Detect subscription type from project detail owner data
-    const subscriptionType = projectBreakdown[0]?.subscription_type || 'unknown';
     const isFree = subscriptionType.includes('free');
 
     const result = {
       source: 'neon_api',
       plan: subscriptionType,
-      total: Math.round(estimatedMonthly * 100) / 100,
-      current_period_total: Math.round(rawTotal * 1000) / 1000,
+      monthly: Math.round(estimatedMonthly * 100) / 100,
+      cumulative_total: Math.round(rawTotal * 1000) / 1000,
       days_tracked: Math.round(daysSinceCreation * 10) / 10,
       is_free_tier: isFree,
+      started_at: oldestCreated.toISOString(),
       breakdown: [
         { item: 'Compute', hours: Math.round(computeHours * 100) / 100, cost: Math.round(computeCost * 1000) / 1000 },
         { item: 'Storage', gib_hours: Math.round(storageGiB * 100) / 100, cost: Math.round(storageCost * 1000) / 1000 },
@@ -247,7 +272,7 @@ async function getNeonCosts() {
     return result;
   } catch (e) {
     console.error('Neon costs error:', e.message);
-    return { source: 'fallback', total: 0, error: e.message, breakdown: [{ item: 'Free tier (estimado)', cost: 0 }] };
+    return { source: 'fallback', monthly: 0, error: e.message, breakdown: [{ item: 'Free tier (estimado)', cost: 0 }], started_at: '2026-03-06T00:00:00Z' };
   }
 }
 
@@ -260,14 +285,14 @@ async function getRailwayCosts() {
   if (!token) {
     return {
       source: 'fallback',
-      total: 5, // Hobby plan
+      monthly: 5,
       note: 'Estimado - configurar RAILWAY_TOKEN para datos reales',
-      breakdown: [{ item: 'Hobby Plan (estimado)', cost: 5 }]
+      breakdown: [{ item: 'Hobby Plan (estimado)', cost: 5 }],
+      started_at: '2026-03-06T00:00:00Z'
     };
   }
 
   try {
-    // Railway GraphQL API - get workspace billing data
     const query = `
       query {
         me {
@@ -298,6 +323,7 @@ async function getRailwayCosts() {
     let totalCurrentUsage = 0;
     let totalEstimatedMonthly = 0;
     const breakdownItems = [];
+    let earliestStart = new Date();
 
     for (const ws of workspaces) {
       const customer = ws.customer;
@@ -306,7 +332,6 @@ async function getRailwayCosts() {
       const currentUsage = customer.currentUsage || 0;
       totalCurrentUsage += currentUsage;
 
-      // Extrapolate to monthly based on billing period progress
       const periodStart = new Date(customer.billingPeriod?.start);
       const periodEnd = new Date(customer.billingPeriod?.end);
       const now = new Date();
@@ -315,6 +340,8 @@ async function getRailwayCosts() {
       const estimatedMonthly = (currentUsage / elapsedDays) * 30;
 
       totalEstimatedMonthly += estimatedMonthly;
+
+      if (periodStart < earliestStart) earliestStart = periodStart;
 
       breakdownItems.push({
         workspace: ws.name,
@@ -333,32 +360,29 @@ async function getRailwayCosts() {
 
     const result = {
       source: 'railway_api',
-      total: Math.round(totalEstimatedMonthly * 100) / 100,
+      monthly: Math.round(totalEstimatedMonthly * 100) / 100,
       current_period_usage: Math.round(totalCurrentUsage * 100) / 100,
-      breakdown: breakdownItems
+      breakdown: breakdownItems,
+      started_at: earliestStart.toISOString()
     };
 
     setCache('railway', result);
     return result;
   } catch (e) {
     console.error('Railway costs error:', e.message);
-    return { source: 'fallback', total: 5, error: e.message, breakdown: [{ item: 'Hobby Plan (estimado)', cost: 5 }] };
+    return { source: 'fallback', monthly: 5, error: e.message, breakdown: [{ item: 'Hobby Plan (estimado)', cost: 5 }], started_at: '2026-03-06T00:00:00Z' };
   }
 }
 
 // ─── Resend ────────────────────────────────────────────────
 async function getResendCosts() {
-  // Resend free tier: 3,000 emails/month, 100/day
-  // If they have RESEND_API_KEY we can check usage
   const cached = getCached('resend');
   if (cached) return cached;
 
   const apiKey = process.env.RESEND_API_KEY;
-  if (!apiKey) return { source: 'fallback', total: 0, plan: 'free', note: 'Free tier' };
+  if (!apiKey) return { source: 'fallback', monthly: 0, plan: 'free', note: 'Free tier', started_at: '2026-03-06T00:00:00Z' };
 
   try {
-    // Resend doesn't have a billing API, but we can count sent emails
-    // from our own DB
     const { pool } = require('../db');
     const emailCount = await pool.query(
       `SELECT COUNT(*) as total FROM tasks 
@@ -368,33 +392,31 @@ async function getResendCosts() {
 
     const result = {
       source: 'resend_estimate',
-      total: 0, // Free tier
+      monthly: 0,
       plan: 'free',
       emails_sent_30d: parseInt(emailCount.rows[0]?.total || 0),
       limit: 3000,
-      note: 'Free tier (3K emails/month)'
+      note: 'Free tier (3K emails/month)',
+      started_at: '2026-03-06T00:00:00Z'
     };
 
     setCache('resend', result);
     return result;
   } catch (e) {
-    return { source: 'fallback', total: 0, plan: 'free', error: e.message };
+    return { source: 'fallback', monthly: 0, plan: 'free', error: e.message, started_at: '2026-03-06T00:00:00Z' };
   }
 }
 
 // ─── Instantly.ai ──────────────────────────────────────────
 async function getInstantlyCosts() {
-  // Growth plan: $47/mo (required for DFY email accounts)
-  // This is a platform-level cost, not per-user
   const cached = getCached('instantly');
   if (cached) return cached;
 
   const apiKey = process.env.INSTANTLY_API_KEY;
   if (!apiKey) {
-    return { source: 'disabled', total: 0, note: 'Instantly no configurado' };
+    return { source: 'disabled', monthly: 0, note: 'Instantly no configurado', started_at: null };
   }
 
-  // Check if we have any active Email Pro subscriptions
   try {
     const { pool } = require('../db');
     const subs = await pool.query(
@@ -404,12 +426,13 @@ async function getInstantlyCosts() {
 
     const result = {
       source: 'fixed',
-      total: 47, // Growth plan $47/mo
+      monthly: 49,
       plan: 'Growth',
-      plan_cost_monthly: 47,
+      plan_cost_monthly: 49,
       active_subscriptions: activeSubs,
-      revenue_per_sub: 15, // 15€/mes per Email Pro subscriber
-      note: `Growth plan $47/mo — ${activeSubs} suscripciones Email Pro activas`
+      revenue_per_sub: 15,
+      note: `Growth plan $49/mo — ${activeSubs} suscripciones Email Pro activas`,
+      started_at: '2026-03-01T00:00:00Z'
     };
 
     setCache('instantly', result);
@@ -417,96 +440,125 @@ async function getInstantlyCosts() {
   } catch (e) {
     return {
       source: 'fixed',
-      total: 47,
+      monthly: 49,
       plan: 'Growth',
-      note: 'Growth plan $47/mo',
-      error: e.message
+      note: 'Growth plan $49/mo',
+      error: e.message,
+      started_at: '2026-03-01T00:00:00Z'
     };
-  }
-}
-
-// ─── Gamma ────────────────────────────────────────────────
-async function getGammaCosts() {
-  // Gamma Pro: included with user's plan, but we track credits usage
-  const cached = getCached('gamma');
-  if (cached) return cached;
-
-  const apiKey = process.env.GAMMA_API_KEY;
-  if (!apiKey) {
-    return { source: 'disabled', total: 0, note: 'Gamma no configurado' };
-  }
-
-  try {
-    const { pool } = require('../db');
-    const usage = await pool.query(
-      `SELECT COALESCE(SUM(credits_deducted), 0) as total_credits, COUNT(*) as total_generations
-       FROM gamma_usage WHERE created_at > NOW() - INTERVAL '30 days'`
-    );
-
-    const result = {
-      source: 'user_plan',
-      total: 0, // No direct cost to us — user's Gamma Pro plan
-      credits_used_30d: parseInt(usage.rows[0]?.total_credits || 0),
-      generations_30d: parseInt(usage.rows[0]?.total_generations || 0),
-      note: 'Gamma Pro del usuario — sin coste adicional para la plataforma'
-    };
-
-    setCache('gamma', result);
-    return result;
-  } catch (e) {
-    return { source: 'user_plan', total: 0, note: 'Gamma Pro', error: e.message };
   }
 }
 
 // ─── Domain ────────────────────────────────────────────────
 function getDomainCosts() {
-  // Fixed cost, roughly $18/year = $1.50/month
   return {
     source: 'fixed',
-    total: 1.50,
+    monthly: 1.50,
     domain: 'lanzalo.pro',
     annual_cost: 18,
-    note: '$18/año ≈ $1.50/mes'
+    note: '$18/año ≈ $1.50/mes',
+    started_at: '2026-03-01T00:00:00Z'
   };
 }
 
-// ─── Aggregate All Costs ───────────────────────────────────
-async function getAllRealCosts() {
-  const [openrouter, vercel, neon, railway, resend, instantly, gammaData] = await Promise.all([
+// ─── Aggregate All Costs (con soporte de periodo) ──────────
+/**
+ * @param {string} period - '24h' | '7d' | '30d' | 'total'
+ */
+async function getAllRealCosts(period = '30d') {
+  const [openrouter, vercel, neon, railway, resend, instantly] = await Promise.all([
     getOpenRouterCosts(),
     getVercelCosts(),
     getNeonCosts(),
     getRailwayCosts(),
     getResendCosts(),
-    getInstantlyCosts(),
-    getGammaCosts()
+    getInstantlyCosts()
   ]);
 
   const domain = getDomainCosts();
 
-  const services = {
-    openrouter,
-    vercel,
-    neon,
-    railway,
-    resend,
-    instantly,
-    gamma: gammaData,
-    domain
+  // ─── Calcular costes por periodo ─────────────────────────
+  // OpenRouter: tiene datos nativos por periodo
+  const openrouterCost = getOpenRouterForPeriod(openrouter, period);
+
+  // Calcular meses de servicio para prorrateo de 'total'
+  const now = new Date();
+  const getMonths = (startDate) => {
+    if (!startDate) return 1;
+    const start = new Date(startDate);
+    return Math.max(1, (now - start) / (1000 * 60 * 60 * 24 * 30));
   };
 
-  // Total real costs
-  const totalMonthly = 
-    (openrouter.usage_monthly || 0) + 
-    (vercel.total || 0) + 
-    (neon.total || 0) + 
-    (railway.total || 0) + 
-    (resend.total || 0) + 
-    (instantly.total || 0) + 
-    (domain.total || 0);
+  // Servicios fijos: prorratear según periodo
+  const vercelCost = prorateCost(vercel.monthly || 20, period, getMonths(vercel.started_at));
+  const instantlyCost = prorateCost(instantly.monthly || 0, period, getMonths(instantly.started_at));
+  const domainCost = prorateCost(domain.monthly || 1.50, period, getMonths(domain.started_at));
+  const resendCost = prorateCost(resend.monthly || 0, period, getMonths(resend.started_at));
+
+  // Railway: current_period_usage es el gasto real del periodo actual
+  // Para 'total' usamos el acumulado, para otros prorrateamos desde monthly
+  let railwayCost;
+  if (period === 'total') {
+    // Acumulado total = uso actual del periodo de facturación (Railway no da histórico)
+    railwayCost = railway.current_period_usage || prorateCost(railway.monthly || 0, period, getMonths(railway.started_at));
+  } else {
+    railwayCost = prorateCost(railway.monthly || 0, period, 1);
+  }
+
+  // Neon: cumulative_total es el gasto real total, monthly es la extrapolación mensual
+  let neonCost;
+  if (period === 'total') {
+    neonCost = neon.cumulative_total || 0;
+  } else {
+    neonCost = prorateCost(neon.monthly || 0, period, 1);
+  }
+
+  const r = (n) => Math.round(n * 100) / 100;
+
+  // Build per-service response con coste ajustado al periodo
+  const services = {
+    openrouter: {
+      ...openrouter,
+      cost: r(openrouterCost),
+      period_label: period
+    },
+    vercel: {
+      ...vercel,
+      cost: r(vercelCost),
+      period_label: period
+    },
+    neon: {
+      ...neon,
+      cost: r(neonCost),
+      period_label: period
+    },
+    railway: {
+      ...railway,
+      cost: r(railwayCost),
+      period_label: period
+    },
+    resend: {
+      ...resend,
+      cost: r(resendCost),
+      period_label: period
+    },
+    instantly: {
+      ...instantly,
+      cost: r(instantlyCost),
+      period_label: period
+    },
+    domain: {
+      ...domain,
+      cost: r(domainCost),
+      period_label: period
+    }
+  };
+
+  const totalForPeriod = openrouterCost + vercelCost + neonCost + railwayCost + resendCost + instantlyCost + domainCost;
 
   return {
-    total_monthly: Math.round(totalMonthly * 100) / 100,
+    period,
+    total: r(totalForPeriod),
     services,
     cache_ttl_seconds: CACHE_TTL / 1000,
     fetched_at: new Date().toISOString()
@@ -520,7 +572,6 @@ module.exports = {
   getRailwayCosts,
   getResendCosts,
   getInstantlyCosts,
-  getGammaCosts,
   getDomainCosts,
   getAllRealCosts
 };

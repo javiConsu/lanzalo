@@ -464,6 +464,11 @@ router.get('/feedback/summary', async (req, res) => {
  */
 router.get('/live', async (req, res) => {
   try {
+    // Period filter: 24h | 7d | 30d | total (default: 30d)
+    const period = ['24h', '7d', '30d', 'total'].includes(req.query.period) ? req.query.period : '30d';
+    const intervalMap = { '24h': '24 hours', '7d': '7 days', '30d': '30 days', 'total': '10 years' };
+    const interval = intervalMap[period];
+
     // Users
     const users = await pool.query(
       `SELECT 
@@ -488,38 +493,23 @@ router.get('/live', async (req, res) => {
     const proCount = parseInt(users.rows[0].pro);
     const mrr = proCount * 39;
 
-    // LLM costs (30d)
-    const llmCosts = await pool.query(
-      `SELECT 
-        COALESCE(SUM(estimated_cost), 0) as cost_30d,
-        COALESCE(SUM(tokens_used), 0) as tokens_30d
-       FROM llm_usage
-       WHERE recorded_at > NOW() - INTERVAL '30 days'`
-    );
+    // LLM costs for ALL periods (always needed for display)
+    const [llmCosts30d, llmCosts7d, llmCosts24h, llmCostsTotal] = await Promise.all([
+      pool.query(`SELECT COALESCE(SUM(estimated_cost), 0) as cost, COALESCE(SUM(tokens_used), 0) as tokens FROM llm_usage WHERE recorded_at > NOW() - INTERVAL '30 days'`),
+      pool.query(`SELECT COALESCE(SUM(estimated_cost), 0) as cost FROM llm_usage WHERE recorded_at > NOW() - INTERVAL '7 days'`),
+      pool.query(`SELECT COALESCE(SUM(estimated_cost), 0) as cost FROM llm_usage WHERE recorded_at > NOW() - INTERVAL '24 hours'`),
+      pool.query(`SELECT COALESCE(SUM(estimated_cost), 0) as cost, COALESCE(SUM(tokens_used), 0) as tokens FROM llm_usage`)
+    ]);
 
-    // LLM costs (7d)
-    const llmCosts7d = await pool.query(
-      `SELECT COALESCE(SUM(estimated_cost), 0) as cost_7d
-       FROM llm_usage
-       WHERE recorded_at > NOW() - INTERVAL '7 days'`
-    );
-
-    // LLM costs (24h)
-    const llmCosts24h = await pool.query(
-      `SELECT COALESCE(SUM(estimated_cost), 0) as cost_24h
-       FROM llm_usage
-       WHERE recorded_at > NOW() - INTERVAL '24 hours'`
-    );
-
-    // LLM by model (30d)
+    // LLM by model (filtered by period)
     const llmByModel = await pool.query(
       `SELECT model, SUM(estimated_cost) as cost, SUM(tokens_used) as tokens, COUNT(*) as calls
        FROM llm_usage
-       WHERE recorded_at > NOW() - INTERVAL '30 days'
+       WHERE recorded_at > NOW() - INTERVAL '${interval}'
        GROUP BY model ORDER BY cost DESC`
     );
 
-    // LLM daily trend (14d)
+    // LLM daily trend (14d always for chart)
     const llmDaily = await pool.query(
       `SELECT DATE(recorded_at) as date, SUM(estimated_cost) as cost, SUM(tokens_used) as tokens
        FROM llm_usage
@@ -548,71 +538,62 @@ router.get('/live', async (req, res) => {
        ORDER BY cm.created_at DESC LIMIT 10`
     );
 
-    // Top companies by cost
+    // Top companies by cost (filtered by period)
     const topCostCompanies = await pool.query(
       `SELECT c.name, u.email as owner, SUM(l.estimated_cost) as cost, COUNT(l.id) as calls
        FROM llm_usage l
        LEFT JOIN companies c ON l.company_id = c.id
        LEFT JOIN users u ON c.user_id = u.id
-       WHERE l.recorded_at > NOW() - INTERVAL '30 days'
+       WHERE l.recorded_at > NOW() - INTERVAL '${interval}'
        GROUP BY c.name, u.email
        ORDER BY cost DESC LIMIT 10`
     );
 
-    // ─── Real costs from external APIs ───────────────────────
-    const realCosts = await getAllRealCosts();
-    const openrouterReal = realCosts.services.openrouter;
-    const vercelReal = realCosts.services.vercel;
-    const neonReal = realCosts.services.neon;
-    const railwayReal = realCosts.services.railway;
-    const resendReal = realCosts.services.resend;
-    const instantlyReal = realCosts.services.instantly;
-    const domainReal = realCosts.services.domain;
+    // ─── Real costs from external APIs (period-aware) ────────
+    const realCosts = await getAllRealCosts(period);
+    const svc = realCosts.services;
 
-    // Use OpenRouter API for real LLM costs, DB estimates as fallback
-    const llmCostReal30d = openrouterReal.usage_monthly || parseFloat(llmCosts.rows[0].cost_30d);
-    const llmCostReal7d = openrouterReal.usage_weekly || parseFloat(llmCosts7d.rows[0].cost_7d);
-    const llmCostReal24h = openrouterReal.usage_daily || parseFloat(llmCosts24h.rows[0].cost_24h);
+    // OpenRouter real data (always has all periods)
+    const openrouterReal = svc.openrouter;
 
-    // Infrastructure costs (real where available)
+    // Build infra object for frontend
     const infraCosts = {
-      railway: { cost: railwayReal.total, source: railwayReal.source, breakdown: railwayReal.breakdown },
-      vercel: { cost: vercelReal.total, source: vercelReal.source, breakdown: vercelReal.breakdown },
-      neon: { cost: neonReal.total, source: neonReal.source, breakdown: neonReal.breakdown },
-      openrouter: { cost: llmCostReal30d, source: openrouterReal.error ? 'db_estimate' : 'openrouter_api' },
-      resend: { cost: resendReal.total, source: resendReal.source, plan: resendReal.plan, emails_sent: resendReal.emails_sent_30d },
+      railway: { cost: svc.railway.cost, source: svc.railway.source, breakdown: svc.railway.breakdown },
+      vercel: { cost: svc.vercel.cost, source: svc.vercel.source, breakdown: svc.vercel.breakdown },
+      neon: { cost: svc.neon.cost, source: svc.neon.source, breakdown: svc.neon.breakdown },
+      openrouter: { cost: svc.openrouter.cost, source: openrouterReal.error ? 'db_estimate' : 'openrouter_api' },
+      resend: { cost: svc.resend.cost, source: svc.resend.source, plan: svc.resend.plan, emails_sent: svc.resend.emails_sent_30d },
       instantly: { 
-        cost: instantlyReal.total, source: instantlyReal.source, plan: instantlyReal.plan,
-        active_subscriptions: instantlyReal.active_subscriptions,
-        revenue_per_sub: instantlyReal.revenue_per_sub,
-        note: instantlyReal.note
+        cost: svc.instantly.cost, source: svc.instantly.source, plan: svc.instantly.plan,
+        active_subscriptions: svc.instantly.active_subscriptions,
+        revenue_per_sub: svc.instantly.revenue_per_sub,
+        note: svc.instantly.note
       },
-      domain: { cost: domainReal.total, source: 'fixed' },
-      total: Math.round((
-        railwayReal.total + vercelReal.total + neonReal.total + 
-        llmCostReal30d + resendReal.total + (instantlyReal.total || 0) + domainReal.total
-      ) * 100) / 100
+      domain: { cost: svc.domain.cost, source: 'fixed' },
+      total: realCosts.total
     };
 
-    // Profit
-    const totalCosts = infraCosts.total;
-    const profit = mrr - totalCosts;
+    // Profit (always based on monthly comparison)
+    const totalCosts30d = (await getAllRealCosts('30d')).total;
+    const profit = mrr - totalCosts30d;
     const margin = mrr > 0 ? ((profit / mrr) * 100).toFixed(1) : 0;
 
     res.json({
       timestamp: new Date().toISOString(),
+      period,
       users: users.rows[0],
       companies: companies.rows[0],
       revenue: { mrr, proCount, pricePerUser: 39, currency: 'USD' },
       costs: {
         llm: {
-          cost_30d: llmCostReal30d,
-          cost_7d: llmCostReal7d,
-          cost_24h: llmCostReal24h,
-          tokens_30d: parseInt(llmCosts.rows[0].tokens_30d),
+          cost_30d: openrouterReal.usage_monthly || parseFloat(llmCosts30d.rows[0].cost),
+          cost_7d: openrouterReal.usage_weekly || parseFloat(llmCosts7d.rows[0].cost),
+          cost_24h: openrouterReal.usage_daily || parseFloat(llmCosts24h.rows[0].cost),
+          cost_total: openrouterReal.usage_total || parseFloat(llmCostsTotal.rows[0].cost),
+          tokens_30d: parseInt(llmCosts30d.rows[0].tokens),
+          tokens_total: parseInt(llmCostsTotal.rows[0].tokens),
           byModel: llmByModel.rows,
           daily: llmDaily.rows,
-          // Real OpenRouter data
           openrouter_real: {
             usage_monthly: openrouterReal.usage_monthly || 0,
             usage_weekly: openrouterReal.usage_weekly || 0,
@@ -622,34 +603,32 @@ router.get('/live', async (req, res) => {
             limit_remaining: openrouterReal.limit_remaining,
             source: openrouterReal.error ? 'error' : 'api'
           },
-          // DB estimates for comparison
           db_estimates: {
-            cost_30d: parseFloat(llmCosts.rows[0].cost_30d),
-            cost_7d: parseFloat(llmCosts7d.rows[0].cost_7d),
-            cost_24h: parseFloat(llmCosts24h.rows[0].cost_24h)
+            cost_30d: parseFloat(llmCosts30d.rows[0].cost),
+            cost_7d: parseFloat(llmCosts7d.rows[0].cost),
+            cost_24h: parseFloat(llmCosts24h.rows[0].cost),
+            cost_total: parseFloat(llmCostsTotal.rows[0].cost)
           }
         },
         infra: infraCosts,
-        total: totalCosts,
-        // Metadata about data sources
+        total: infraCosts.total,
         _sources: {
           openrouter: openrouterReal.source || 'unknown',
-          vercel: vercelReal.source || 'unknown',
-          neon: neonReal.source || 'unknown',
-          railway: railwayReal.source || 'unknown',
-          resend: resendReal.source || 'unknown',
-          instantly: instantlyReal.source || 'unknown',
+          vercel: svc.vercel.source || 'unknown',
+          neon: svc.neon.source || 'unknown',
+          railway: svc.railway.source || 'unknown',
+          resend: svc.resend.source || 'unknown',
+          instantly: svc.instantly.source || 'unknown',
           cache_ttl: '5min'
         }
       },
-      // Email Pro revenue (15€ × active subs, approx $16.5 USD)
       emailProRevenue: {
-        activeSubs: instantlyReal.active_subscriptions || 0,
+        activeSubs: svc.instantly.active_subscriptions || 0,
         pricePerSub: 15,
         currency: 'EUR',
-        monthlyRevenue: (instantlyReal.active_subscriptions || 0) * 15,
-        instantlyCost: instantlyReal.total || 0,
-        netMargin: ((instantlyReal.active_subscriptions || 0) * 15) - (instantlyReal.total || 0)
+        monthlyRevenue: (svc.instantly.active_subscriptions || 0) * 15,
+        instantlyCost: svc.instantly.monthly || 0,
+        netMargin: ((svc.instantly.active_subscriptions || 0) * 15) - (svc.instantly.monthly || 0)
       },
       profit: { amount: profit, margin: parseFloat(margin) },
       tasks: {

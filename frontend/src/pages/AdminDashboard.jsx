@@ -2,13 +2,13 @@
  * Admin Live Panel — Estilo Polsia/Clawport
  * 
  * Single-page dashboard with:
+ * - Period filter (24h / 7d / 30d / Total)
  * - KPI cards (users, MRR, costs, profit)
  * - LLM cost breakdown by model + daily trend
- * - Infrastructure costs
+ * - Infrastructure costs (all filtered by period)
  * - Tasks live feed
  * - Companies & users overview
  * - Recent activity (chats, feedback)
- * - Growth Agent reports
  */
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { apiUrl } from '../api.js'
@@ -56,6 +56,26 @@ const modelShortName = (model) => {
   return model.replace('anthropic/', '').replace('openai/', '').replace('google/', '')
 }
 
+// Period labels
+const PERIODS = [
+  { id: '24h', label: '24h', long: 'Últimas 24 horas' },
+  { id: '7d', label: '7d', long: 'Últimos 7 días' },
+  { id: '30d', label: '30d', long: 'Últimos 30 días' },
+  { id: 'total', label: 'Total', long: 'Acumulado total' }
+]
+
+/** Devuelve el coste LLM del periodo usando datos de OpenRouter API */
+function getLLMCostForPeriod(llm, period) {
+  const or = llm?.openrouter_real || {}
+  switch (period) {
+    case '24h': return or.usage_daily || llm?.cost_24h || 0
+    case '7d': return or.usage_weekly || llm?.cost_7d || 0
+    case '30d': return or.usage_monthly || llm?.cost_30d || 0
+    case 'total': return or.usage_total || llm?.cost_total || 0
+    default: return llm?.cost_30d || 0
+  }
+}
+
 // ─── Sparkline (pure CSS) ────────────────────────────────
 function MiniBar({ data, color = '#3b82f6', height = 32 }) {
   if (!data || data.length === 0) return null
@@ -78,6 +98,31 @@ function MiniBar({ data, color = '#3b82f6', height = 32 }) {
   )
 }
 
+// ─── Period Selector ──────────────────────────────────────
+function PeriodSelector({ value, onChange, size = 'normal' }) {
+  const sizeClasses = size === 'small' 
+    ? 'text-[10px] px-1.5 py-0.5' 
+    : 'text-xs px-2.5 py-1'
+  return (
+    <div className="flex items-center gap-0.5 bg-gray-800/80 rounded-lg p-0.5">
+      {PERIODS.map(p => (
+        <button
+          key={p.id}
+          onClick={() => onChange(p.id)}
+          title={p.long}
+          className={`${sizeClasses} rounded-md font-medium transition-all ${
+            value === p.id
+              ? 'bg-blue-600 text-white shadow-sm'
+              : 'text-gray-500 hover:text-gray-300 hover:bg-gray-700/50'
+          }`}
+        >
+          {p.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
 // ─── KPI Card ────────────────────────────────────────────
 function KPI({ label, value, sub, color = 'text-white', icon }) {
   return (
@@ -93,7 +138,7 @@ function KPI({ label, value, sub, color = 'text-white', icon }) {
 }
 
 // ─── Section Header ──────────────────────────────────────
-function SectionHeader({ icon, title, badge }) {
+function SectionHeader({ icon, title, badge, right }) {
   return (
     <div className="flex items-center gap-2 mb-3">
       <span className="text-base">{icon}</span>
@@ -101,11 +146,52 @@ function SectionHeader({ icon, title, badge }) {
       {badge !== undefined && (
         <span className="ml-auto px-2 py-0.5 text-xs font-medium bg-gray-700/50 text-gray-400 rounded-full">{badge}</span>
       )}
+      {right && <div className="ml-auto">{right}</div>}
     </div>
   )
 }
 
-// ─── Main Component ──────────────────────────────────────
+// ─── Infra Cost Row ──────────────────────────────────────
+function InfraCostList({ infra, periodLabel }) {
+  const services = [
+    { name: 'Railway', data: infra.railway, color: 'bg-purple-500' },
+    { name: 'Vercel', data: infra.vercel, color: 'bg-white' },
+    { name: 'Neon (PG)', data: infra.neon, color: 'bg-green-500' },
+    { name: 'OpenRouter', data: infra.openrouter, color: 'bg-orange-500' },
+    { name: 'Instantly', data: infra.instantly, color: 'bg-yellow-500' },
+    { name: 'Resend', data: infra.resend, color: 'bg-blue-500' },
+    { name: 'Dominio', data: infra.domain, color: 'bg-gray-500' }
+  ]
+
+  return (
+    <div className="space-y-2">
+      {services.map(item => {
+        const cost = typeof item.data === 'object' ? item.data?.cost : item.data
+        const source = typeof item.data === 'object' ? item.data?.source : null
+        const isReal = source && !source.includes('fallback') && !source.includes('estimate')
+        return (
+          <div key={item.name} className="flex items-center justify-between text-sm">
+            <div className="flex items-center gap-2">
+              <div className={`w-2 h-2 rounded-full ${item.color}`} />
+              <span className="text-gray-400">{item.name}</span>
+              {source && (
+                <span className={`text-[9px] px-1 py-0.5 rounded ${isReal ? 'bg-green-500/10 text-green-500' : 'bg-yellow-500/10 text-yellow-500'}`}>
+                  {isReal ? 'API' : 'est.'}
+                </span>
+              )}
+            </div>
+            <span className="text-gray-300 tabular-nums">{fmtUSD(cost)}</span>
+          </div>
+        )
+      })}
+      <div className="flex items-center justify-between text-sm pt-2 border-t border-gray-700 font-medium">
+        <span className="text-gray-300">Total {periodLabel ? `(${periodLabel})` : ''}</span>
+        <span className="text-red-400 tabular-nums">{fmtUSD(infra.total)}</span>
+      </div>
+    </div>
+  )
+}
+
 // ─── Admin Login Screen ─────────────────────────────────
 function AdminLoginScreen({ onLogin }) {
   const [email, setEmail] = useState('')
@@ -190,7 +276,8 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [lastUpdate, setLastUpdate] = useState(null)
-  const [activeTab, setActiveTab] = useState('overview') // overview | costs | users | activity
+  const [activeTab, setActiveTab] = useState('overview')
+  const [period, setPeriod] = useState('30d')
   const [token, setToken] = useState(localStorage.getItem('token'))
   const [authChecked, setAuthChecked] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
@@ -221,7 +308,7 @@ export default function AdminDashboard() {
   const fetchData = useCallback(async () => {
     if (!token) return
     try {
-      const res = await fetch(apiUrl('/api/admin/live'), {
+      const res = await fetch(apiUrl(`/api/admin/live?period=${period}`), {
         headers: { 'Authorization': `Bearer ${token}` }
       })
       if (res.status === 401 || res.status === 403) {
@@ -239,7 +326,7 @@ export default function AdminDashboard() {
     } finally {
       setLoading(false)
     }
-  }, [token])
+  }, [token, period])
 
   useEffect(() => {
     if (isAdmin && token) {
@@ -303,6 +390,10 @@ export default function AdminDashboard() {
   ;(tasks.summary || []).forEach(t => { taskSummaryMap[t.status] = parseInt(t.count) })
   const totalTasks = Object.values(taskSummaryMap).reduce((a, b) => a + b, 0)
 
+  // LLM cost for current period
+  const llmCostForPeriod = getLLMCostForPeriod(llm, period)
+  const periodLabel = PERIODS.find(p => p.id === period)?.label || '30d'
+
   const tabs = [
     { id: 'overview', label: 'Overview', icon: '📊' },
     { id: 'costs', label: 'Costes', icon: '💰' },
@@ -339,10 +430,12 @@ export default function AdminDashboard() {
             ))}
           </div>
 
+          {/* Period selector (global) */}
           <div className="ml-auto flex items-center gap-3">
+            <PeriodSelector value={period} onChange={setPeriod} />
             {lastUpdate && (
               <span className="text-xs text-gray-600">
-                Actualizado {lastUpdate.toLocaleTimeString()}
+                {lastUpdate.toLocaleTimeString()}
               </span>
             )}
             <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" title="Live — auto-refresh 30s" />
@@ -362,7 +455,13 @@ export default function AdminDashboard() {
               <KPI label="Usuarios" value={fmtInt(users.total)} sub={`+${fmtInt(users.new_7d)} esta semana`} icon="👤" />
               <KPI label="Pro" value={fmtInt(users.pro)} sub={`${fmtInt(users.total - users.pro)} free`} color="text-purple-400" icon="⭐" />
               <KPI label="MRR" value={fmtUSD(revenue.mrr)} sub={`${fmtInt(revenue.proCount)} × $39`} color="text-green-400" icon="💵" />
-              <KPI label="Costes (30d)" value={fmtUSD(costs.total)} sub={`LLM: ${fmtUSD(llm.cost_30d)}`} color="text-red-400" icon="🔥" />
+              <KPI 
+                label={`Costes (${periodLabel})`} 
+                value={fmtUSD(infra.total)} 
+                sub={`LLM: ${fmtUSD(llmCostForPeriod)}`} 
+                color="text-red-400" 
+                icon="🔥" 
+              />
               <KPI label="Beneficio" value={fmtUSD(profit.amount)} sub={`Margen: ${profit.margin}%`} color={profit.amount >= 0 ? 'text-green-400' : 'text-red-400'} icon="📈" />
               <KPI label="Empresas" value={fmtInt(companies.total)} sub={`${fmtInt(companies.live)} live · ${fmtInt(companies.building)} building`} icon="🏢" />
             </div>
@@ -373,13 +472,14 @@ export default function AdminDashboard() {
               <div className="lg:col-span-2 space-y-6">
                 {/* LLM Cost Trend */}
                 <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-5">
-                  <SectionHeader icon="📉" title="Coste LLM (14 días)" badge={fmtUSD(llm.cost_30d) + ' /30d'} />
+                  <SectionHeader icon="📉" title="Coste LLM (14 días)" badge={fmtUSD(llmCostForPeriod) + ` /${periodLabel}`} />
                   <MiniBar data={llm.daily || []} color="#ef4444" height={48} />
                   <div className="flex items-center gap-4 mt-3 text-xs text-gray-500">
-                    <span>24h: {fmtUSD(llm.cost_24h)}</span>
-                    <span>7d: {fmtUSD(llm.cost_7d)}</span>
-                    <span>30d: {fmtUSD(llm.cost_30d)}</span>
-                    <span className="ml-auto">{fmtTokens(llm.tokens_30d)} tokens</span>
+                    <span className={period === '24h' ? 'text-blue-400 font-medium' : ''}>24h: {fmtUSD(llm.cost_24h)}</span>
+                    <span className={period === '7d' ? 'text-blue-400 font-medium' : ''}>7d: {fmtUSD(llm.cost_7d)}</span>
+                    <span className={period === '30d' ? 'text-blue-400 font-medium' : ''}>30d: {fmtUSD(llm.cost_30d)}</span>
+                    <span className={period === 'total' ? 'text-blue-400 font-medium' : ''}>Total: {fmtUSD(llm.cost_total)}</span>
+                    <span className="ml-auto">{fmtTokens(period === 'total' ? llm.tokens_total : llm.tokens_30d)} tokens</span>
                   </div>
                 </div>
 
@@ -415,46 +515,13 @@ export default function AdminDashboard() {
               <div className="space-y-6">
                 {/* Infrastructure Costs */}
                 <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-5">
-                  <SectionHeader icon="🏗️" title="Infraestructura (mes)" />
-                  <div className="space-y-2">
-                    {[
-                      { name: 'Railway', data: infra.railway, color: 'bg-purple-500' },
-                      { name: 'Vercel', data: infra.vercel, color: 'bg-white' },
-                      { name: 'Neon (PG)', data: infra.neon, color: 'bg-green-500' },
-                      { name: 'OpenRouter', data: infra.openrouter, color: 'bg-orange-500' },
-                      { name: 'Instantly', data: infra.instantly, color: 'bg-yellow-500' },
-                      { name: 'Gamma', data: infra.gamma, color: 'bg-violet-500' },
-                      { name: 'Resend', data: infra.resend, color: 'bg-blue-500' },
-                      { name: 'Dominio', data: infra.domain, color: 'bg-gray-500' }
-                    ].map(item => {
-                      const cost = typeof item.data === 'object' ? item.data?.cost : item.data
-                      const source = typeof item.data === 'object' ? item.data?.source : null
-                      const isReal = source && !source.includes('fallback') && !source.includes('estimate')
-                      return (
-                        <div key={item.name} className="flex items-center justify-between text-sm">
-                          <div className="flex items-center gap-2">
-                            <div className={`w-2 h-2 rounded-full ${item.color}`} />
-                            <span className="text-gray-400">{item.name}</span>
-                            {source && (
-                              <span className={`text-[9px] px-1 py-0.5 rounded ${isReal ? 'bg-green-500/10 text-green-500' : 'bg-yellow-500/10 text-yellow-500'}`}>
-                                {isReal ? 'API' : 'est.'}
-                              </span>
-                            )}
-                          </div>
-                          <span className="text-gray-300 tabular-nums">{fmtUSD(cost)}</span>
-                        </div>
-                      )
-                    })}
-                    <div className="flex items-center justify-between text-sm pt-2 border-t border-gray-700 font-medium">
-                      <span className="text-gray-300">Total</span>
-                      <span className="text-red-400 tabular-nums">{fmtUSD(infra.total)}</span>
-                    </div>
-                  </div>
+                  <SectionHeader icon="🏗️" title={`Infraestructura (${periodLabel})`} />
+                  <InfraCostList infra={infra} periodLabel={periodLabel} />
                 </div>
 
                 {/* LLM by Model */}
                 <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-5">
-                  <SectionHeader icon="🤖" title="Coste por modelo" />
+                  <SectionHeader icon="🤖" title={`Coste por modelo (${periodLabel})`} />
                   <div className="space-y-2">
                     {(llm.byModel || []).map((m, i) => {
                       const maxCost = Math.max(...(llm.byModel || []).map(x => parseFloat(x.cost || 0)), 0.01)
@@ -483,7 +550,7 @@ export default function AdminDashboard() {
 
                 {/* Top Cost Companies */}
                 <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-5">
-                  <SectionHeader icon="🏷️" title="Top coste por empresa" />
+                  <SectionHeader icon="🏷️" title={`Top coste (${periodLabel})`} />
                   <div className="space-y-2">
                     {(activity.topCostCompanies || []).slice(0, 5).map((c, i) => (
                       <div key={i} className="flex items-center justify-between text-sm">
@@ -510,12 +577,29 @@ export default function AdminDashboard() {
         {/* ─── COSTS TAB ─────────────────────────── */}
         {activeTab === 'costs' && (
           <>
-            {/* Cost KPIs */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-              <KPI label="LLM (24h)" value={fmtUSD(llm.cost_24h)} color="text-orange-400" icon="⏰" />
-              <KPI label="LLM (7d)" value={fmtUSD(llm.cost_7d)} color="text-orange-400" icon="📅" />
-              <KPI label="LLM (30d)" value={fmtUSD(llm.cost_30d)} color="text-red-400" icon="🔥" />
-              <KPI label="Total Infra" value={fmtUSD(infra.total)} sub="LLM + servicios fijos" color="text-red-400" icon="🏗️" />
+            {/* Cost KPIs — all 4 periods always visible, active one highlighted */}
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
+              <div onClick={() => setPeriod('24h')} className={`cursor-pointer rounded-xl p-4 border transition-colors ${period === '24h' ? 'bg-blue-600/10 border-blue-500/50' : 'bg-gray-800/60 border-gray-700/50 hover:border-gray-600'}`}>
+                <span className="text-xs font-medium text-gray-500 uppercase">LLM 24h</span>
+                <div className={`text-2xl font-bold tabular-nums ${period === '24h' ? 'text-blue-400' : 'text-orange-400'}`}>{fmtUSD(llm.cost_24h)}</div>
+              </div>
+              <div onClick={() => setPeriod('7d')} className={`cursor-pointer rounded-xl p-4 border transition-colors ${period === '7d' ? 'bg-blue-600/10 border-blue-500/50' : 'bg-gray-800/60 border-gray-700/50 hover:border-gray-600'}`}>
+                <span className="text-xs font-medium text-gray-500 uppercase">LLM 7d</span>
+                <div className={`text-2xl font-bold tabular-nums ${period === '7d' ? 'text-blue-400' : 'text-orange-400'}`}>{fmtUSD(llm.cost_7d)}</div>
+              </div>
+              <div onClick={() => setPeriod('30d')} className={`cursor-pointer rounded-xl p-4 border transition-colors ${period === '30d' ? 'bg-blue-600/10 border-blue-500/50' : 'bg-gray-800/60 border-gray-700/50 hover:border-gray-600'}`}>
+                <span className="text-xs font-medium text-gray-500 uppercase">LLM 30d</span>
+                <div className={`text-2xl font-bold tabular-nums ${period === '30d' ? 'text-blue-400' : 'text-red-400'}`}>{fmtUSD(llm.cost_30d)}</div>
+              </div>
+              <div onClick={() => setPeriod('total')} className={`cursor-pointer rounded-xl p-4 border transition-colors ${period === 'total' ? 'bg-blue-600/10 border-blue-500/50' : 'bg-gray-800/60 border-gray-700/50 hover:border-gray-600'}`}>
+                <span className="text-xs font-medium text-gray-500 uppercase">LLM Total</span>
+                <div className={`text-2xl font-bold tabular-nums ${period === 'total' ? 'text-blue-400' : 'text-red-400'}`}>{fmtUSD(llm.cost_total)}</div>
+              </div>
+              <div className="bg-gray-800/60 border border-gray-700/50 rounded-xl p-4">
+                <span className="text-xs font-medium text-gray-500 uppercase">Total Infra ({periodLabel})</span>
+                <div className="text-2xl font-bold text-red-400 tabular-nums">{fmtUSD(infra.total)}</div>
+                <div className="text-xs text-gray-500 mt-1">LLM + servicios</div>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -535,7 +619,7 @@ export default function AdminDashboard() {
 
               {/* Cost by model detailed */}
               <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-5">
-                <SectionHeader icon="🤖" title="Desglose por modelo (30d)" />
+                <SectionHeader icon="🤖" title={`Desglose por modelo (${periodLabel})`} />
                 <div className="space-y-3">
                   {(llm.byModel || []).map((m, i) => {
                     const totalCost = (llm.byModel || []).reduce((a, x) => a + parseFloat(x.cost || 0), 0)
@@ -575,7 +659,6 @@ export default function AdminDashboard() {
                       { name: 'Neon (PostgreSQL)', data: infra.neon },
                       { name: 'OpenRouter (LLMs)', data: infra.openrouter },
                       { name: 'Instantly (Email)', data: infra.instantly },
-                      { name: 'Gamma (Contenido)', data: infra.gamma },
                       { name: 'Resend', data: infra.resend },
                       { name: 'Dominio', data: infra.domain }
                     ].map(item => {
@@ -583,7 +666,7 @@ export default function AdminDashboard() {
                       return (
                         <div key={item.name} className="flex justify-between text-xs">
                           <span className="text-gray-500">{item.name}</span>
-                          <span className={`tabular-nums ${cost === 0 ? 'text-green-400' : 'text-red-400'}`}>{cost === 0 ? 'Gratis (plan usuario)' : `-${fmtUSD(cost)}`}</span>
+                          <span className="text-red-400 tabular-nums">-{fmtUSD(cost)}</span>
                         </div>
                       )
                     })}
@@ -642,7 +725,7 @@ export default function AdminDashboard() {
                   </div>
                   {(emailPro.activeSubs || 0) === 0 && (
                     <div className="text-xs text-yellow-500/80 bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-2 mt-2">
-                      Break-even: {Math.ceil((emailPro.instantlyCost || 47) / (emailPro.pricePerSub || 15))} suscripciones necesarias (~{Math.ceil((emailPro.instantlyCost || 47) / (emailPro.pricePerSub || 15)) * 15}€/mes)
+                      Break-even: {Math.ceil((emailPro.instantlyCost || 49) / (emailPro.pricePerSub || 15))} suscripciones necesarias (~{Math.ceil((emailPro.instantlyCost || 49) / (emailPro.pricePerSub || 15)) * 15}€/mes)
                     </div>
                   )}
                 </div>
@@ -650,7 +733,7 @@ export default function AdminDashboard() {
 
               {/* Cost per company */}
               <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-5">
-                <SectionHeader icon="🏷️" title="Coste por empresa (30d)" />
+                <SectionHeader icon="🏷️" title={`Coste por empresa (${periodLabel})`} />
                 <div className="space-y-2 max-h-72 overflow-y-auto">
                   {(activity.topCostCompanies || []).map((c, i) => (
                     <div key={i} className="flex items-center gap-3 py-1.5 border-b border-gray-800/50 last:border-0">
