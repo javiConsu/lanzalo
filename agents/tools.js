@@ -248,6 +248,13 @@ function createToolHandlers(companyId, userId) {
       }
 
       console.log(`[CEO Tools] Tarea creada: [${task.tag}/${task.priority}] ${task.title} (créditos restantes: ${remainingCredits})`);
+      
+      // Email notificación al usuario
+      try {
+        const { notifyTaskCreated } = require('../backend/services/task-notifications');
+        await notifyTaskCreated({ ...task, description: args.description || '', company_id: companyId });
+      } catch (e) { /* silencioso */ }
+
       // Broadcast al feed en vivo
       if (global.broadcastActivity) {
         global.broadcastActivity({

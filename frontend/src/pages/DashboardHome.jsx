@@ -222,6 +222,126 @@ function TasksWidget({ companyId }) {
   )
 }
 
+// ─── Credits Widget ─────────────────────────────────────────
+function CreditsWidget() {
+  const [credits, setCredits] = useState(null)
+  const [buying, setBuying] = useState(false)
+  const token = localStorage.getItem('token')
+
+  useEffect(() => {
+    fetch(apiUrl('/api/credits'), {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+      .then(r => r.json())
+      .then(d => setCredits(d))
+      .catch(() => {})
+  }, [token])
+
+  const handleBuyPack = async (packId) => {
+    setBuying(true)
+    try {
+      const res = await fetch(apiUrl('/api/credits/purchase'), {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ packId })
+      })
+      const data = await res.json()
+      if (data.url) {
+        window.location.href = data.url
+      } else if (data.error) {
+        alert(data.error)
+      }
+    } catch (e) {
+      console.error('Error comprando pack:', e)
+    } finally {
+      setBuying(false)
+    }
+  }
+
+  if (!credits) return null
+
+  const total = credits.credits?.total ?? 0
+  const isLow = total <= 2
+  const isEmpty = total === 0
+
+  return (
+    <div id="credits-widget" className="bg-gray-900/50 rounded-2xl border border-gray-700/50 overflow-hidden">
+      <div className="px-4 py-3 border-b border-gray-700/50">
+        <span className="text-sm font-semibold text-white flex items-center gap-2">
+          <span className="text-xs">🎫</span> Créditos
+        </span>
+      </div>
+      <div className="p-4">
+        {/* Balance */}
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <div className={`text-3xl font-bold ${isEmpty ? 'text-red-400' : isLow ? 'text-orange-400' : 'text-emerald-400'}`}>
+              {total}
+            </div>
+            <div className="text-xs text-gray-500">crédito{total !== 1 ? 's' : ''} disponible{total !== 1 ? 's' : ''}</div>
+          </div>
+          <div className="text-right">
+            <div className="text-xs text-gray-500">1 crédito = 1 tarea</div>
+            <div className="text-xs text-gray-600 mt-0.5">Chat gratis • Cambios gratis</div>
+          </div>
+        </div>
+
+        {/* Weekly bonus info */}
+        <div className="bg-violet-500/10 border border-violet-500/20 rounded-lg px-3 py-2 mb-3">
+          <p className="text-xs text-violet-300">
+            🎁 <span className="font-medium">+1 crédito gratis cada lunes</span> — automático, sin hacer nada
+          </p>
+          <p className="text-[11px] text-violet-400/60 mt-0.5">
+            También ganas créditos enviando feedback (botón en el chat)
+          </p>
+        </div>
+
+        {/* Warning if empty */}
+        {isEmpty && (
+          <div className="bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2 mb-3">
+            <p className="text-xs text-red-400">
+              ⚠️ Sin créditos. Tu Co-Founder no puede crear tareas nuevas.
+            </p>
+          </div>
+        )}
+
+        {/* Packs */}
+        <div className="space-y-2">
+          <p className="text-xs text-gray-500 font-medium">¿Necesitas más?</p>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={() => handleBuyPack('pack_10')}
+              disabled={buying}
+              className="text-center px-3 py-2.5 bg-gray-800/60 hover:bg-gray-800 border border-gray-700/50 hover:border-emerald-500/30 rounded-xl transition-all disabled:opacity-50"
+            >
+              <div className="text-sm font-bold text-white">10 créditos</div>
+              <div className="text-xs text-emerald-400 font-medium">$9</div>
+              <div className="text-[10px] text-gray-500">$0.90/tarea</div>
+            </button>
+            <button
+              onClick={() => handleBuyPack('pack_25')}
+              disabled={buying}
+              className="text-center px-3 py-2.5 bg-gray-800/60 hover:bg-gray-800 border border-gray-700/50 hover:border-emerald-500/30 rounded-xl transition-all disabled:opacity-50 relative"
+            >
+              <div className="absolute -top-1.5 -right-1.5 text-[9px] px-1.5 py-0.5 bg-emerald-500 text-white rounded-full font-bold">¡Mejor!</div>
+              <div className="text-sm font-bold text-white">25 créditos</div>
+              <div className="text-xs text-emerald-400 font-medium">$19</div>
+              <div className="text-[10px] text-gray-500">$0.76/tarea</div>
+            </button>
+          </div>
+        </div>
+
+        {/* Plan info */}
+        {credits.plan === 'trial' && (
+          <p className="text-[11px] text-gray-600 mt-3 text-center">
+            Plan Trial • Los packs comprados no expiran
+          </p>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ─── Stats Widget ──────────────────────────────────────────
 function StatsWidget({ company }) {
   return (
@@ -508,6 +628,7 @@ export default function DashboardHome() {
       <div className="flex-1 flex flex-col lg:flex-row gap-4 p-4 overflow-hidden">
         {/* Left: Widgets (40%) */}
         <div className="lg:w-2/5 flex flex-col gap-3 overflow-y-auto min-h-0">
+          <CreditsWidget />
           <ActivityWidget companyId={company.id} />
           <TasksWidget companyId={company.id} />
           <LinksWidget company={company} companyId={company.id} />

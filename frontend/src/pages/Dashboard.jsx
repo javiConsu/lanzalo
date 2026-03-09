@@ -2,13 +2,25 @@
  * Dashboard layout — Barra superior compacta + contenido principal
  * Inspirado en Polsia (todo en un vistazo) + Clawport (navegación limpia)
  */
-import { Outlet, Link, useLocation } from 'react-router-dom'
+import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { apiUrl } from '../api.js'
 
 export default function Dashboard({ user, onLogout }) {
   const location = useLocation()
+  const navigate = useNavigate()
   const [menuOpen, setMenuOpen] = useState(false)
+
+  const scrollToCredits = () => {
+    if (location.pathname !== '/') {
+      navigate('/')
+      setTimeout(() => {
+        document.getElementById('credits-widget')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }, 300)
+    } else {
+      document.getElementById('credits-widget')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
+  }
 
   const isActive = (path) => {
     if (path === '/') return location.pathname === '/'
@@ -69,18 +81,21 @@ export default function Dashboard({ user, onLogout }) {
 
         {/* Right side */}
         <div className="hidden md:flex items-center gap-2 ml-auto">
-          {/* Credits badge */}
+          {/* Credits badge — clickable, scroll to CreditsWidget */}
           {user?.credits && (
-            <span className={`text-xs px-2.5 py-1 rounded-full flex items-center gap-1.5 ${
-              user.credits.total <= 1
-                ? 'bg-red-500/15 text-red-400 border border-red-500/20'
-                : user.credits.total <= 3
-                  ? 'bg-orange-500/15 text-orange-400 border border-orange-500/20'
-                  : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-            }`}>
+            <button
+              onClick={scrollToCredits}
+              className={`text-xs px-2.5 py-1 rounded-full flex items-center gap-1.5 cursor-pointer hover:opacity-80 transition-opacity ${
+                user.credits.total <= 1
+                  ? 'bg-red-500/15 text-red-400 border border-red-500/20'
+                  : user.credits.total <= 3
+                    ? 'bg-orange-500/15 text-orange-400 border border-orange-500/20'
+                    : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+              }`}
+            >
               <span>🎫</span>
               <span>{user.credits.total} crédito{user.credits.total !== 1 ? 's' : ''}</span>
-            </span>
+            </button>
           )}
 
           {/* Trial badge */}
@@ -136,10 +151,13 @@ export default function Dashboard({ user, onLogout }) {
           ))}
           <div className="pt-2 mt-2 border-t border-gray-800">
             {user?.credits && (
-              <div className="flex items-center gap-1.5 text-xs text-emerald-400 mb-2">
+              <button
+                onClick={() => { setMenuOpen(false); scrollToCredits() }}
+                className="flex items-center gap-1.5 text-xs text-emerald-400 mb-2 hover:opacity-80 transition-opacity"
+              >
                 <span>🎫</span>
                 <span>{user.credits.total} crédito{user.credits.total !== 1 ? 's' : ''}</span>
-              </div>
+              </button>
             )}
             <div className="flex items-center justify-between">
               <span className="text-xs text-gray-500">{user?.email}</span>

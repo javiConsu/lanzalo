@@ -117,6 +117,12 @@ class TaskExecutor {
       );
       console.log(`[Task Executor] ✅ Task ${taskId} completed`);
 
+      // Email notificación al usuario
+      try {
+        const { notifyTaskCompleted } = require('../backend/services/task-notifications');
+        await notifyTaskCompleted({ ...task, output: result.output });
+      } catch (e) { /* silencioso */ }
+
       // Gamificación: XP por tarea completada
       try {
         const { awardXp, unlockAchievement } = require('./services/gamification').default || require('../backend/services/gamification');
@@ -172,6 +178,11 @@ class TaskExecutor {
           `UPDATE tasks SET status = 'failed', error_message = $1, completed_at = CURRENT_TIMESTAMP WHERE id = $2`,
           [error.message, taskId]
         );
+        // Email notificación de fallo
+        try {
+          const { notifyTaskFailed } = require('../backend/services/task-notifications');
+          await notifyTaskFailed(task);
+        } catch (e) { /* silencioso */ }
       }
     } finally {
       this.activeTasks.delete(taskId);

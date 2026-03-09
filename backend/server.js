@@ -14,6 +14,7 @@ const { scheduleTrialChecks, scheduleTrialReminders } = require('../agents/trial
 const { scheduleDripSequence } = require('./services/drip-sequence');
 const { scheduleWeeklyIdeasDigest } = require('./services/weekly-ideas-digest');
 const { scheduleCofounderDaily } = require('./services/cofounder-daily');
+const { scheduleWeeklyCredit } = require('./services/weekly-credit-bonus');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -128,6 +129,10 @@ const server = app.listen(PORT, () => {
   // Schedule Co-Founder daily briefing (L-V 08:00 CET)
   console.log('[Server] Scheduling Co-Founder Daily Briefing...');
   scheduleCofounderDaily();
+
+  // Schedule weekly credit bonus (Lunes 09:00 CET)
+  console.log('[Server] Scheduling Weekly Credit Bonus...');
+  scheduleWeeklyCredit();
   
   console.log('✅ All systems running');
 });
