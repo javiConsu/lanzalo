@@ -164,7 +164,7 @@ async function handleMigrate(req, res) {
 router.post('/', handleMigrate);
 router.get('/', handleMigrate);
 
-// Test briefing endpoint (uses same secret)
+// Test briefing endpoint (uses same secret) — SYNCHRONOUS for debugging
 router.post('/test-briefing', async (req, res) => {
   const secret = req.body?.secret;
   if (secret !== MIGRATE_SECRET) {
@@ -174,14 +174,11 @@ router.post('/test-briefing', async (req, res) => {
     const { runBriefingForAll } = require('../services/cofounder-daily');
     const type = req.body.type || 'morning';
     console.log(`[Test] Triggering test briefing: ${type}`);
-    runBriefingForAll(type).then(() => {
-      console.log(`[Test] Briefing ${type} completed`);
-    }).catch(err => {
-      console.error(`[Test] Briefing error:`, err.message);
-    });
-    res.json({ success: true, message: `Briefing ${type} disparado. Revisa tu email en ~30s.` });
+    await runBriefingForAll(type);
+    res.json({ success: true, message: `Briefing ${type} enviado correctamente.` });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error(`[Test] Briefing error:`, error);
+    res.status(500).json({ error: error.message, stack: error.stack?.split('\n').slice(0, 5) });
   }
 });
 
