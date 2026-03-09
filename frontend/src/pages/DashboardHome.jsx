@@ -226,6 +226,10 @@ function TasksWidget({ companyId }) {
 function CreditsWidget() {
   const [credits, setCredits] = useState(null)
   const [buying, setBuying] = useState(false)
+  const [showIdeasModal, setShowIdeasModal] = useState(false)
+  const [ideaText, setIdeaText] = useState('')
+  const [ideaSubmitting, setIdeaSubmitting] = useState(false)
+  const [ideaSubmitted, setIdeaSubmitted] = useState(false)
   const token = localStorage.getItem('token')
 
   useEffect(() => {
@@ -331,6 +335,17 @@ function CreditsWidget() {
           </div>
         </div>
 
+        {/* Conseguir créditos gratis */}
+        <div className="mt-3 pt-3 border-t border-gray-700/50">
+          <button
+            onClick={() => setShowIdeasModal(true)}
+            className="w-full text-center px-3 py-2.5 bg-violet-500/10 hover:bg-violet-500/20 border border-violet-500/30 hover:border-violet-500/50 rounded-xl transition-all"
+          >
+            <div className="text-xs font-semibold text-violet-300">💡 Consigue créditos gratis</div>
+            <div className="text-[10px] text-violet-400/60 mt-0.5">Manda una idea → si la implementamos, +1 crédito</div>
+          </button>
+        </div>
+
         {/* Plan info */}
         {credits.plan === 'trial' && (
           <p className="text-[11px] text-gray-600 mt-3 text-center">
@@ -338,6 +353,73 @@ function CreditsWidget() {
           </p>
         )}
       </div>
+
+      {/* Modal de ideas */}
+      {showIdeasModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => !ideaSubmitting && setShowIdeasModal(false)}>
+          <div className="bg-gray-900 border border-gray-700 rounded-2xl p-6 max-w-md w-full" onClick={e => e.stopPropagation()}>
+            {ideaSubmitted ? (
+              <div className="text-center py-4">
+                <div className="text-4xl mb-3">✅</div>
+                <h3 className="text-lg font-bold text-white mb-2">Idea recibida</h3>
+                <p className="text-sm text-gray-400 mb-4">La revisamos en 24-48h. Si la implementamos, te avisamos por email y sumamos el crédito automáticamente.</p>
+                <button onClick={() => { setShowIdeasModal(false); setIdeaSubmitted(false); setIdeaText(''); }} className="px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-lg text-sm font-medium transition-colors">
+                  Cerrar
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="flex items-start justify-between mb-4">
+                  <div>
+                    <h3 className="text-lg font-bold text-white">💡 Manda una idea</h3>
+                    <p className="text-xs text-gray-400 mt-1">Valoramos todas las ideas. Si la implementamos, +1 crédito gratis en tu cuenta.</p>
+                  </div>
+                  <button onClick={() => setShowIdeasModal(false)} className="text-gray-500 hover:text-gray-300 text-xl leading-none">×</button>
+                </div>
+                <textarea
+                  value={ideaText}
+                  onChange={e => setIdeaText(e.target.value)}
+                  placeholder="¿Qué mejorarías de Lánzalo? ¿Qué te falta? ¿Qué te haría la vida más fácil? Cuantas más ideas mandes, más créditos puedes conseguir."
+                  className="w-full h-32 bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-500 resize-none focus:outline-none focus:border-violet-500 transition-colors"
+                  disabled={ideaSubmitting}
+                />
+                <div className="flex items-center justify-between mt-3">
+                  <span className="text-[11px] text-gray-500">{ideaText.length}/500 • Mínimo 10 caracteres</span>
+                  <button
+                    onClick={async () => {
+                      if (ideaText.trim().length < 10 || ideaSubmitting) return;
+                      setIdeaSubmitting(true);
+                      try {
+                        // Necesitamos un companyId — usamos el primero disponible
+                        const companiesRes = await fetch(apiUrl('/api/user/companies'), { headers: { 'Authorization': `Bearer ${token}` } });
+                        const companiesData = await companiesRes.json();
+                        const firstCompanyId = companiesData?.companies?.[0]?.id || companiesData?.[0]?.id;
+                        if (!firstCompanyId) throw new Error('No company');
+                        const res = await fetch(apiUrl(`/api/user/companies/${firstCompanyId}/support/feedback`), {
+                          method: 'POST',
+                          headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ message: ideaText.trim() })
+                        });
+                        const data = await res.json();
+                        if (data.success) setIdeaSubmitted(true);
+                        else alert(data.error || 'Error enviando la idea');
+                      } catch (e) {
+                        alert('Error de conexión. Inténtalo de nuevo.');
+                      } finally {
+                        setIdeaSubmitting(false);
+                      }
+                    }}
+                    disabled={ideaText.trim().length < 10 || ideaSubmitting}
+                    className="px-4 py-2 bg-violet-600 hover:bg-violet-700 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-lg text-sm font-medium transition-colors"
+                  >
+                    {ideaSubmitting ? 'Enviando...' : 'Enviar idea'}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

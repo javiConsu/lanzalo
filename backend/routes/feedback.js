@@ -14,6 +14,7 @@ const { requireAuth, requireCompanyAccess, requireAdmin } = require('../middlewa
 const { addCredits } = require('../middleware/credits');
 const { pool } = require('../db');
 const crypto = require('crypto');
+const { callLLM } = require('../llm');
 
 // Email via Resend
 const { Resend } = require('resend');
@@ -145,29 +146,23 @@ router.post('/companies/:companyId/support/feedback', requireCompanyAccess, asyn
 
     const ticket = result.rows[0];
 
-    // Email a admin
-    await notifyAdmin('feedback', {
-      ticketId: ticket.id,
-      userEmail: req.user.email || 'desconocido',
-      message: message.trim(),
-      companyId,
-      isInTrial
-    });
+    // Pre-análisis IA (async, no bloquea la respuesta al usuario)
+    analyzeIdeaAndNotifyAdmin(ticket.id, message.trim(), req.user.email || 'desconocido', companyId, isInTrial)
+      .catch(e => console.error('[Support] Error en análisis IA:', e.message));
 
     const potentialCredits = isInTrial ? 2 : 1;
-
     res.json({
       success: true,
       ticketId: ticket.id,
-      credits: 0, // Todavía no se dan, se dan al aprobar
-      message: `¡Feedback recibido! Lo vamos a revisar con cariño 👀 Si lo aprobamos para desarrollo, te caen ${potentialCredits} crédito${potentialCredits > 1 ? 's' : ''} gratis${isInTrial ? ' (¡bonus trial, atraço!)' : ''}. Buen trato, ¿no? 😏`,
+      credits: 0,
+      message: `Idea recibida. La revisamos en 24-48h. Si la implementamos, te sumamos ${potentialCredits} crédito${potentialCredits > 1 ? 's' : ''} automáticamente y te avisamos por email.`,
       potentialCredits
     });
   } catch (error) {
     console.error('[Support] Feedback error:', error.message);
     res.status(500).json({ error: 'Error del servidor' });
   }
-});
+});;
 
 // ═══════════════════════════════════════════════════════
 // ADMIN: Listar tickets pendientes
@@ -399,7 +394,120 @@ async function checkTrialBonus(userId) {
 }
 
 /**
- * Notificar a admin por email
+ * Pre-análisis IA de la idea + notificación al owner
+ */
+async function analyzeIdeaAndNotifyAdmin(ticketId, message, userEmail, companyId, isInTrial) {
+  let aiAnalysis = null;
+
+  // Análisis IA de la idea
+  try {
+    const analysisResponse = await callLLM(
+      `Analiza esta idea de mejora para Lánzalo (plataforma SaaS que ayuda a emprendedores a lanzar negocios con IA):
+
+"${message}"
+
+Responde en formato JSON con estos campos:
+- viabilidad: "alta" | "media" | "baja" (qué tan fácil es implementar)
+- impacto: "alto" | "medio" | "bajo" (impacto en retención y conversión)
+- ya_existe: true | false (si ya existe algo parecido en la plataforma)
+- resumen: string de 1 frase (qué pide el usuario)
+- recomendacion: "aprobar" | "rechazar" | "revisar" (tu recomendación)
+- razon: string de 1-2 frases explicando la recomendación`,
+      {
+        taskType: 'analytics',
+        temperature: 0.3,
+        maxTokens: 500,
+        systemPrompt: 'Eres un analista de producto para una startup SaaS. Responde SOLO con JSON válido, sin markdown.'
+      }
+    );
+
+    const content = analysisResponse?.choices?.[0]?.message?.content || '';
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      aiAnalysis = JSON.parse(jsonMatch[0]);
+    }
+  } catch (e) {
+    console.error('[Support] Error en análisis IA:', e.message);
+  }
+
+  // Guardar análisis en el ticket
+  if (aiAnalysis) {
+    try {
+      await pool.query(
+        `UPDATE support_tickets SET admin_notes = $2 WHERE id = $1`,
+        [ticketId, `[AI] ${JSON.stringify(aiAnalysis)}`]
+      );
+    } catch (e) {}
+  }
+
+  // Notificar al owner con el análisis
+  if (!resend) return;
+
+  const recEmoji = aiAnalysis?.recomendacion === 'aprobar' ? '✅' : aiAnalysis?.recomendacion === 'rechazar' ? '❌' : '🔄';
+  const impactoColor = aiAnalysis?.impacto === 'alto' ? '#10b981' : aiAnalysis?.impacto === 'medio' ? '#f59e0b' : '#6b7280';
+  const viabilidadColor = aiAnalysis?.viabilidad === 'alta' ? '#10b981' : aiAnalysis?.viabilidad === 'media' ? '#f59e0b' : '#ef4444';
+
+  try {
+    await resend.emails.send({
+      from: FROM_EMAIL,
+      to: ADMIN_EMAIL,
+      subject: `💡 [Lánzalo] Nueva idea de producto ${aiAnalysis ? `— ${recEmoji} ${aiAnalysis.recomendacion?.toUpperCase()}` : ''} — ${userEmail}`,
+      html: `
+        <div style="font-family: -apple-system, sans-serif; max-width: 600px; color: #1e293b;">
+          <div style="background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%); border-radius: 16px; padding: 24px; margin-bottom: 20px;">
+            <h2 style="color: #a78bfa; margin: 0 0 4px 0; font-size: 20px;">💡 Nueva idea de producto</h2>
+            <p style="color: #94a3b8; margin: 0; font-size: 13px;">De: ${userEmail}${isInTrial ? ' • En trial (bonus x2)' : ''}</p>
+          </div>
+
+          <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin-bottom: 16px;">
+            <p style="margin: 0; font-size: 15px; line-height: 1.6; color: #334155; white-space: pre-wrap;">${message}</p>
+          </div>
+
+          ${aiAnalysis ? `
+          <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 20px; margin-bottom: 16px;">
+            <h3 style="margin: 0 0 12px 0; font-size: 14px; color: #166534;">Análisis IA</h3>
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr>
+                <td style="padding: 6px 0; color: #6b7280; font-size: 13px;">Resumen</td>
+                <td style="padding: 6px 0; font-size: 13px; font-weight: 600;">${aiAnalysis.resumen || '-'}</td>
+              </tr>
+              <tr>
+                <td style="padding: 6px 0; color: #6b7280; font-size: 13px;">Impacto</td>
+                <td style="padding: 6px 0; font-size: 13px; font-weight: 600; color: ${impactoColor}; text-transform: uppercase;">${aiAnalysis.impacto || '-'}</td>
+              </tr>
+              <tr>
+                <td style="padding: 6px 0; color: #6b7280; font-size: 13px;">Viabilidad</td>
+                <td style="padding: 6px 0; font-size: 13px; font-weight: 600; color: ${viabilidadColor}; text-transform: uppercase;">${aiAnalysis.viabilidad || '-'}</td>
+              </tr>
+              <tr>
+                <td style="padding: 6px 0; color: #6b7280; font-size: 13px;">Ya existe</td>
+                <td style="padding: 6px 0; font-size: 13px;">${aiAnalysis.ya_existe ? 'Sí' : 'No'}</td>
+              </tr>
+              <tr>
+                <td style="padding: 6px 0; color: #6b7280; font-size: 13px;">Recomendación IA</td>
+                <td style="padding: 6px 0; font-size: 14px; font-weight: 700;">${recEmoji} ${(aiAnalysis.recomendacion || '-').toUpperCase()}</td>
+              </tr>
+              <tr>
+                <td colspan="2" style="padding: 8px 0 0 0; color: #64748b; font-size: 12px; font-style: italic;">${aiAnalysis.razon || ''}</td>
+              </tr>
+            </table>
+          </div>
+          ` : ''}
+
+          <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 12px; padding: 16px; text-align: center;">
+            <p style="margin: 0 0 12px 0; font-size: 13px; color: #1e40af;">Ticket ID: <code>${ticketId}</code></p>
+            <p style="margin: 0; font-size: 12px; color: #3b82f6;">Aprueba o rechaza en el panel admin → Soporte</p>
+          </div>
+        </div>
+      `
+    });
+  } catch (e) {
+    console.error('[Support] Error enviando email al admin:', e.message);
+  }
+}
+
+/**
+ * Notificar a admin por email (bugs)
  */
 async function notifyAdmin(type, data) {
   if (!resend) {
