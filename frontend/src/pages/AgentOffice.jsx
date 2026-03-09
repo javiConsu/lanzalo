@@ -520,8 +520,8 @@ function OfficeCanvas({ agents, width, height, companyName }) {
         const y = py + bobAmt
 
         // Sprite size
-        const spriteScale = Math.min(width, height) / 12
-        const spriteSize = Math.max(44, Math.min(spriteScale, 78))
+        const spriteScale = Math.min(width, height) / 6
+        const spriteSize = Math.max(80, Math.min(spriteScale, 150))
 
         // Shadow
         ctx.save()
