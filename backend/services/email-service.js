@@ -471,7 +471,7 @@ function renderTaskCompletedEmail(company, task) {
       <p>${task.description || ''}</p>
       
       <a href="https://app.lanzalo.pro/backlog" style="display: inline-block; background: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 16px 0;">
-        Ver backlog →
+        Ver cola de tareas →
       </a>
       
     </body>

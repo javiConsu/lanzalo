@@ -31,7 +31,7 @@ export default function Dashboard({ user, onLogout }) {
     { path: '/', icon: '🏠', label: 'Dashboard' },
     { path: '/agents', icon: '🏢', label: 'Agentes' },
     { path: '/ideas', icon: '💡', label: 'Ideas' },
-    { path: '/backlog', icon: '📋', label: 'Backlog' },
+    { path: '/backlog', icon: '📋', label: 'Cola de Tareas' },
     { path: '/metrics', icon: '📊', label: 'Métricas' },
   ]
 

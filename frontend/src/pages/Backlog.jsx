@@ -151,7 +151,7 @@ export default function Backlog() {
           <div className="flex items-center gap-3">
             <span className="text-xl">📋</span>
             <h1 className="text-lg font-bold text-white">
-              Backlog {companyName ? `— ${companyName}` : ''}
+              Cola de Tareas {companyName ? `— ${companyName}` : ''}
             </h1>
           </div>
 
