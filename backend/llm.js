@@ -52,16 +52,10 @@ async function callLLM(prompt, options = {}) {
     messages = null
   } = options;
 
-  // Verificar presupuesto — EXCEPTO Co-Founder chat (siempre responde)
-  // Los créditos controlan la EJECUCIÓN de tareas, no la conversación
-  const isCeoChat = taskType === 'ceo' || taskType === 'ceo_chat';
-  if (companyId && !isCeoChat) {
-    const costTracker = new LLMCostTracker(companyId);
-    const withinBudget = await costTracker.isWithinBudget();
-    if (!withinBudget) {
-      throw new Error('Cuota de tokens LLM excedida para este mes.');
-    }
-  }
+  // Token budget: SOLO logging, NUNCA bloquea.
+  // El sistema de CRÉDITOS controla la ejecución de tareas, no los tokens LLM.
+  // Los tokens son un coste interno nuestro — no del usuario.
+  // El usuario paga con créditos, nosotros pagamos los tokens.
 
   // Construir mensajes
   const msgArray = messages || [

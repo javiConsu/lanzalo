@@ -251,6 +251,18 @@ function createToolHandlers(companyId, userId) {
       );
       const task = result.rows[0];
 
+      const AGENT_NAMES = {
+        code: '🧑‍💻 Equipo de Desarrollo',
+        marketing: '📣 Equipo de Marketing',
+        email: '📧 Equipo de Email',
+        twitter: '🐦 Equipo de Twitter',
+        research: '🔍 Equipo de Research',
+        data: '📊 Equipo de Data',
+        trends: '🌐 Equipo de Trends',
+        browser: '🌐 Equipo de Browser'
+      };
+      const agentLabel = AGENT_NAMES[task.tag] || task.tag;
+
       console.log(`[CEO Tools] Tarea creada: [${task.tag}/${task.priority}] ${task.title} (créditos: ${currentCredits})`);
       
       // Email notificación al usuario
@@ -266,7 +278,7 @@ function createToolHandlers(companyId, userId) {
           type: 'task_created',
           agentType: task.tag,
           taskTitle: task.title,
-          message: `Nueva tarea para ${task.tag}: ${task.title}`,
+          message: `Nueva tarea para ${agentLabel}: ${task.title}`,
           timestamp: new Date().toISOString()
         });
       }
@@ -275,13 +287,15 @@ function createToolHandlers(companyId, userId) {
         taskId: task.id,
         title: task.title,
         agent: task.tag,
+        agent_label: agentLabel,
         priority: task.priority,
         status: task.status,
         credits_available: currentCredits,
+        credits_after: hasCredits ? currentCredits - 1 : 0,
         will_execute: hasCredits,
-        note: hasCredits 
-          ? `Tarea en cola. Se ejecutará pronto (créditos restantes: ${currentCredits - 1}).`
-          : `Tarea creada pero NO se ejecutará hasta que haya créditos (tienes ${currentCredits}). Avisa al usuario.`
+        INSTRUCCION_PARA_EL_LLM: hasCredits 
+          ? `DEBES decirle al usuario: "Tarea asignada a ${agentLabel}. Crédito consumido al ejecutar (te quedan ${currentCredits - 1})."`
+          : `DEBES decirle al usuario: "Tarea creada para ${agentLabel}, pero NO se ejecutará hasta que tengas créditos (tienes ${currentCredits}). Compra un pack o envía feedback para conseguir créditos gratis."`
       };
     },
 
