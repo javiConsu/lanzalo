@@ -36,13 +36,13 @@ class AgentOrchestrator {
     console.log('🚀 Lanzalo Agent Orchestrator started');
     this.isRunning = true;
 
-    // Run daily at 9 AM UTC
+    // Run daily at 9 AM UTC (once per day, NOT on startup)
     cron.schedule('0 9 * * *', async () => {
       await this.runDailyCycle();
     });
 
-    // Also run immediately on startup
-    this.runDailyCycle();
+    // Do NOT run on startup — each deploy was creating duplicate tasks
+    console.log('[Orchestrator] Scheduled for 9 AM UTC. Not running on startup.');
   }
 
   /**
