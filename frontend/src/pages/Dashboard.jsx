@@ -20,6 +20,7 @@ export default function Dashboard({ user, onLogout }) {
     { path: '/agents', icon: '🏢', label: 'Agentes' },
     { path: '/ideas', icon: '💡', label: 'Ideas' },
     { path: '/backlog', icon: '📋', label: 'Backlog' },
+    { path: '/marketing', icon: '📣', label: 'Marketing' },
     { path: '/metrics', icon: '📊', label: 'Métricas' },
   ]
 

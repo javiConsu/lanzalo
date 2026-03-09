@@ -376,6 +376,91 @@ router.get('/dashboard', async (req, res) => {
 });
 
 /**
+ * Marketing data — Contenido, Emails, Ads
+ * Para la sección CMO del dashboard
+ */
+router.get('/companies/:companyId/marketing', requireAuth, requireCompanyAccess, async (req, res) => {
+  try {
+    const { companyId } = req.params;
+
+    // ─── Content (tweets/posts) ───────────────────────────
+    const tweets = await pool.query(
+      `SELECT id, content, media_url, status, type, published, published_at,
+              scheduled_for, posted_at, tweet_id, twitter_id,
+              engagement_likes, engagement_retweets, created_at
+       FROM tweets WHERE company_id = $1
+       ORDER BY created_at DESC LIMIT 50`,
+      [companyId]
+    ).catch(() => ({ rows: [] }));
+
+    const posts = tweets.rows;
+    const contentMetrics = {
+      total: posts.length,
+      published: posts.filter(p => p.status === 'posted' || p.published).length,
+      scheduled: posts.filter(p => p.status === 'scheduled').length,
+      drafts: posts.filter(p => p.status === 'draft').length,
+    };
+
+    // ─── Emails ───────────────────────────────────────────
+    const emailsResult = await pool.query(
+      `SELECT id, campaign_name, to_email, subject, body, status, template,
+              sent_at, replied_at, opened_at, clicks, created_at
+       FROM emails WHERE company_id = $1
+       ORDER BY created_at DESC LIMIT 50`,
+      [companyId]
+    ).catch(() => ({ rows: [] }));
+
+    const campaigns = emailsResult.rows;
+    const emailMetrics = {
+      total: campaigns.length,
+      sent: campaigns.filter(e => e.status === 'sent' || e.status === 'replied').length,
+      replied: campaigns.filter(e => e.status === 'replied').length,
+      bounced: campaigns.filter(e => e.status === 'bounced').length,
+    };
+
+    // ─── Ads (marketing tasks tagged as ads or data-related) ──
+    const adTasks = await pool.query(
+      `SELECT id, COALESCE(tag, agent_type) as agent_tag, title, description, status, priority,
+              started_at, completed_at, created_at
+       FROM tasks WHERE company_id = $1
+       AND (title ILIKE '%ads%' OR title ILIKE '%ad campaign%' OR title ILIKE '%publicidad%'
+            OR title ILIKE '%anuncio%' OR title ILIKE '%google ads%' OR title ILIKE '%meta ads%'
+            OR title ILIKE '%facebook ads%' OR title ILIKE '%campaign%ad%'
+            OR description ILIKE '%ads%' OR description ILIKE '%publicidad%')
+       ORDER BY created_at DESC LIMIT 30`,
+      [companyId]
+    ).catch(() => ({ rows: [] }));
+
+    const adsMetrics = {
+      total: adTasks.rows.length,
+      active: adTasks.rows.filter(t => t.status === 'in_progress' || t.status === 'todo').length,
+      completed: adTasks.rows.filter(t => t.status === 'completed').length,
+    };
+
+    // ─── Marketing tasks (all tasks from marketing/email/twitter agents) ──
+    const mktTasks = await pool.query(
+      `SELECT id, COALESCE(tag, agent_type) as agent_tag, title, description, status, priority,
+              started_at, completed_at, created_at
+       FROM tasks WHERE company_id = $1
+       AND COALESCE(tag, agent_type) IN ('marketing', 'email', 'twitter')
+       ORDER BY created_at DESC LIMIT 30`,
+      [companyId]
+    ).catch(() => ({ rows: [] }));
+
+    res.json({
+      content: { posts, metrics: contentMetrics },
+      emails: { campaigns, metrics: emailMetrics },
+      ads: { tasks: adTasks.rows, metrics: adsMetrics },
+      marketingTasks: mktTasks.rows
+    });
+
+  } catch (error) {
+    console.error('Error obteniendo datos de marketing:', error);
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
+/**
  * Estado de gamificación de una empresa
  */
 router.get('/companies/:companyId/gamestate', requireAuth, requireCompanyAccess, async (req, res) => {
