@@ -1,5 +1,5 @@
 import { apiUrl } from '../api.js'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 
 // ─── Helpers ────────────────────────────────────────────────
 function timeAgo(dateStr) {
@@ -35,6 +35,22 @@ const EMAIL_STATUS = {
   replied: { label: 'Respondido', icon: '💬', bg: 'bg-green-900/30', text: 'text-green-300', border: 'border-green-700' },
 }
 
+const CAMPAIGN_STATUS = {
+  draft:     { label: 'Borrador', icon: '📝', bg: 'bg-gray-700/50', text: 'text-gray-300', border: 'border-gray-600' },
+  active:    { label: 'Activa', icon: '🟢', bg: 'bg-green-900/30', text: 'text-green-300', border: 'border-green-700' },
+  paused:    { label: 'Pausada', icon: '⏸️', bg: 'bg-amber-900/30', text: 'text-amber-300', border: 'border-amber-700' },
+  completed: { label: 'Completada', icon: '✅', bg: 'bg-blue-900/30', text: 'text-blue-300', border: 'border-blue-700' },
+}
+
+const LEAD_STATUS = {
+  new:             { label: 'Nuevo', dot: 'bg-gray-400' },
+  contacted:       { label: 'Contactado', dot: 'bg-blue-400' },
+  replied:         { label: 'Respondido', dot: 'bg-green-400' },
+  interested:      { label: 'Interesado', dot: 'bg-emerald-400' },
+  not_interested:  { label: 'No interesado', dot: 'bg-red-400' },
+  bounced:         { label: 'Rebotado', dot: 'bg-orange-400' },
+}
+
 // ─── Main Component ─────────────────────────────────────────
 export default function Marketing() {
   const [companies, setCompanies] = useState([])
@@ -44,6 +60,12 @@ export default function Marketing() {
   const [tab, setTab] = useState('contenido')
 
   const token = localStorage.getItem('token')
+
+  // Check URL params for tab
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('tab') === 'emails') setTab('emails')
+  }, [])
 
   // Load companies
   useEffect(() => {
@@ -96,6 +118,7 @@ export default function Marketing() {
 
   const content = data?.content || { posts: [], metrics: { total: 0, published: 0, scheduled: 0, drafts: 0 } }
   const emails = data?.emails || { campaigns: [], metrics: { total: 0, sent: 0, replied: 0, bounced: 0 } }
+  const emailPro = data?.emailPro || { subscription: null, campaigns: [], leads: { total: 0, statusCounts: {} } }
   const ads = data?.ads || { tasks: [], metrics: { total: 0, active: 0, completed: 0, budget: 0 } }
   const marketingTasks = data?.marketingTasks || []
 
@@ -154,8 +177,8 @@ export default function Marketing() {
             <div className="text-xs text-gray-500 mt-0.5">Emails enviados</div>
           </div>
           <div className="bg-gray-800/60 rounded-xl border border-gray-700/50 p-3 text-center">
-            <div className="text-xl font-bold text-purple-400">{marketingTasks.length}</div>
-            <div className="text-xs text-gray-500 mt-0.5">Tareas mkt</div>
+            <div className="text-xl font-bold text-purple-400">{emailPro.leads.total || 0}</div>
+            <div className="text-xs text-gray-500 mt-0.5">Leads</div>
           </div>
         </div>
 
@@ -201,9 +224,15 @@ export default function Marketing() {
               <ContentTab content={content} marketingTasks={marketingTasks} />
             )}
 
-            {/* ─── Tab: Emails ─────────────────────────── */}
+            {/* ─── Tab: Emails (Email Pro) ─────────────── */}
             {tab === 'emails' && (
-              <EmailsTab emails={emails} />
+              <EmailsTab 
+                emails={emails} 
+                emailPro={emailPro} 
+                companyId={selectedCompany}
+                token={token}
+                onRefresh={fetchMarketing}
+              />
             )}
 
             {/* ─── Tab: Ads ────────────────────────────── */}
@@ -305,89 +334,376 @@ function ContentTab({ content, marketingTasks }) {
   )
 }
 
-// ─── Emails Tab ─────────────────────────────────────────────
-function EmailsTab({ emails }) {
-  const campaigns = emails.campaigns || []
+// ─── Emails Tab (Email Pro) ─────────────────────────────────
+function EmailsTab({ emails, emailPro, companyId, token, onRefresh }) {
+  const sub = emailPro?.subscription
+  const hasEmailPro = sub && ['active', 'setting_up'].includes(sub.status)
+  const [subscribing, setSubscribing] = useState(false)
+  const [uploadingCSV, setUploadingCSV] = useState(false)
+  const [uploadResult, setUploadResult] = useState(null)
+  const [subTab, setSubTab] = useState('campaigns') // campaigns | leads
+  const fileInputRef = useRef(null)
+
+  // If no Email Pro subscription, show the upsell
+  if (!hasEmailPro) {
+    return <EmailProUpsell companyId={companyId} token={token} subscribing={subscribing} setSubscribing={setSubscribing} />
+  }
+
+  const proCampaigns = emailPro.campaigns || []
+  const leadsTotal = emailPro.leads?.total || 0
+  const leadsStatus = emailPro.leads?.statusCounts || {}
+
+  const handleCSVUpload = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setUploadingCSV(true)
+    setUploadResult(null)
+
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+
+      const res = await fetch(apiUrl(`/api/companies/${companyId}/email-pro/leads/upload`), {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: formData
+      })
+      const data = await res.json()
+      setUploadResult(data)
+      if (data.success) onRefresh()
+    } catch (err) {
+      setUploadResult({ error: 'Error subiendo archivo' })
+    } finally {
+      setUploadingCSV(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
 
   return (
     <div className="space-y-4 pt-4">
-      {/* Cost warning */}
-      <div className="bg-amber-900/15 border border-amber-700/40 rounded-xl px-4 py-3 flex items-start gap-3">
-        <span className="text-lg mt-0.5">⚠️</span>
-        <div>
-          <p className="text-sm text-amber-300 font-medium">Cold email puede suponer coste extra</p>
-          <p className="text-xs text-amber-400/70 mt-0.5">
-            El envío masivo de emails fríos puede conllevar costes adicionales según volumen y proveedor de envío.
-          </p>
+      {/* Email Pro status bar */}
+      <div className="bg-gradient-to-r from-amber-900/20 to-amber-800/10 border border-amber-700/30 rounded-xl p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-amber-500/15 flex items-center justify-center">
+              <span className="text-xl">📧</span>
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-bold text-white">Email Pro</h3>
+                {sub.status === 'setting_up' ? (
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                    Configurando
+                  </span>
+                ) : sub.instantly_warmup_status === 'warming' ? (
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/30 flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
+                    Calentando
+                  </span>
+                ) : (
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-green-500/20 text-green-300 border border-green-500/30">
+                    Activo
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-gray-500 mt-0.5">
+                {sub.instantly_account_email || 'Configurando email...'}
+                {sub.instantly_domain ? ` · ${sub.instantly_domain}` : ''}
+              </p>
+            </div>
+          </div>
+          <div className="text-right">
+            <div className="text-sm font-bold text-white">
+              {sub.emails_sent_this_month || 0}
+              <span className="text-gray-500 font-normal">/{sub.emails_per_month || 500}</span>
+            </div>
+            <div className="text-xs text-gray-500">emails este mes</div>
+            {/* Usage bar */}
+            <div className="w-24 h-1.5 bg-gray-700 rounded-full mt-1">
+              <div 
+                className="h-full rounded-full bg-gradient-to-r from-amber-500 to-amber-400 transition-all"
+                style={{ width: `${Math.min(100, ((sub.emails_sent_this_month || 0) / (sub.emails_per_month || 500)) * 100)}%` }}
+              />
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Metrics */}
+      {/* Metrics row */}
       <div className="grid grid-cols-4 gap-3">
-        <MetricCard label="Total" value={emails.metrics.total} icon="📧" color="text-blue-400" />
-        <MetricCard label="Enviados" value={emails.metrics.sent} icon="📨" color="text-green-400" />
-        <MetricCard label="Respondidos" value={emails.metrics.replied} icon="💬" color="text-emerald-400" />
+        <MetricCard label="Enviados" value={emails.metrics.sent} icon="📨" color="text-blue-400" />
+        <MetricCard label="Respondidos" value={emails.metrics.replied} icon="💬" color="text-green-400" />
         <MetricCard label="Rebotados" value={emails.metrics.bounced} icon="⚠️" color="text-red-400" />
+        <MetricCard label="Leads" value={leadsTotal} icon="👥" color="text-purple-400" />
       </div>
 
-      {/* Campaigns list */}
-      {campaigns.length > 0 ? (
-        <div>
-          <h3 className="text-xs font-semibold text-blue-400 uppercase tracking-wider mb-3 flex items-center gap-2">
-            <span>📧</span> Campañas de email
-          </h3>
-          <div className="space-y-2">
-            {campaigns.map(email => {
-              const status = EMAIL_STATUS[email.status] || EMAIL_STATUS.draft
+      {/* Sub-tabs: Campaigns / Leads */}
+      <div className="flex gap-1 bg-gray-800/40 rounded-lg p-0.5">
+        <button
+          onClick={() => setSubTab('campaigns')}
+          className={`flex-1 text-xs font-medium py-1.5 px-3 rounded-md transition-all ${
+            subTab === 'campaigns' ? 'bg-gray-700 text-white' : 'text-gray-500 hover:text-gray-300'
+          }`}
+        >
+          Campanas ({proCampaigns.length})
+        </button>
+        <button
+          onClick={() => setSubTab('leads')}
+          className={`flex-1 text-xs font-medium py-1.5 px-3 rounded-md transition-all ${
+            subTab === 'leads' ? 'bg-gray-700 text-white' : 'text-gray-500 hover:text-gray-300'
+          }`}
+        >
+          Leads ({leadsTotal})
+        </button>
+      </div>
+
+      {/* ─── Campaigns sub-tab ─── */}
+      {subTab === 'campaigns' && (
+        <div className="space-y-3">
+          {proCampaigns.length > 0 ? (
+            proCampaigns.map(campaign => {
+              const status = CAMPAIGN_STATUS[campaign.status] || CAMPAIGN_STATUS.draft
               return (
-                <div key={email.id} className="bg-gray-800/60 rounded-xl border border-gray-700/40 p-4 hover:border-gray-600/60 transition-colors">
+                <div key={campaign.id} className="bg-gray-800/60 rounded-xl border border-gray-700/40 p-4 hover:border-gray-600/60 transition-colors">
                   <div className="flex items-start justify-between gap-3 mb-2">
                     <div className="flex-1 min-w-0">
-                      {email.campaign_name && (
-                        <p className="text-xs text-amber-400 font-medium mb-1">{email.campaign_name}</p>
+                      <p className="text-sm font-medium text-white">{campaign.name}</p>
+                      {campaign.target_audience && (
+                        <p className="text-xs text-gray-500 mt-0.5">{campaign.target_audience}</p>
                       )}
-                      <p className="text-sm font-medium text-white truncate">{email.subject || 'Sin asunto'}</p>
-                      <p className="text-xs text-gray-500 mt-0.5">→ {email.to_email}</p>
                     </div>
                     <span className={`px-2 py-0.5 text-xs font-medium border rounded-full flex-shrink-0 ${status.bg} ${status.text} ${status.border}`}>
                       {status.icon} {status.label}
                     </span>
                   </div>
-                  <div className="flex items-center gap-4 text-xs text-gray-500">
-                    {email.sent_at && (
+                  {/* Campaign stats */}
+                  <div className="flex items-center gap-4 text-xs text-gray-500 mt-2">
+                    <span className="flex items-center gap-1">
+                      <span>👥</span> {campaign.leads_count || 0} leads
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <span>📨</span> {campaign.emails_sent || 0} enviados
+                    </span>
+                    {(campaign.emails_opened || 0) > 0 && (
                       <span className="flex items-center gap-1">
-                        <span>📨</span> {formatDate(email.sent_at)}
+                        <span>👁️</span> {campaign.emails_opened} abiertos
                       </span>
                     )}
-                    {email.replied_at && (
-                      <span className="flex items-center gap-1">
-                        <span>💬</span> Respondido {formatDate(email.replied_at)}
+                    {(campaign.emails_replied || 0) > 0 && (
+                      <span className="flex items-center gap-1 text-green-400">
+                        <span>💬</span> {campaign.emails_replied} respuestas
                       </span>
                     )}
-                    {email.opened_at && (
-                      <span className="flex items-center gap-1">
-                        <span>👁️</span> Abierto
-                      </span>
-                    )}
-                    {email.clicks > 0 && (
-                      <span className="flex items-center gap-1">
-                        <span>🔗</span> {email.clicks} clicks
-                      </span>
-                    )}
-                    <span>{timeAgo(email.created_at)}</span>
+                    <span className="ml-auto">
+                      {campaign.created_by === 'agent' ? '🤖 Creada por IA' : '👤 Manual'}
+                    </span>
+                    <span>{timeAgo(campaign.created_at)}</span>
                   </div>
                 </div>
               )
-            })}
+            })
+          ) : (
+            <div className="flex flex-col items-center justify-center h-36 text-center">
+              <span className="text-3xl mb-2">🚀</span>
+              <p className="text-sm text-gray-400">Sin campanas todavía</p>
+              <p className="text-xs text-gray-600 mt-1">
+                {sub.status === 'setting_up' 
+                  ? 'Tu dominio se está configurando. El agente creará tu primera campaña pronto.'
+                  : 'Habla con tu Co-Founder para lanzar campañas de cold email'}
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ─── Leads sub-tab ─── */}
+      {subTab === 'leads' && (
+        <div className="space-y-3">
+          {/* CSV Upload */}
+          <div className="flex items-center gap-3">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".csv"
+              onChange={handleCSVUpload}
+              className="hidden"
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploadingCSV}
+              className="flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 border border-gray-600 rounded-lg text-sm text-gray-300 transition-colors disabled:opacity-50"
+            >
+              {uploadingCSV ? (
+                <span className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <span>📄</span>
+              )}
+              Subir CSV de leads
+            </button>
+            <p className="text-xs text-gray-600">
+              Columnas: email, nombre, empresa, telefono...
+            </p>
+          </div>
+
+          {/* Upload result */}
+          {uploadResult && (
+            <div className={`rounded-lg p-3 text-sm ${
+              uploadResult.success 
+                ? 'bg-green-900/20 border border-green-700/40 text-green-300'
+                : 'bg-red-900/20 border border-red-700/40 text-red-300'
+            }`}>
+              {uploadResult.success 
+                ? `Importados ${uploadResult.imported} leads (${uploadResult.skipped} omitidos)`
+                : uploadResult.error}
+            </div>
+          )}
+
+          {/* Lead status summary */}
+          {leadsTotal > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {Object.entries(leadsStatus).map(([status, count]) => {
+                const cfg = LEAD_STATUS[status] || { label: status, dot: 'bg-gray-400' }
+                return (
+                  <span key={status} className="flex items-center gap-1.5 px-2.5 py-1 bg-gray-800/60 rounded-lg border border-gray-700/40 text-xs text-gray-400">
+                    <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
+                    {cfg.label}: {count}
+                  </span>
+                )
+              })}
+            </div>
+          )}
+
+          {leadsTotal === 0 && (
+            <div className="flex flex-col items-center justify-center h-36 text-center">
+              <span className="text-3xl mb-2">👥</span>
+              <p className="text-sm text-gray-400">Sin leads todavía</p>
+              <p className="text-xs text-gray-600 mt-1">
+                Sube un CSV con tus contactos o deja que el agente los busque automáticamente
+              </p>
+            </div>
+          )}
+
+          {/* Info about agent finding leads */}
+          <div className="bg-gray-800/30 border border-gray-700/30 rounded-xl px-4 py-3 flex items-start gap-3">
+            <span className="text-lg mt-0.5">🤖</span>
+            <div>
+              <p className="text-sm text-gray-300 font-medium">Tu agente de Email busca leads</p>
+              <p className="text-xs text-gray-500 mt-0.5">
+                Describe a tu Co-Founder el tipo de cliente ideal y el agente buscará y añadirá leads automáticamente.
+                También puedes subir tu propia base de datos en CSV.
+              </p>
+            </div>
           </div>
         </div>
-      ) : (
-        <EmptyState
-          icon="📧"
-          title="Sin campañas de email"
-          subtitle="Habla con tu Co-Founder para lanzar campañas de cold email"
-        />
       )}
+
+      {/* Upsell for more emails */}
+      {(sub.emails_sent_this_month || 0) > (sub.emails_per_month || 500) * 0.8 && (
+        <div className="bg-amber-900/15 border border-amber-700/30 rounded-xl p-3 flex items-center gap-3">
+          <span>⚡</span>
+          <div className="flex-1">
+            <p className="text-xs text-amber-300">
+              Casi llegas al límite. Habla con tu Co-Founder o soporte para ampliar tu plan.
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── Email Pro Upsell (when not subscribed) ─────────────────
+function EmailProUpsell({ companyId, token, subscribing, setSubscribing }) {
+  const handleSubscribe = async () => {
+    setSubscribing(true)
+    try {
+      const res = await fetch(apiUrl(`/api/companies/${companyId}/email-pro/subscribe`), {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+      const data = await res.json()
+      if (data.url) {
+        window.location.href = data.url // Redirect to Stripe checkout
+      } else {
+        alert(data.error || 'Error activando Email Pro')
+      }
+    } catch (err) {
+      alert('Error conectando con el servidor')
+    } finally {
+      setSubscribing(false)
+    }
+  }
+
+  return (
+    <div className="pt-4">
+      <div className="bg-gradient-to-br from-gray-800/80 to-gray-800/40 rounded-2xl border border-gray-700/50 overflow-hidden">
+        {/* Header */}
+        <div className="bg-gradient-to-r from-amber-600/20 to-orange-600/10 px-6 py-5 border-b border-gray-700/30">
+          <div className="flex items-center gap-3 mb-2">
+            <span className="text-3xl">📧</span>
+            <div>
+              <h2 className="text-lg font-bold text-white">Email Pro</h2>
+              <p className="text-sm text-gray-400">Cold email automatizado por IA</p>
+            </div>
+          </div>
+          <div className="flex items-baseline gap-1 mt-3">
+            <span className="text-3xl font-bold text-white">15€</span>
+            <span className="text-gray-400">/mes</span>
+          </div>
+        </div>
+
+        {/* Features */}
+        <div className="px-6 py-5 space-y-3">
+          {[
+            { icon: '🌐', text: 'Dominio dedicado configurado automáticamente' },
+            { icon: '🔥', text: 'Email calentado y listo para enviar (warmup automático)' },
+            { icon: '📨', text: 'Hasta 500 emails fríos al mes' },
+            { icon: '🤖', text: 'El agente busca leads y crea campañas por ti' },
+            { icon: '💬', text: 'Gestión automática de respuestas con IA' },
+            { icon: '📊', text: 'Estadísticas: aperturas, respuestas, rebotes' },
+            { icon: '📄', text: 'Sube tu propia BBDD de contactos (CSV)' },
+          ].map((feature, i) => (
+            <div key={i} className="flex items-start gap-3">
+              <span className="text-base flex-shrink-0">{feature.icon}</span>
+              <p className="text-sm text-gray-300">{feature.text}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* CTA */}
+        <div className="px-6 pb-6">
+          <button
+            onClick={handleSubscribe}
+            disabled={subscribing}
+            className="w-full py-3 px-4 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white font-bold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          >
+            {subscribing ? (
+              <>
+                <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                Activando...
+              </>
+            ) : (
+              <>Activar Email Pro — 15€/mes</>
+            )}
+          </button>
+          <p className="text-xs text-gray-600 text-center mt-3">
+            Cancela en cualquier momento. Sin compromiso.
+          </p>
+        </div>
+
+        {/* More volume note */}
+        <div className="px-6 pb-5 border-t border-gray-700/30 pt-4">
+          <p className="text-xs text-gray-500 flex items-center gap-2">
+            <span>💡</span>
+            Si necesitas más volumen, habla con tu Co-Founder o soporte para una propuesta personalizada.
+          </p>
+        </div>
+      </div>
     </div>
   )
 }

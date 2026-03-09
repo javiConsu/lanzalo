@@ -61,6 +61,7 @@ app.use('/api/analytics', require('./routes/analytics'));
 app.use('/api/payments', require('./routes/payments'));
 app.use('/sites', require('./routes/sites'));
 app.use('/api/webhooks', require('./routes/webhooks'));
+app.use('/api', require('./routes/email-pro')); // Email Pro (cold email service)
 app.use('/api/migrate', require('./routes/migrate'));
 // Magic link login (NO auth required - must be BEFORE ceo-chat catch-all)
 app.post('/api/minimal-login', require('./routes/minimal-login'));

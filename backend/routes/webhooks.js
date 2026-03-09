@@ -85,6 +85,12 @@ async function handleCheckoutComplete(session) {
     return;
   }
 
+  // ── Email Pro subscription ────────────────────────────
+  if (session.metadata?.type === 'email_pro') {
+    await handleEmailProActivation(session);
+    return;
+  }
+
   // Suscripción Pro
   await pool.query(
     `UPDATE users SET 
@@ -177,6 +183,100 @@ async function handlePaymentSuccess(invoice) {
 async function handlePaymentFailed(invoice) {
   console.error(`[Webhook] Pago fallido para customer ${invoice.customer}`);
   // TODO: Enviar email de pago fallido
+}
+
+/**
+ * Email Pro checkout completado → activar Instantly DFY setup
+ */
+async function handleEmailProActivation(session) {
+  const { userId, companyId, subscriptionId } = session.metadata;
+  if (!subscriptionId) return;
+
+  console.log(`[Webhook] Email Pro activado para empresa ${companyId}`);
+
+  try {
+    // Update subscription record
+    await pool.query(
+      `UPDATE email_pro_subscriptions 
+       SET status = 'setting_up', 
+           stripe_subscription_id = $1,
+           month_reset_at = NOW() + INTERVAL '30 days',
+           updated_at = NOW()
+       WHERE id = $2`,
+      [session.subscription, subscriptionId]
+    );
+
+    // Get company info for domain suggestion
+    const company = await pool.query(
+      'SELECT name, subdomain FROM companies WHERE id = $1', [companyId]
+    );
+    const companyName = company.rows[0]?.subdomain || 'outreach';
+
+    // Try to setup Instantly DFY account
+    const instantly = require('../services/instantly-service');
+    if (instantly.enabled) {
+      try {
+        // Generate domain name based on company
+        const domainBase = companyName.replace(/[^a-z0-9]/g, '').substring(0, 15);
+        const suggestedDomain = `${domainBase}-mail.com`;
+
+        // Simulate order first to check pricing
+        const quote = await instantly.simulateOrder(suggestedDomain, ['hello']);
+        console.log('[Email Pro] DFY quote:', quote);
+
+        // Place actual order
+        const order = await instantly.orderDFYAccount({
+          domain: suggestedDomain,
+          accounts: ['hello'],
+          order_type: 'dfy',
+        });
+
+        // Update subscription with Instantly details
+        await pool.query(
+          `UPDATE email_pro_subscriptions 
+           SET instantly_domain = $1, 
+               instantly_account_email = $2,
+               instantly_dfy_order_id = $3,
+               instantly_warmup_status = 'warming',
+               updated_at = NOW()
+           WHERE id = $4`,
+          [suggestedDomain, `hello@${suggestedDomain}`, order.id || 'pending', subscriptionId]
+        );
+
+        console.log(`[Email Pro] DFY order placed: ${suggestedDomain}`);
+      } catch (instantlyErr) {
+        console.error('[Email Pro] Instantly setup error (will retry):', instantlyErr);
+        // Don't fail the whole activation — mark for manual review
+        await pool.query(
+          `UPDATE email_pro_subscriptions SET instantly_warmup_status = 'failed_setup', updated_at = NOW() WHERE id = $1`,
+          [subscriptionId]
+        );
+      }
+    }
+
+    // Create activity log
+    await pool.query(
+      `INSERT INTO activity_log (company_id, activity_type, message, created_at)
+       VALUES ($1, 'email_pro_activated', '📧 Email Pro activado — configurando dominio y warmup', NOW())`,
+      [companyId]
+    );
+
+    // Create task for email agent to start working
+    await pool.query(
+      `INSERT INTO tasks (company_id, agent_type, tag, title, description, status, priority, created_at)
+       VALUES ($1, 'email', 'email', 'Configurar Email Pro', 
+               'Email Pro activado. Preparar dominio, configurar warmup y crear primera campaña de prospección.',
+               'todo', 'high', NOW())`,
+      [companyId]
+    );
+
+  } catch (error) {
+    console.error('[Webhook] Email Pro activation error:', error);
+    await pool.query(
+      `UPDATE email_pro_subscriptions SET status = 'failed', updated_at = NOW() WHERE id = $1`,
+      [subscriptionId]
+    ).catch(() => {});
+  }
 }
 
 module.exports = router;

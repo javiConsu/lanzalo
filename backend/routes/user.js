@@ -401,7 +401,7 @@ router.get('/companies/:companyId/marketing', requireAuth, requireCompanyAccess,
       drafts: posts.filter(p => p.status === 'draft').length,
     };
 
-    // ─── Emails ───────────────────────────────────────────
+    // ─── Emails (legacy + Email Pro) ─────────────────────
     const emailsResult = await pool.query(
       `SELECT id, campaign_name, to_email, subject, body, status, template,
               sent_at, replied_at, opened_at, clicks, created_at
@@ -411,11 +411,44 @@ router.get('/companies/:companyId/marketing', requireAuth, requireCompanyAccess,
     ).catch(() => ({ rows: [] }));
 
     const campaigns = emailsResult.rows;
+
+    // Email Pro subscription status
+    const emailProSub = await pool.query(
+      `SELECT id, status, instantly_domain, instantly_account_email, instantly_warmup_status,
+              emails_per_month, emails_sent_this_month, activated_at
+       FROM email_pro_subscriptions
+       WHERE company_id = $1 AND status NOT IN ('cancelled', 'failed')
+       ORDER BY created_at DESC LIMIT 1`,
+      [companyId]
+    ).catch(() => ({ rows: [] }));
+
+    // Email Pro campaigns
+    const proCampaigns = await pool.query(
+      `SELECT id, name, status, leads_count, emails_sent, emails_opened, emails_replied, emails_bounced,
+              target_audience, created_by, created_at
+       FROM instantly_campaigns WHERE company_id = $1
+       ORDER BY created_at DESC LIMIT 20`,
+      [companyId]
+    ).catch(() => ({ rows: [] }));
+
+    // Leads stats
+    const leadsStats = await pool.query(
+      `SELECT status, COUNT(*) as count FROM leads WHERE company_id = $1 GROUP BY status`,
+      [companyId]
+    ).catch(() => ({ rows: [] }));
+
+    const leadsStatusCounts = {};
+    leadsStats.rows.forEach(r => { leadsStatusCounts[r.status] = parseInt(r.count); });
+    const totalLeads = Object.values(leadsStatusCounts).reduce((a, b) => a + b, 0);
+
     const emailMetrics = {
-      total: campaigns.length,
-      sent: campaigns.filter(e => e.status === 'sent' || e.status === 'replied').length,
-      replied: campaigns.filter(e => e.status === 'replied').length,
-      bounced: campaigns.filter(e => e.status === 'bounced').length,
+      total: campaigns.length + proCampaigns.rows.reduce((s, c) => s + (c.emails_sent || 0), 0),
+      sent: campaigns.filter(e => e.status === 'sent' || e.status === 'replied').length + 
+            proCampaigns.rows.reduce((s, c) => s + (c.emails_sent || 0), 0),
+      replied: campaigns.filter(e => e.status === 'replied').length +
+               proCampaigns.rows.reduce((s, c) => s + (c.emails_replied || 0), 0),
+      bounced: campaigns.filter(e => e.status === 'bounced').length +
+               proCampaigns.rows.reduce((s, c) => s + (c.emails_bounced || 0), 0),
     };
 
     // ─── Ads (marketing tasks tagged as ads or data-related) ──
@@ -450,6 +483,11 @@ router.get('/companies/:companyId/marketing', requireAuth, requireCompanyAccess,
     res.json({
       content: { posts, metrics: contentMetrics },
       emails: { campaigns, metrics: emailMetrics },
+      emailPro: {
+        subscription: emailProSub.rows[0] || null,
+        campaigns: proCampaigns.rows,
+        leads: { total: totalLeads, statusCounts: leadsStatusCounts },
+      },
       ads: { tasks: adTasks.rows, metrics: adsMetrics },
       marketingTasks: mktTasks.rows
     });
