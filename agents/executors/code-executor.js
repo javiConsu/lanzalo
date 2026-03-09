@@ -156,30 +156,87 @@ ${company.business_model ? `- Modelo: ${company.business_model}` : ''}
 ${analysisContext}
 INSTRUCCIONES:
 1. Genera una landing page COMPLETA y PROFESIONAL
-2. Usa save_file() para guardar cada archivo (mínimo: index.html)
-3. Usa deploy_site() para desplegar cuando esté listo
+2. Usa save_file() para guardar CADA archivo por separado (mínimo 3: index.html, styles.css, scripts.js)
+3. Usa deploy_site() para desplegar cuando TODOS los archivos estén guardados
 
-ESTÁNDARES DE DISEÑO OBLIGATORIOS:
-- HTML5 completo con <!DOCTYPE html>, meta viewport, favicon
-- Tailwind CSS via CDN (https://cdn.tailwindcss.com)
-- Paleta oscura elegante: fondo gris 950, acentos emerald-500
-- Mobile-first responsive (sm:, md:, lg:)
-- Hero section con headline potente y CTA above the fold
-- Secciones: Hero → Propuesta de valor → Beneficios/Features → Social proof → CTA final → Footer
-- Formulario de captura de email funcional (conectado a /api/public/waitlist)
-- Animaciones sutiles con CSS transitions
-- Tipografía: Inter o system-ui, jerarquía clara
-- Sin imágenes placeholder — usa emojis, iconos SVG inline, o gradientes
-- Footer con "Construido con Lánzalo" y año
-- Español nativo, tono profesional pero cercano
-- El formulario hace POST a: https://lanzalo-production.up.railway.app/api/public/waitlist
-  con body: { email, company_id: "${company.id}" }
+ESTÁNDARES DE DISEÑO — CALIDAD PREMIUM (OBLIGATORIO):
 
-NO HAGAS:
-- No uses lorem ipsum — escribe copy real basado en la descripción del negocio
-- No dejes secciones vacías o con texto genérico
-- No hagas diseños que parezcan templates de BootstrapH
-- No uses más de 2 colores de acento`;
+STACK: HTML5 semántico + CSS custom con variables (design tokens) + JavaScript vanilla.
+NO uses Tailwind, NO Bootstrap, NO frameworks CSS.
+Google Fonts: Space Grotesk (headings + body), Space Mono (labels, monospace), Caveat (handwritten accents).
+Link: <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;700&family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+
+ARCHIVOS: Genera MÍNIMO 3 archivos separados con save_file:
+- index.html (estructura HTML5 completa)
+- styles.css (todo el CSS con design tokens en :root)
+- scripts.js (IntersectionObserver, counter, card tilt, parallax, accordion, smooth scroll)
+
+DESIGN TOKENS (:root):
+- Palette: --ink #0A0A0A, --paper #FAF8F5, --cream #F0EDE8, --charcoal #2A2A2A, --grey #999, --white #FFF
+- Accent: Elige 1 color según la industria (naranja #FF4D00, azul #0066FF, verde #00C853, morado #7B2FFF, etc.)
+- Variables: --accent, --accent-light, --accent-dark, --accent-glow
+- Borders: --border-soft 1px solid rgba(10,10,10,0.08), --border-medium 1px solid rgba(10,10,10,0.15)
+- Shadows: --shadow-sm/md/lg (sutiles, no exagerados)
+- Radius: --radius-sm 8px, --radius-md 12px, --radius-lg 16px, --radius-xl 24px, --radius-pill 100px
+- Transitions: --ease-out cubic-bezier(0.4,0,0.2,1)
+
+TIPOGRAFÍA:
+- h1: clamp(36px, 5vw, 60px), weight 700, letter-spacing -1.5px
+- h2: clamp(24px, 3.5vw, 36px), weight 600
+- p: 15px, line-height 1.7, max-width 640px
+- .label: Space Mono 11px uppercase, letter-spacing 2px, color accent (para etiquetas de sección)
+- .handwritten: Caveat 22px (notas decorativas opcionales)
+
+BOTONES (efecto 3D press — NO NEGOCIABLE):
+- .btn-primary: background accent, color white, box-shadow 0 4px 0 accent-dark (3D). Hover: translateY(-2px). Active: translateY(2px).
+- .btn-secondary: transparent + border. Hover: translateY(-2px).
+- Font: Space Mono, 12px uppercase, letter-spacing 1.5px, border-radius pill
+
+NAVEGACIÓN: Sticky con glass effect (background rgba(255,255,255,0.85), backdrop-filter blur(20px)). Hamburger en mobile.
+
+CARDS: .card (white bg, border-soft, hover translateY(-6px)). .card-glass (glassmorphism: backdrop-filter blur, gradient-glass bg, inset border).
+
+ANIMACIONES (OBLIGATORIAS — marcan la diferencia):
+1. Scroll animations: .animate-on-scroll (opacity 0, translateY 24px → visible). IntersectionObserver threshold 0.15.
+2. Stagger: .delay-1 a .delay-4 para efecto cascada.
+3. Counter animation: data-count en stats, requestAnimationFrame con ease-out cúbico.
+4. Card tilt hover: mousemove → perspective(1000px) rotateX/Y ±2deg.
+5. Smooth anchor scrolling.
+
+ESTRUCTURA DE SECCIONES:
+- NAV: Sticky glass + logo + links + CTA pill
+- HERO: .label monospace + H1 con <span class="highlight">[palabra]</span> + subtitle + 2 CTAs
+- PROPUESTA DE VALOR: Grid 2-3 card-glass
+- STATS: Section-dark, números grandes con counter animation
+- PROCESO: Steps 01, 02, 03 con línea dotted conectora
+- SOCIAL PROOF / FAQ
+- CTA FINAL: Card grande fondo accent, texto blanco, botón invertido, circles decorativos absolutos
+- FOOTER: "Construido con Lánzalo · © ${new Date().getFullYear()}"
+
+FORMULARIO:
+- POST a: https://lanzalo-production.up.railway.app/api/public/waitlist
+- Body: { email, company_id: "${company.id}" }
+- Incluir validación, loading state, success message
+
+RESPONSIVE:
+- @media 768px: grids 1col, section padding 64px, hide sprites, hamburger visible
+- @media 480px: h1 28px
+
+DETALLES PREMIUM:
+- ::selection { background: accent; color: white }
+- -webkit-font-smoothing: antialiased
+- Dotted borders como separadores
+- Decorative circles con border semi-transparente en CTAs
+- Overflow hidden en secciones
+- Fondo base --paper (NO negro, NO gris oscuro)
+
+PROHIBIDO:
+- Lorem ipsum (escribe copy REAL)
+- Secciones vacías o genéricas
+- Diseños que parezcan templates
+- Fondos completamente negros como base
+- Más de 1 color accent
+- Tailwind o Bootstrap`;
 
     const response = await callLLMWithTools(prompt, {
       tools,
@@ -187,7 +244,7 @@ NO HAGAS:
       systemPrompt,
       companyId: task.company_id,
       taskType: 'code',
-      maxTurns: 8,
+      maxTurns: 12,
       temperature: 0.3
     });
 
