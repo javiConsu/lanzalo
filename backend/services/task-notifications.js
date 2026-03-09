@@ -44,10 +44,11 @@ async function notifyTaskCreated(task) {
     await resend.emails.send({
       from: FROM_EMAIL,
       to: user.email,
-      subject: `⚡ Tu Co-Founder ha puesto a ${agentName} a currar`,
+      subject: `⚡ [${user.company_name}] ${agentName} está en marcha`,
       html: `
         <div style="font-family: -apple-system, sans-serif; max-width: 480px; margin: 0 auto;">
           <div style="background: #111827; border: 1px solid #1f2937; border-radius: 14px; padding: 24px;">
+            <p style="color: #6b7280; font-size: 11px; margin: 0 0 8px 0; text-transform: uppercase; letter-spacing: 0.05em;">${user.company_name}</p>
             <p style="color: #9ca3af; font-size: 13px; margin: 0 0 12px 0;">Ey ${userName}, movimiento en tu negocio:</p>
             <div style="background: #1f2937; border-radius: 10px; padding: 16px; margin: 0 0 16px 0;">
               <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
@@ -91,10 +92,11 @@ async function notifyTaskCompleted(task) {
     await resend.emails.send({
       from: FROM_EMAIL,
       to: user.email,
-      subject: `✅ Tarea completada: ${task.title.substring(0, 50)}`,
+      subject: `✅ [${user.company_name}] ${task.title.substring(0, 45)} — listo`,
       html: `
         <div style="font-family: -apple-system, sans-serif; max-width: 480px; margin: 0 auto;">
           <div style="background: #111827; border: 1px solid #1f2937; border-radius: 14px; padding: 24px;">
+            <p style="color: #6b7280; font-size: 11px; margin: 0 0 8px 0; text-transform: uppercase; letter-spacing: 0.05em;">${user.company_name}</p>
             <h2 style="color: #34d399; margin: 0 0 6px 0; font-size: 18px;">¡Hecho! ✅</h2>
             <p style="color: #9ca3af; font-size: 13px; margin: 0 0 16px 0;">${agentName} ha terminado su trabajo, ${userName}.</p>
             <div style="background: #1f2937; border-left: 3px solid #34d399; border-radius: 0 10px 10px 0; padding: 16px; margin: 0 0 16px 0;">
@@ -133,10 +135,11 @@ async function notifyTaskFailed(task) {
     await resend.emails.send({
       from: FROM_EMAIL,
       to: user.email,
-      subject: `⚠️ Tarea con problemas: ${task.title.substring(0, 50)}`,
+      subject: `⚠️ [${user.company_name}] Problema con: ${task.title.substring(0, 40)}`,
       html: `
         <div style="font-family: -apple-system, sans-serif; max-width: 480px; margin: 0 auto;">
           <div style="background: #111827; border: 1px solid #1f2937; border-radius: 14px; padding: 24px;">
+            <p style="color: #6b7280; font-size: 11px; margin: 0 0 8px 0; text-transform: uppercase; letter-spacing: 0.05em;">${user.company_name}</p>
             <h2 style="color: #f59e0b; margin: 0 0 6px 0; font-size: 18px;">Hmm, algo no ha ido bien ⚠️</h2>
             <p style="color: #9ca3af; font-size: 13px; margin: 0 0 16px 0;">
               ${userName}, la tarea "${task.title}" ha tenido un problema. 
@@ -161,7 +164,7 @@ async function notifyTaskFailed(task) {
 async function getTaskOwner(companyId) {
   try {
     const result = await pool.query(
-      `SELECT u.id, u.email, u.name 
+      `SELECT u.id, u.email, u.name, c.name as company_name
        FROM users u 
        INNER JOIN companies c ON c.user_id = u.id 
        WHERE c.id = $1`,
