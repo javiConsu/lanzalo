@@ -8,6 +8,7 @@
 const express = require('express');
 const router = express.Router();
 const { pool } = require('../db');
+const { injectFeedbackWidget } = require('../services/feedback-widget');
 
 /**
  * GET /sites/:subdomain — Servir sitio del cliente
@@ -65,8 +66,9 @@ router.get('/:subdomain', async (req, res) => {
       `);
     }
 
-    // Servir HTML
-    res.type('html').send(previewResult.rows[0].html_content);
+    // Servir HTML con feedback widget inyectado
+    const html = injectFeedbackWidget(previewResult.rows[0].html_content, company.id, subdomain);
+    res.type('html').send(html);
 
   } catch (error) {
     console.error('[Sites] Error:', error);

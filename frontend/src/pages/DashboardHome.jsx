@@ -2,15 +2,16 @@
  * DashboardHome — Todo en un vistazo (estilo Polsia)
  * Widgets a la izquierda, Chat del Co-Founder a la derecha (altura limitada)
  */
-import { useState, useEffect, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { apiUrl, API_URL } from '../api.js'
 
 // ─── Inline Chat (altura limitada, no infinito) ──────────────────
-function InlineChat({ companyId }) {
+function InlineChat({ companyId, initialMessage }) {
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
+  const [initialSent, setInitialSent] = useState(false)
   const messagesEndRef = useRef(null)
   const token = localStorage.getItem('token')
 
@@ -49,11 +50,9 @@ function InlineChat({ companyId }) {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  const handleSend = async (e) => {
-    e.preventDefault()
-    if (!input.trim() || !companyId) return
-    const userMessage = input.trim()
-    setInput('')
+  // Core send function (reusable for manual input and auto-send)
+  const sendMessage = useCallback(async (userMessage) => {
+    if (!userMessage?.trim() || !companyId) return
     setLoading(true)
     setMessages(prev => [...prev, { id: Date.now(), role: 'user', content: userMessage, created_at: new Date().toISOString() }])
 
@@ -72,6 +71,22 @@ function InlineChat({ companyId }) {
     } finally {
       setLoading(false)
     }
+  }, [companyId, token])
+
+  // Auto-send initial message from feedback widget deep link
+  useEffect(() => {
+    if (initialMessage && companyId && !initialSent && messages.length > 0) {
+      setInitialSent(true)
+      sendMessage(initialMessage)
+    }
+  }, [initialMessage, companyId, initialSent, messages.length, sendMessage])
+
+  const handleSend = (e) => {
+    e.preventDefault()
+    if (!input.trim()) return
+    const msg = input.trim()
+    setInput('')
+    sendMessage(msg)
   }
 
   return (
@@ -682,7 +697,9 @@ export default function DashboardHome() {
   const [companies, setCompanies] = useState([])
   const [company, setCompany] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [feedbackMessage, setFeedbackMessage] = useState(null)
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const token = localStorage.getItem('token')
 
   useEffect(() => {
@@ -693,7 +710,26 @@ export default function DashboardHome() {
       .then(d => {
         const list = d.companies || []
         setCompanies(list)
-        if (list[0]) setCompany(list[0])
+
+        // Handle feedback deep link: ?feedback=web&company=xxx
+        const feedbackParam = searchParams.get('feedback')
+        const companyParam = searchParams.get('company')
+
+        if (feedbackParam === 'web' && companyParam) {
+          // Find the matching company and select it
+          const target = list.find(c => c.id === companyParam)
+          if (target) {
+            setCompany(target)
+            setFeedbackMessage('Quiero ajustar cosas de la web')
+          } else if (list[0]) {
+            setCompany(list[0])
+          }
+          // Clean URL params
+          setSearchParams({})
+        } else if (list[0]) {
+          setCompany(list[0])
+        }
+
         setLoading(false)
       })
       .catch(() => setLoading(false))
@@ -756,7 +792,7 @@ export default function DashboardHome() {
 
         {/* Right: Chat (60%) — limited height */}
         <div className="flex-1 lg:w-3/5 min-h-0">
-          <InlineChat companyId={company.id} />
+          <InlineChat companyId={company.id} initialMessage={feedbackMessage} />
         </div>
       </div>
     </div>

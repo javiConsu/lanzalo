@@ -16,6 +16,7 @@
 
 const crypto = require('crypto');
 const { pool } = require('../db');
+const { injectFeedbackWidget } = require('./feedback-widget');
 
 const VERCEL_TOKEN = process.env.VERCEL_TOKEN;
 const VERCEL_TEAM_ID = process.env.VERCEL_TEAM_ID || null;
@@ -32,6 +33,11 @@ class VercelDeployService {
    */
   async deploy(companyId, files, options = {}) {
     const { subdomain, companyName } = options;
+
+    // Inject feedback widget into HTML files
+    if (files['index.html']) {
+      files['index.html'] = injectFeedbackWidget(files['index.html'], companyId, subdomain);
+    }
 
     // Si no hay token de Vercel, usar deploy local (Railway /sites/:subdomain)
     if (!VERCEL_TOKEN) {
