@@ -197,7 +197,7 @@ export default function Marketing() {
               <span>{t.icon}</span>
               <span>{t.label}</span>
               {t.costExtra && (
-                <span className="text-[10px] px-1 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/25 leading-none">€</span>
+                <span className="text-[10px] px-1 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/25 leading-none">$</span>
               )}
               {t.count > 0 && (
                 <span className={`text-xs px-1.5 py-0.5 rounded-full leading-none ${
@@ -652,7 +652,7 @@ function EmailProUpsell({ companyId, token, subscribing, setSubscribing }) {
             </div>
           </div>
           <div className="flex items-baseline gap-1 mt-3">
-            <span className="text-3xl font-bold text-white">15€</span>
+            <span className="text-3xl font-bold text-white">$15</span>
             <span className="text-gray-400">/mes</span>
           </div>
         </div>
@@ -688,7 +688,7 @@ function EmailProUpsell({ companyId, token, subscribing, setSubscribing }) {
                 Activando...
               </>
             ) : (
-              <>Activar Email Pro — 15€/mes</>
+              <>Activar Email Pro — $15/mes</>
             )}
           </button>
           <p className="text-xs text-gray-600 text-center mt-3">

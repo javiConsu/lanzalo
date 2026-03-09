@@ -1,7 +1,7 @@
 /**
  * Email Pro Routes — Cold email subscription management
  * 
- * Plan: 15€/mes
+ * Plan: $15/mes
  * - 1 dominio dedicado (DFY via Instantly)
  * - 1 cuenta de email calentada
  * - 500 emails/mes
@@ -22,7 +22,7 @@ const stripe = process.env.STRIPE_SECRET_KEY
   ? require('stripe')(process.env.STRIPE_SECRET_KEY)
   : null;
 
-const EMAIL_PRO_PRICE = 1500; // 15.00€ in cents
+const EMAIL_PRO_PRICE = 1500; // $15.00 in cents (USD)
 const EMAILS_PER_MONTH = 500;
 
 // All routes require auth
@@ -51,7 +51,7 @@ router.get('/companies/:companyId/email-pro/status', requireCompanyAccess, async
         hasEmailPro: false,
         status: null,
         plan: {
-          price: '15€/mes',
+          price: '$15/mes',
           emails_per_month: EMAILS_PER_MONTH,
           features: [
             'Dominio dedicado configurado automáticamente',
