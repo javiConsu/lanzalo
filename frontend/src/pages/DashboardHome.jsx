@@ -441,24 +441,58 @@ function CreditsWidget() {
 }
 
 // ─── Stats Widget ──────────────────────────────────────────
-function StatsWidget({ company }) {
+function ProjectStatsBar({ company }) {
+  const isLive = company?.status === 'live'
+  const revenue = company?.revenue_total || 0
+  const balance = company?.balance || 0
+  const visits = company?.visits_total || 0
+
   return (
-    <div className="bg-gray-900/50 rounded-2xl border border-gray-700/50 p-4">
-      <span className="text-sm font-semibold text-white flex items-center gap-2 mb-3">
-        <span className="text-xs">📊</span> {company?.name || 'Mi negocio'}
-      </span>
-      <div className="grid grid-cols-3 gap-3">
-        <div className="text-center">
-          <div className="text-lg font-bold text-white">{company?.status === 'live' ? '🟢' : '🟡'}</div>
-          <div className="text-xs text-gray-500 mt-0.5">{company?.status === 'live' ? 'Activo' : 'Construyendo'}</div>
+    <div className="bg-gray-900/50 rounded-2xl border border-gray-700/50 p-3 flex-shrink-0">
+      <div className="flex items-center gap-4 flex-wrap">
+        {/* Nombre + Estado */}
+        <div className="flex items-center gap-2.5 min-w-0 flex-shrink">
+          <div className="flex items-center gap-1.5">
+            <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${isLive ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
+            <span className="text-sm font-bold text-white truncate max-w-[160px]">{company?.name || 'Mi negocio'}</span>
+          </div>
+          <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium flex-shrink-0 ${
+            isLive ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/15 text-amber-400 border border-amber-500/20'
+          }`}>
+            {isLive ? 'Activo' : 'Construyendo'}
+          </span>
         </div>
-        <div className="text-center">
-          <div className="text-lg font-bold text-emerald-400">${company?.revenue_total || 0}</div>
-          <div className="text-xs text-gray-500 mt-0.5">Revenue</div>
-        </div>
-        <div className="text-center">
-          <div className="text-lg font-bold text-blue-400">7</div>
-          <div className="text-xs text-gray-500 mt-0.5">Agentes</div>
+
+        {/* Separator */}
+        <div className="w-px h-6 bg-gray-700/50 hidden sm:block" />
+
+        {/* Stats row */}
+        <div className="flex items-center gap-4 flex-1">
+          {/* Ingresos */}
+          <div className="text-center">
+            <div className="text-xs text-gray-500">Ingresos</div>
+            <div className="text-sm font-bold text-emerald-400">${revenue}</div>
+          </div>
+
+          {/* Balance + Retirar */}
+          <div className="text-center flex items-center gap-2">
+            <div>
+              <div className="text-xs text-gray-500">Balance</div>
+              <div className="text-sm font-bold text-white">${balance}</div>
+            </div>
+            <button
+              onClick={() => alert('Retiradas disponibles pronto. Te avisaremos cuando est\u00e9 listo.')}
+              className="text-[10px] px-2 py-1 bg-gray-800 hover:bg-gray-700 border border-gray-600/50 hover:border-emerald-500/30 text-gray-400 hover:text-emerald-400 rounded-lg transition-all mt-2"
+            >
+              Retirar
+            </button>
+          </div>
+
+          {/* Visitas */}
+          <div className="text-center">
+            <div className="text-xs text-gray-500">Visitas</div>
+            <div className="text-sm font-bold text-blue-400">{visits}</div>
+          </div>
         </div>
       </div>
     </div>
@@ -782,11 +816,11 @@ export default function DashboardHome() {
           <ActivityWidget companyId={company.id} />
           <TasksWidget companyId={company.id} />
           <LinksWidget company={company} companyId={company.id} />
-          <StatsWidget company={company} />
         </div>
 
-        {/* Right: Chat (60%) — limited height */}
-        <div className="flex-1 lg:w-3/5 min-h-0">
+        {/* Right: Stats bar + Chat (60%) */}
+        <div className="flex-1 lg:w-3/5 min-h-0 flex flex-col gap-3">
+          <ProjectStatsBar company={company} />
           <InlineChat companyId={company.id} initialMessage={feedbackMessage} />
         </div>
       </div>
