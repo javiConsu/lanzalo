@@ -70,6 +70,15 @@ app.use('/api/credits', require('./routes/credits')); // Sistema de créditos
 app.use('/api/changes', require('./routes/change-requests')); // Cambios en assets (gratis)
 app.use('/api', require('./routes/feedback')); // User feedback (thumbs up/down)
 
+// One-time: promote owner to admin
+app.post('/api/promote-admin', require('./middleware/auth').requireAuth, async (req, res) => {
+  const ownerEmail = 'javi@saleshackers.es';
+  if (req.user.email !== ownerEmail) return res.status(403).json({ error: 'No autorizado' });
+  const { pool } = require('./db');
+  await pool.query("UPDATE users SET role = 'admin' WHERE email = $1", [ownerEmail]);
+  res.json({ success: true, message: 'Ahora eres admin. Recarga la página.' });
+});
+
 // Servir frontend React (producción)
 const path = require('path');
 const frontendDist = path.join(__dirname, '..', 'frontend', 'dist');
