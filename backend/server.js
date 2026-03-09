@@ -46,6 +46,9 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// Public routes (NO auth — MUST be before any router with catch-all requireAuth)
+app.use('/', require('./routes/landing'));
+
 // API Routes
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/onboarding', require('./routes/onboarding'));
@@ -67,7 +70,6 @@ app.use('/api/migrate', require('./routes/migrate'));
 app.post('/api/minimal-login', require('./routes/minimal-login'));
 app.get('/api/verify-magic', require('./routes/verify-magic'));
 
-app.use('/', require('./routes/landing')); // Landing pages: waitlist + deploy status (MUST be before ceo-chat)
 app.use('/api', require('./routes/ceo-chat')); // Co-Founder Agent chat
 app.use('/api/credits', require('./routes/credits')); // Sistema de créditos
 app.use('/api/changes', require('./routes/change-requests')); // Cambios en assets (gratis)
