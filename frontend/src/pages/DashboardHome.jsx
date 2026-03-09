@@ -399,16 +399,14 @@ function CreditsWidget() {
           <p className="text-xs text-violet-300">
             🎁 <span className="font-medium">+1 crédito gratis cada lunes</span> — automático, sin hacer nada
           </p>
-          <p className="text-[11px] text-violet-400/60 mt-0.5">
-            También ganas créditos enviando feedback (botón en el chat)
-          </p>
+
         </div>
 
         {/* Info if empty */}
         {isEmpty && (
           <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2 mb-3">
             <p className="text-xs text-amber-400">
-              ⚠️ Sin créditos para ejecutar tareas. Tu Co-Founder sigue creando tareas y proponiéndote ideas — compra créditos o envía feedback para ejecutarlas.
+              ⚠️ Sin créditos para ejecutar tareas. Tu Co-Founder sigue creando tareas y proponiéndote ideas — compra créditos para ejecutarlas.
             </p>
           </div>
         )}
