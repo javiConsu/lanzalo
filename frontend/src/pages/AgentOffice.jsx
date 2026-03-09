@@ -1,8 +1,8 @@
 /**
- * AgentOffice — Oficina pixel-art de agentes en tiempo real
+ * AgentOffice — Centro de Control de Agentes IA
  * Inspirado en Star-Office-UI (ringhyacinth/Star-Office-UI)
- * Adaptado para Lánzalo: 7 agentes IA con sprites pixel-art, movimiento autónomo,
- * conversaciones entre ellos y comportamientos variados.
+ * Adaptado para Lánzalo: 7 agentes IA con sprites robóticos, movimiento autónomo,
+ * comunicación inter-agente y comportamientos inteligentes.
  */
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { apiUrl, API_URL } from '../api.js'
@@ -20,161 +20,168 @@ const AGENT_DEFS = {
 
 // State → Spanish label + area in the office
 const STATE_INFO = {
-  idle:        { label: 'Descansando', area: 'breakroom', icon: '💤' },
-  writing:     { label: 'Escribiendo', area: 'desk', icon: '✍️' },
-  researching: { label: 'Investigando', area: 'library', icon: '🔎' },
+  idle:        { label: 'Standby', area: 'breakroom', icon: '🔋' },
+  writing:     { label: 'Generando', area: 'desk', icon: '⚙️' },
+  researching: { label: 'Escaneando', area: 'library', icon: '🔎' },
   executing:   { label: 'Ejecutando', area: 'desk', icon: '⚡' },
   syncing:     { label: 'Sincronizando', area: 'server', icon: '🔄' },
-  error:       { label: 'Error', area: 'bug', icon: '🐛' },
+  error:       { label: 'Alerta', area: 'bug', icon: '⚠️' },
 }
 
 // ─── Autonomous behaviour system ───────────────────────────
-const BEHAVIOURS = ['wander', 'sit_desk', 'coffee', 'chat', 'stretch', 'phone', 'window']
+const BEHAVIOURS = ['wander', 'sit_desk', 'recharge', 'chat', 'defrag', 'scan', 'window']
 
 // Points of interest in the office (normalised 0-1 coords)
+// Layout: 7 workstations around the room, central holo-table,
+// coffee station upper-left, lounge bottom-left, servers right
 const POI = {
   desks: [
-    { x: 0.12, y: 0.52 }, { x: 0.22, y: 0.52 },
-    { x: 0.12, y: 0.67 }, { x: 0.22, y: 0.67 },
-    { x: 0.32, y: 0.52 }, { x: 0.32, y: 0.67 },
+    { x: 0.14, y: 0.48 }, // workstation upper-left
+    { x: 0.28, y: 0.48 }, // workstation upper-left 2
+    { x: 0.70, y: 0.42 }, // workstation upper-right
+    { x: 0.84, y: 0.48 }, // workstation right
+    { x: 0.78, y: 0.62 }, // workstation lower-right
+    { x: 0.60, y: 0.68 }, // workstation lower-center-right
+    { x: 0.38, y: 0.68 }, // workstation lower-center-left
   ],
   coffee: [
-    { x: 0.60, y: 0.28 }, { x: 0.64, y: 0.32 },
+    { x: 0.12, y: 0.28 }, { x: 0.18, y: 0.30 },
   ],
   sofas: [
-    { x: 0.44, y: 0.60 }, { x: 0.56, y: 0.60 },
-    { x: 0.50, y: 0.68 },
+    { x: 0.16, y: 0.72 }, { x: 0.24, y: 0.76 },
+    { x: 0.20, y: 0.80 },
   ],
   library: [
-    { x: 0.38, y: 0.30 }, { x: 0.46, y: 0.30 },
-    { x: 0.42, y: 0.40 },
+    { x: 0.42, y: 0.30 }, { x: 0.56, y: 0.30 },
+    { x: 0.50, y: 0.38 },
   ],
   servers: [
-    { x: 0.82, y: 0.30 }, { x: 0.88, y: 0.35 },
+    { x: 0.90, y: 0.28 }, { x: 0.92, y: 0.36 },
   ],
   windows: [
-    { x: 0.75, y: 0.50 }, { x: 0.85, y: 0.55 },
+    { x: 0.40, y: 0.22 }, { x: 0.60, y: 0.22 },
   ],
   wander: [
-    { x: 0.18, y: 0.45 }, { x: 0.30, y: 0.58 },
-    { x: 0.40, y: 0.50 }, { x: 0.55, y: 0.45 },
-    { x: 0.65, y: 0.55 }, { x: 0.75, y: 0.65 },
-    { x: 0.50, y: 0.75 }, { x: 0.35, y: 0.72 },
-    { x: 0.68, y: 0.42 }, { x: 0.25, y: 0.38 },
-    { x: 0.82, y: 0.62 }, { x: 0.15, y: 0.78 },
-    { x: 0.60, y: 0.70 }, { x: 0.45, y: 0.45 },
+    { x: 0.20, y: 0.45 }, { x: 0.35, y: 0.55 },
+    { x: 0.45, y: 0.50 }, { x: 0.58, y: 0.48 },
+    { x: 0.68, y: 0.55 }, { x: 0.78, y: 0.58 },
+    { x: 0.50, y: 0.72 }, { x: 0.32, y: 0.65 },
+    { x: 0.72, y: 0.40 }, { x: 0.28, y: 0.38 },
+    { x: 0.85, y: 0.55 }, { x: 0.14, y: 0.60 },
+    { x: 0.62, y: 0.60 }, { x: 0.40, y: 0.42 },
+    { x: 0.50, y: 0.55 }, { x: 0.30, y: 0.72 },
   ],
 }
 
 // Conversation lines when two agents meet
 const CHAT_LINES = [
-  ['¿Qué tal va eso?', 'Bien, avanzando poco a poco'],
-  ['¿Café?', 'Venga, me apunto ☕'],
-  ['Tengo una idea loca...', 'Cuenta, cuenta 👀'],
-  ['El jefe no nos da tareas', '¡Mejor! Descanso merecido'],
-  ['He visto los datos...', '¿Y? ¿Algo interesante?'],
-  ['¿Sabes algo del deploy?', 'Dicen que pronto...'],
-  ['Esto va a ser grande', 'Vamos a romperla 💪'],
-  ['Necesito tu ayuda luego', 'Aquí estoy para lo que haga falta'],
-  ['¿Has visto el roadmap?', 'Sí, hay curro para rato'],
-  ['Menudo día, ¿no?', 'Y lo que queda...'],
-  ['¿Quedamos en la cocina?', 'Sí, en 5 minutos'],
-  ['El Co-Founder dice que...', '¿Qué dice ahora? 😅'],
-  ['Estoy frito', 'Tómate un respiro, anda'],
-  ['¿Alguna novedad?', 'Todo tranquilo por aquí'],
+  ['Sincronicemos datos...', 'Enlace establecido ✓'],
+  ['¿Recarga de energía?', 'Mis circuitos lo necesitan ⚡'],
+  ['Tengo un algoritmo nuevo...', 'Transmíteme los detalles 👀'],
+  ['Sin tareas en la cola', 'Modo ahorro activado 🔋'],
+  ['Anomalía en los datos...', '¿Probabilidad de error?'],
+  ['¿Estado del deployment?', 'Pipeline en cola...'],
+  ['Esto va a escalar x10', 'Los cálculos lo confirman 💪'],
+  ['Necesito tu API luego', 'Mis endpoints están listos'],
+  ['¿Has parseado el roadmap?', 'Sí, hay procesos pendientes'],
+  ['Ciclos de CPU al máximo hoy', 'Y quedan más iteraciones...'],
+  ['¿Nos vemos en el servidor?', 'Conectando en 5 ciclos'],
+  ['El Co-Founder ha enviado señal', '¿Nuevo prompt? 😅'],
+  ['Necesito un reboot', 'Programa una pausa, anda'],
+  ['¿Nuevos inputs?', 'Todo estable en mi nodo'],
 ]
 
 // Solo bubble texts
 const SOLO_BUBBLES = {
   wander: [
-    'Paseando por la ofi...',
-    'Dando una vuelta',
-    'Estirando las piernas',
-    'A ver qué hacen los demás',
-    'De paseo 🚶',
+    'Escaneando perímetro...',
+    'Patrullando la red',
+    'Recorriendo nodos 🔗',
+    'Analizando el entorno',
+    'Explorando subredes...',
   ],
   sit_desk: [
-    'Revisando cosillas...',
-    'Echando un vistazo',
-    'Organizando el escritorio',
+    'Procesando datos...',
+    'Optimizando queries',
+    'Compilando resultados',
     'Leyendo los últimos logs',
-    'Mirando el email...',
+    'Indexando entradas...',
   ],
-  coffee: [
-    'Café, café, café ☕',
-    'Sin café no funciono',
-    'El tercer café del día...',
-    '¿Descafeinado? Ni en broma',
-    'Cargando cafeína...',
+  recharge: [
+    'Recarga de energía ⚡',
+    'Sin voltaje no funciono',
+    'Tercer ciclo de carga...',
+    '¿Bajo consumo? Nunca.',
+    'Cargando baterías...',
   ],
-  stretch: [
-    'Estiramiento matutino 🧘',
-    'Necesitaba moverme',
-    'Un poco de yoga digital',
-    'Recargando energías',
+  defrag: [
+    'Defragmentando memoria 🧠',
+    'Liberando caché',
+    'Optimizando núcleos',
+    'Recalibrando sensores',
   ],
-  phone: [
-    'Mirando el móvil 📱',
-    'Revisando notificaciones',
-    'Un mensaje...',
-    'Scrolleando un poco...',
+  scan: [
+    'Escaneando señales 📡',
+    'Monitorizando feeds',
+    'Detectando patrones...',
+    'Analizando frecuencias...',
   ],
   window: [
-    'Mirando por la ventana 🪟',
-    'Bonito día ahí fuera...',
-    'Pensando en mis cosas',
-    'Un momento zen',
+    'Procesando datos visuales 🪟',
+    'Analizando panorámica...',
+    'Modo contemplación: ON',
+    'Calibrando sensores ópticos',
   ],
   idle_default: [
-    'Aquí, esperando órdenes jefe',
-    'Cargando baterías...',
-    'Zen mode: activado',
-    'Nadie me ha dado tarea.',
-    'Esto de no hacer nada cansa',
-    'A ver si el jefe se decide...',
-    'Listo para lo que haga falta',
-    'Recargando pilas ⚡',
+    'Esperando instrucciones...',
+    'Modo standby activado',
+    'Sistemas en reposo 🔋',
+    'Sin tareas en la cola.',
+    'Ciclos de CPU infrautilizados',
+    'Listo para ejecutar...',
+    'Todos los sistemas: OK ✓',
+    'Recargando núcleos ⚡',
   ],
 }
 
 // Working state bubbles
 const WORK_BUBBLES = {
   writing: [
-    'No me molestes, estoy en racha',
-    'Picando código a toda máquina',
-    'Esto va a quedar fino...',
-    'Escribiendo cosas importantes™',
-    'Dame 5 minutos más...',
-    'Concentrado nivel: monje budista',
+    'Generando output a máx. velocidad',
+    'Compilando código neural...',
+    'Tokens fluyendo sin parar...',
+    'Procesamiento en curso™',
+    'Dame 5 ciclos más...',
+    'Concentración: nivel cuántico 🧠',
   ],
   researching: [
-    'Investigando como un CSI',
-    'Buceando en datos...',
-    'He encontrado algo interesante',
-    'Leyendo papers a velocidad luz',
+    'Deep scan en progreso...',
+    'Rastreando bases de datos 🔍',
+    'Patrón interesante detectado',
+    'Parseando papers a 10GB/s',
     'La competencia no sabe lo que viene',
-    'Sacando conclusiones...',
+    'Extrayendo insights...',
   ],
   executing: [
-    'Ejecutando — no tocar',
-    '¡Vamos, que nos vamos!',
+    'Ejecutando — no interrumpir ⚡',
     'Pipeline en marcha 🚀',
-    'Esto va viento en popa',
-    'Trabajando a toda máquina',
-    'Dale, dale, dale...',
+    'Todos los cores activos',
+    'Rendimiento al 100%',
+    'Procesando a toda máquina',
+    'Deploy, deploy, deploy...',
   ],
   syncing: [
-    'Guardando el chiringuito...',
-    'Sincronizando con el universo',
-    'Backup listo, tranqui',
-    'Todo bajo control',
+    'Sincronizando con la nube...',
+    'Replicando datos en cluster',
+    'Backup completado ✓',
+    'Nodos sincronizados',
   ],
   error: [
-    'Houston, tenemos un problema',
-    'Algo ha petado. Investigando...',
-    'Bug encontrado. Cazándolo.',
-    'Error 💀 pero no pasa nada',
-    'Me he tropezado con un bug',
+    'Alerta: anomalía detectada ⚠️',
+    'Exception capturada. Analizando...',
+    'Bug localizado. Eliminando.',
+    'Error 💀 ejecutando fallback',
+    'Stack trace procesado',
   ],
 }
 
@@ -184,11 +191,12 @@ function pick(arr) {
 
 // ─── Agent Behaviour State Machine ─────────────────────────
 function initAgentBehaviour(type, index) {
+  // Each agent starts at their assigned workstation
   const startPositions = [
-    { x: 0.15, y: 0.55 }, { x: 0.25, y: 0.65 },
-    { x: 0.40, y: 0.50 }, { x: 0.55, y: 0.60 },
-    { x: 0.70, y: 0.45 }, { x: 0.35, y: 0.72 },
-    { x: 0.80, y: 0.58 },
+    { x: 0.14, y: 0.48 }, { x: 0.28, y: 0.48 },
+    { x: 0.70, y: 0.42 }, { x: 0.84, y: 0.48 },
+    { x: 0.78, y: 0.62 }, { x: 0.60, y: 0.68 },
+    { x: 0.38, y: 0.68 },
   ]
   const start = startPositions[index % startPositions.length]
   return {
@@ -211,15 +219,15 @@ function initAgentBehaviour(type, index) {
 
 function chooseNextBehaviour(agentType) {
   const weights = {
-    ceo:       { wander: 3, sit_desk: 1, coffee: 2, chat: 4, stretch: 1, phone: 1, window: 1 },
-    code:      { wander: 1, sit_desk: 4, coffee: 2, chat: 2, stretch: 1, phone: 1, window: 1 },
-    marketing: { wander: 2, sit_desk: 1, coffee: 3, chat: 4, stretch: 1, phone: 2, window: 1 },
-    email:     { wander: 2, sit_desk: 3, coffee: 2, chat: 2, stretch: 1, phone: 3, window: 1 },
-    research:  { wander: 2, sit_desk: 2, coffee: 1, chat: 2, stretch: 1, phone: 1, window: 3 },
-    data:      { wander: 1, sit_desk: 4, coffee: 2, chat: 1, stretch: 1, phone: 1, window: 1 },
-    twitter:   { wander: 3, sit_desk: 1, coffee: 2, chat: 3, stretch: 1, phone: 4, window: 1 },
+    ceo:       { wander: 3, sit_desk: 1, recharge: 2, chat: 4, defrag: 1, scan: 1, window: 1 },
+    code:      { wander: 1, sit_desk: 4, recharge: 2, chat: 2, defrag: 1, scan: 1, window: 1 },
+    marketing: { wander: 2, sit_desk: 1, recharge: 3, chat: 4, defrag: 1, scan: 2, window: 1 },
+    email:     { wander: 2, sit_desk: 3, recharge: 2, chat: 2, defrag: 1, scan: 3, window: 1 },
+    research:  { wander: 2, sit_desk: 2, recharge: 1, chat: 2, defrag: 1, scan: 1, window: 3 },
+    data:      { wander: 1, sit_desk: 4, recharge: 2, chat: 1, defrag: 1, scan: 1, window: 1 },
+    twitter:   { wander: 3, sit_desk: 1, recharge: 2, chat: 3, defrag: 1, scan: 4, window: 1 },
   }
-  const w = weights[agentType] || { wander: 2, sit_desk: 2, coffee: 2, chat: 2, stretch: 1, phone: 1, window: 1 }
+  const w = weights[agentType] || { wander: 2, sit_desk: 2, recharge: 2, chat: 2, defrag: 1, scan: 1, window: 1 }
   const entries = Object.entries(w)
   const totalWeight = entries.reduce((sum, [, v]) => sum + v, 0)
   let r = Math.random() * totalWeight
@@ -233,10 +241,10 @@ function chooseNextBehaviour(agentType) {
 function getTargetForBehaviour(behaviour) {
   switch (behaviour) {
     case 'sit_desk': return pick(POI.desks)
-    case 'coffee': return pick(POI.coffee)
+    case 'recharge': return pick(POI.coffee)
     case 'chat': return pick(POI.sofas)
-    case 'stretch': return pick(POI.wander)
-    case 'phone': return pick(POI.sofas)
+    case 'defrag': return pick(POI.wander)
+    case 'scan': return pick(POI.sofas)
     case 'window': return pick(POI.windows)
     case 'wander':
     default: return pick(POI.wander)
@@ -638,7 +646,7 @@ function OfficeCanvas({ agents, width, height, companyName }) {
 
         // Behaviour icon (idle, at target, not chatting)
         if (!isWorking && bh.atTarget && !bh.chatPartner) {
-          const icons = { coffee: '☕', phone: '📱', window: '🪟', sit_desk: '💻', stretch: '🧘' }
+          const icons = { recharge: '⚡', scan: '📡', window: '🪟', sit_desk: '💻', defrag: '🧠' }
           const icon = icons[bh.behaviour]
           if (icon) {
             ctx.save()
@@ -709,7 +717,7 @@ function OfficeCanvas({ agents, width, height, companyName }) {
       ctx.fillText('⭐', plaqueX + 14, plaqueY + plaqueH / 2)
       ctx.fillText('⭐', plaqueX + plaqueW - 14, plaqueY + plaqueH / 2)
       ctx.fillStyle = '#d1d5db'
-      const label = companyName ? `Oficina de Agentes — ${companyName}` : 'Oficina de Agentes — Lánzalo'
+      const label = companyName ? `Centro de Agentes IA — ${companyName}` : 'Centro de Agentes IA — Lánzalo'
       ctx.fillText(label, width / 2, plaqueY + plaqueH / 2)
 
       animFrameRef.current = requestAnimationFrame(draw)
@@ -741,13 +749,13 @@ function AgentPanel({ agents, totalActive, totalInProgress }) {
       {/* Summary */}
       <div className="bg-gray-900/50 rounded-2xl border border-gray-700/50 p-4">
         <div className="flex items-center gap-2 mb-3">
-          <span className="text-sm">🏢</span>
-          <span className="text-sm font-semibold text-white">Estado del equipo</span>
+          <span className="text-sm">🤖</span>
+          <span className="text-sm font-semibold text-white">Estado del sistema</span>
         </div>
         <div className="grid grid-cols-3 gap-3">
           <div className="text-center">
             <div className="text-lg font-bold text-emerald-400">{agentList.length}</div>
-            <div className="text-xs text-gray-500">Agentes</div>
+            <div className="text-xs text-gray-500">Nodos</div>
           </div>
           <div className="text-center">
             <div className="text-lg font-bold text-amber-400">{totalInProgress}</div>
@@ -755,7 +763,7 @@ function AgentPanel({ agents, totalActive, totalInProgress }) {
           </div>
           <div className="text-center">
             <div className="text-lg font-bold text-blue-400">{totalActive}</div>
-            <div className="text-xs text-gray-500">Tareas</div>
+            <div className="text-xs text-gray-500">Procesos</div>
           </div>
         </div>
       </div>
@@ -764,7 +772,7 @@ function AgentPanel({ agents, totalActive, totalInProgress }) {
       <div className="bg-gray-900/50 rounded-2xl border border-gray-700/50 overflow-hidden">
         <div className="px-4 py-3 border-b border-gray-700/50">
           <span className="text-sm font-semibold text-white flex items-center gap-2">
-            <span className="text-xs">🤖</span> Agentes en vivo
+            <span className="text-xs">🤖</span> Agentes online
           </span>
         </div>
         <div className="divide-y divide-gray-800/50">
@@ -826,7 +834,7 @@ function AgentPanel({ agents, totalActive, totalInProgress }) {
       {/* Quick link to Backlog */}
       <a href="/backlog" className="bg-gray-900/50 rounded-2xl border border-gray-700/50 p-3 hover:border-gray-600 transition-colors flex items-center justify-between">
         <span className="text-xs text-gray-400 flex items-center gap-2">
-          <span>📋</span> Ver cola de tareas completa
+          <span>📋</span> Ver cola de procesos
         </span>
         <span className="text-xs text-gray-600">→</span>
       </a>
@@ -961,11 +969,11 @@ export default function AgentOffice() {
       <div className="flex-1 flex items-center justify-center p-8">
         <div className="text-center max-w-md">
           <div className="w-16 h-16 bg-emerald-500/20 rounded-2xl flex items-center justify-center mx-auto mb-5">
-            <span className="text-3xl">🏢</span>
+            <span className="text-3xl">🤖</span>
           </div>
-          <h2 className="text-xl font-bold text-white mb-2">Tu oficina de agentes</h2>
+          <h2 className="text-xl font-bold text-white mb-2">Centro de control de agentes</h2>
           <p className="text-gray-400 text-sm">
-            Crea tu primera empresa para ver a tus agentes trabajando.
+            Crea tu primera empresa para activar tus agentes IA.
           </p>
         </div>
       </div>
@@ -981,11 +989,11 @@ export default function AgentOffice() {
       <div className="flex items-center justify-between px-4 pt-3 pb-1 flex-shrink-0">
         <div className="flex items-center gap-3">
           <span className="text-sm font-semibold text-white flex items-center gap-2">
-            <span className="text-base">🏢</span>
-            Oficina de Agentes {company ? `— ${company.name}` : ''}
+            <span className="text-base">🤖</span>
+            Centro de Agentes {company ? `— ${company.name}` : ''}
           </span>
           <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">
-            {stats.totalInProgress > 0 ? `${stats.totalInProgress} trabajando` : `${agentCount} agentes`}
+            {stats.totalInProgress > 0 ? `${stats.totalInProgress} procesando` : `${agentCount} online`}
           </span>
         </div>
 
@@ -1007,7 +1015,7 @@ export default function AgentOffice() {
           <span className="text-lg">💤</span>
           <div className="flex-1">
             <p className="text-sm text-amber-200">
-              Tus agentes están descansando. Si quieres que se ganen el sueldo, habla con tu Co-Founder para crearles tareas.
+              Tus agentes están en standby. Si quieres que se ganen el sueldo, habla con tu Co-Founder para crearles tareas.
             </p>
           </div>
           <a href="/" className="text-xs px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition-colors whitespace-nowrap">
