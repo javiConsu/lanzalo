@@ -166,7 +166,7 @@ export default function Marketing() {
           <MktKpiCard label="Leads" value={totalLeads} sub={emailPro.leads.statusCounts?.interested ? `${emailPro.leads.statusCounts.interested} interesados` : 'pipeline'} color="emerald" icon="🎯" onClick={() => setTab('emails')} active={tab === 'emails'} />
           <MktKpiCard label="Ads activas" value={activeAds} sub={`${ads.metrics.total} totales`} color="amber" icon="📢" onClick={() => setTab('ads')} active={tab === 'ads'} />
           <MktKpiCard label="Engagement" value={totalEngagement} sub="likes + shares" color="rose" icon="❤️" onClick={() => setTab('contenido')} active={false} />
-          <MktKpiCard label="Gamma" value={gamma.totalGenerated} sub="presentaciones IA" color="violet" icon="✨" onClick={() => setTab('contenido')} active={false} />
+          <MktKpiCard label="Presentaciones" value={gamma.totalGenerated} sub="generadas con IA" color="violet" icon="✨" onClick={() => setTab('contenido')} active={false} />
         </div>
 
         {/* Tabs */}
@@ -343,7 +343,7 @@ function ContentTab({ content, contentPieces, gamma, companyId, token, marketing
             </div>
             <div>
               <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                Gamma AI
+                Presentaciones IA
                 {gamma.enabled ? (
                   <span className="text-[10px] px-2 py-0.5 rounded-full bg-green-500/20 text-green-300 border border-green-500/30">Conectado</span>
                 ) : (
@@ -411,7 +411,7 @@ function ContentTab({ content, contentPieces, gamma, companyId, token, marketing
                 {generating ? (
                   <><span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" /> Generando...</>
                 ) : (
-                  <><span>✨</span> Crear con Gamma</>
+                  <><span>✨</span> Crear presentación</>
                 )}
               </button>
             </div>
@@ -421,7 +421,7 @@ function ContentTab({ content, contentPieces, gamma, companyId, token, marketing
         {/* Gamma status info when not configured */}
         {!gamma.enabled && (
           <div className="mt-2 text-xs text-gray-500">
-            Configura tu API key de Gamma Pro en ajustes para generar presentaciones y carruseles.
+            Configura tu API key en ajustes para generar presentaciones y carruseles con IA.
           </div>
         )}
 
@@ -429,7 +429,7 @@ function ContentTab({ content, contentPieces, gamma, companyId, token, marketing
         {pollingId && (
           <div className="mt-3 flex items-center gap-2 text-sm text-violet-300">
             <span className="w-3 h-3 border-2 border-violet-400 border-t-transparent rounded-full animate-spin" />
-            Generando contenido con Gamma...
+            Generando presentación con IA...
           </div>
         )}
       </div>
@@ -438,7 +438,7 @@ function ContentTab({ content, contentPieces, gamma, companyId, token, marketing
       {gammaPieces.length > 0 && (
         <div>
           <h3 className="text-xs font-semibold text-violet-400 uppercase tracking-wider mb-3 flex items-center gap-2">
-            <span>✨</span> Contenido Gamma
+            <span>✨</span> Presentaciones generadas
           </h3>
           <div className="space-y-2">
             {gammaPieces.map(piece => {
@@ -469,7 +469,7 @@ function ContentTab({ content, contentPieces, gamma, companyId, token, marketing
                         rel="noopener noreferrer"
                         className="text-violet-400 hover:text-violet-300 flex items-center gap-1 transition-colors"
                       >
-                        <span>🔗</span> Abrir en Gamma
+                        <span>🔗</span> Abrir presentación
                       </a>
                     )}
                     {piece.gamma_credits_used > 0 && (
@@ -572,7 +572,7 @@ function ContentTab({ content, contentPieces, gamma, companyId, token, marketing
         <EmptyState
           icon="📱"
           title="Sin contenido todavia"
-          subtitle={gamma.enabled ? 'Usa el boton Generar para crear presentaciones, carruseles y documentos con Gamma AI' : 'Tu CMO creara posts y contenido social cuando le des tareas'}
+          subtitle={gamma.enabled ? 'Usa el boton Generar para crear presentaciones, carruseles y documentos con IA' : 'Tu CMO creara posts y contenido social cuando le des tareas'}
         />
       )}
     </div>
