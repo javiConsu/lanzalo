@@ -434,6 +434,8 @@ export default function Ideas() {
   const [activeTab, setActiveTab] = useState('para_ti')
   const [sortBy, setSortBy] = useState('score')
   const [analysisId, setAnalysisId] = useState(null)
+  const [slotsModal, setSlotsModal] = useState(null) // { slots, used }
+  const [buyingSlot, setBuyingSlot] = useState(false)
   const navigate = useNavigate()
   const token = localStorage.getItem('token')
 
@@ -490,10 +492,35 @@ export default function Ideas() {
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
       })
       const data = await res.json()
-      if (data.success) navigate('/chat')
-      else alert('Error: ' + (data.error || 'No se pudo lanzar'))
+      if (data.code === 'NO_SLOTS') {
+        setSlotsModal({ slots: data.slots, used: data.used })
+      } else if (data.success) {
+        navigate('/chat')
+      } else {
+        alert('Error: ' + (data.error || 'No se pudo lanzar'))
+      }
     } catch (e) { alert('Error de conexión') }
     finally { setLaunching(null) }
+  }
+
+  const handleBuySlot = async () => {
+    setBuyingSlot(true)
+    try {
+      const res = await fetch(apiUrl('/api/credits/purchase-slot'), {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
+      })
+      const data = await res.json()
+      if (data.url) {
+        window.location.href = data.url
+      } else if (data.error) {
+        alert(data.error)
+      }
+    } catch (e) {
+      alert('Error de conexión')
+    } finally {
+      setBuyingSlot(false)
+    }
   }
 
   const handleDismiss = async (ideaId) => {
@@ -613,6 +640,43 @@ export default function Ideas() {
       {/* Analysis slide-over */}
       {analysisId && (
         <AnalysisPanel ideaId={analysisId} onClose={() => setAnalysisId(null)} />
+      )}
+
+      {/* No Slots Modal */}
+      {slotsModal && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setSlotsModal(null)}>
+          <div className="bg-gray-900 border border-gray-700 rounded-2xl max-w-sm w-full p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="text-center mb-5">
+              <div className="text-4xl mb-3">🏢</div>
+              <h3 className="text-lg font-bold text-white mb-2">Sin huecos disponibles</h3>
+              <p className="text-sm text-gray-400">
+                Tienes <span className="text-white font-semibold">{slotsModal.used}</span> de <span className="text-white font-semibold">{slotsModal.slots}</span> negocio{slotsModal.slots !== 1 ? 's' : ''} ocupado{slotsModal.used !== 1 ? 's' : ''}.
+              </p>
+              <p className="text-sm text-gray-500 mt-2">
+                Para lanzar una nueva idea necesitas un hueco adicional.
+              </p>
+            </div>
+
+            <button
+              onClick={handleBuySlot}
+              disabled={buyingSlot}
+              className="w-full py-3 rounded-xl font-semibold text-sm bg-emerald-600 hover:bg-emerald-500 text-white transition-all disabled:opacity-50 flex items-center justify-center gap-2 mb-3"
+            >
+              {buyingSlot ? (
+                <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Procesando...</>
+              ) : (
+                <>🚀 Comprar hueco extra — 39€/mes</>
+              )}
+            </button>
+
+            <button
+              onClick={() => setSlotsModal(null)}
+              className="w-full py-2.5 rounded-xl text-sm text-gray-500 hover:text-gray-300 transition-colors"
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
       )}
     </div>
   )
