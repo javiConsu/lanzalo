@@ -315,11 +315,11 @@ function CreditsWidget() {
           </p>
         </div>
 
-        {/* Warning if empty */}
+        {/* Info if empty */}
         {isEmpty && (
-          <div className="bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2 mb-3">
-            <p className="text-xs text-red-400">
-              ⚠️ Sin créditos. Tu Co-Founder no puede crear tareas nuevas.
+          <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2 mb-3">
+            <p className="text-xs text-amber-400">
+              ⚠️ Sin créditos para ejecutar tareas. Tu Co-Founder sigue creando tareas y proponiéndote ideas — compra créditos o envía feedback para ejecutarlas.
             </p>
           </div>
         )}
