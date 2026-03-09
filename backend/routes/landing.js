@@ -9,7 +9,7 @@
 const express = require('express');
 const router = express.Router();
 const { pool } = require('../db');
-const { authenticateToken } = require('../middleware/auth');
+const { requireAuth } = require('../middleware/auth');
 const vercelDeploy = require('../services/vercel-deploy');
 
 // ─── Public: Waitlist signup ────────────────────────────────
@@ -119,7 +119,7 @@ router.post('/api/public/waitlist', async (req, res) => {
 });
 
 // ─── Auth: Landing deploy status ────────────────────────────
-router.get('/api/user/companies/:id/landing', authenticateToken, async (req, res) => {
+router.get('/api/user/companies/:id/landing', requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -145,7 +145,7 @@ router.get('/api/user/companies/:id/landing', authenticateToken, async (req, res
 });
 
 // ─── Auth: Waitlist subscribers list ────────────────────────
-router.get('/api/user/companies/:id/waitlist', authenticateToken, async (req, res) => {
+router.get('/api/user/companies/:id/waitlist', requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
 
