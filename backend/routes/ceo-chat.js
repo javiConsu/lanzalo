@@ -179,7 +179,8 @@ router.get('/companies/:companyId/backlog', requireCompanyAccess, async (req, re
 
     const { pool } = require('../db');
 
-    const result = await pool.query(
+    // Active tasks (todo + in_progress)
+    const active = await pool.query(
       `SELECT * FROM tasks 
        WHERE company_id = $1 AND status IN ('todo', 'in_progress')
        ORDER BY 
@@ -193,8 +194,27 @@ router.get('/companies/:companyId/backlog', requireCompanyAccess, async (req, re
       [companyId]
     );
 
+    // Completed + failed tasks (last 30)
+    const done = await pool.query(
+      `SELECT * FROM tasks 
+       WHERE company_id = $1 AND status IN ('completed', 'failed')
+       ORDER BY completed_at DESC
+       LIMIT 30`,
+      [companyId]
+    );
+
+    // Recent chat messages (last 15)
+    const chat = await pool.query(
+      `SELECT id, role, content, created_at
+       FROM chat_messages WHERE company_id = $1
+       ORDER BY created_at DESC LIMIT 15`,
+      [companyId]
+    ).catch(() => ({ rows: [] }));
+
     res.json({
-      backlog: result.rows
+      backlog: active.rows,
+      completed: done.rows,
+      recentChat: chat.rows.reverse()
     });
 
   } catch (error) {
