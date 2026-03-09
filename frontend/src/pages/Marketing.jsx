@@ -1389,22 +1389,22 @@ function AdsTab({ ads, companyId, token, onRefresh }) {
   const campaigns = ads.campaigns || []
   const metrics = ads.metrics || {}
   const [generating, setGenerating] = useState(false)
-  const [showGenForm, setShowGenForm] = useState(false)
-  const [adForm, setAdForm] = useState({ platform: 'google_ads', objective: 'leads', budget: '', audience_description: '' })
   const [expandedCampaign, setExpandedCampaign] = useState(null)
+  const [lastResult, setLastResult] = useState(null)
 
   const handleGenerate = async () => {
+    if (generating) return
     setGenerating(true)
+    setLastResult(null)
     try {
       const res = await fetch(apiUrl(`/api/companies/${companyId}/ads/generate`), {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify(adForm)
+        body: JSON.stringify({}) // El agente decide todo con el contexto de la empresa
       })
       const data = await res.json()
       if (data.success) {
-        setShowGenForm(false)
-        setAdForm({ platform: 'google_ads', objective: 'leads', budget: '', audience_description: '' })
+        setLastResult(data.strategy)
         onRefresh()
       } else {
         alert(data.error || 'Error generando estrategia')
@@ -1429,88 +1429,37 @@ function AdsTab({ ads, companyId, token, onRefresh }) {
         </div>
       </div>
 
-      {/* Generate strategy button */}
-      <div className="flex justify-between items-center">
-        <h3 className="text-xs font-semibold text-purple-400 uppercase tracking-wider flex items-center gap-2">
-          <span>📢</span> Ads Strategist
-        </h3>
-        <button
-          onClick={() => setShowGenForm(!showGenForm)}
-          className="px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5"
-        >
-          <span>🎯</span> Nueva estrategia
-        </button>
-      </div>
-
-      {/* Generation form */}
-      {showGenForm && (
-        <div className="bg-gray-800/40 rounded-xl p-4 border border-gray-700/40 space-y-3">
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-[10px] text-gray-500 uppercase tracking-wider mb-1 block">Plataforma</label>
-              <select
-                value={adForm.platform}
-                onChange={e => setAdForm(prev => ({ ...prev, platform: e.target.value }))}
-                className="w-full px-3 py-2 bg-gray-900/60 border border-gray-700 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-              >
-                <option value="google_ads">Google Ads</option>
-                <option value="meta_ads">Meta Ads (Facebook/Instagram)</option>
-                <option value="linkedin_ads">LinkedIn Ads</option>
-                <option value="tiktok_ads">TikTok Ads</option>
-                <option value="general">General (mejor opcion)</option>
-              </select>
+      {/* Ads Strategist header */}
+      <div className="bg-gray-800/40 rounded-xl p-4 border border-gray-700/40">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-purple-500/15 flex items-center justify-center">
+              <span className="text-lg">📢</span>
             </div>
             <div>
-              <label className="text-[10px] text-gray-500 uppercase tracking-wider mb-1 block">Objetivo</label>
-              <select
-                value={adForm.objective}
-                onChange={e => setAdForm(prev => ({ ...prev, objective: e.target.value }))}
-                className="w-full px-3 py-2 bg-gray-900/60 border border-gray-700 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-              >
-                <option value="leads">Generacion de leads</option>
-                <option value="traffic">Trafico web</option>
-                <option value="awareness">Notoriedad de marca</option>
-                <option value="conversions">Conversiones/Ventas</option>
-                <option value="engagement">Engagement</option>
-              </select>
+              <h3 className="text-sm font-bold text-white">Ads Strategist</h3>
+              <p className="text-xs text-gray-500">Analiza tu empresa y genera la estrategia de publicidad óptima</p>
             </div>
           </div>
-          <div>
-            <label className="text-[10px] text-gray-500 uppercase tracking-wider mb-1 block">Presupuesto mensual (EUR)</label>
-            <input
-              type="number"
-              placeholder="Ej: 300"
-              value={adForm.budget}
-              onChange={e => setAdForm(prev => ({ ...prev, budget: e.target.value }))}
-              className="w-full px-3 py-2 bg-gray-900/60 border border-gray-700 rounded-lg text-sm text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-purple-500"
-            />
-          </div>
-          <div>
-            <label className="text-[10px] text-gray-500 uppercase tracking-wider mb-1 block">Describe tu audiencia ideal</label>
-            <textarea
-              placeholder="Ej: Emprendedores de 25-45, interesados en SaaS, en España..."
-              value={adForm.audience_description}
-              onChange={e => setAdForm(prev => ({ ...prev, audience_description: e.target.value }))}
-              rows={2}
-              className="w-full px-3 py-2 bg-gray-900/60 border border-gray-700 rounded-lg text-sm text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
-            />
-          </div>
-          <div className="flex justify-end gap-2">
-            <button onClick={() => setShowGenForm(false)} className="px-3 py-1.5 text-xs text-gray-400 hover:text-gray-200">Cancelar</button>
-            <button
-              onClick={handleGenerate}
-              disabled={generating}
-              className="px-4 py-1.5 bg-purple-600 hover:bg-purple-500 text-white text-xs font-medium rounded-lg transition-colors disabled:opacity-50 flex items-center gap-1.5"
-            >
-              {generating ? (
-                <><span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" /> Generando...</>
-              ) : (
-                <><span>🎯</span> Generar estrategia</>
-              )}
-            </button>
-          </div>
+          <button
+            onClick={handleGenerate}
+            disabled={generating}
+            className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-xs font-medium rounded-lg transition-colors disabled:opacity-50 flex items-center gap-1.5"
+          >
+            {generating ? (
+              <><span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" /> Analizando...</>
+            ) : (
+              <><span>🎯</span> Generar estrategia</>
+            )}
+          </button>
         </div>
-      )}
+        {generating && (
+          <div className="mt-3 text-xs text-purple-300 flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-purple-400 animate-pulse" />
+            El agente está analizando tu empresa, sector, competencia y decidiendo la mejor plataforma, audiencia y presupuesto...
+          </div>
+        )}
+      </div>
 
       {/* Metrics */}
       <div className="grid grid-cols-4 gap-2">
@@ -1657,7 +1606,7 @@ function AdsTab({ ads, companyId, token, onRefresh }) {
         <EmptyState
           icon="📢"
           title="Sin campanas de ads"
-          subtitle="Pulsa 'Nueva estrategia' para que el Ads Strategist genere campanas con copies, audiencias y presupuestos"
+          subtitle="Pulsa 'Generar estrategia' y el agente analiza tu empresa y crea la estrategia de publicidad óptima con copies, audiencias y presupuestos"
         />
       )}
     </div>

@@ -258,29 +258,41 @@ router.get('/companies/:companyId/content/gamma-status', requireAuth, requireCom
 router.post('/companies/:companyId/ads/generate', requireAuth, requireCompanyAccess, async (req, res) => {
   try {
     const { companyId } = req.params;
-    const { platform, objective, budget, audience_description } = req.body;
+    // El agente decide todo — no se necesitan inputs del usuario
 
     // Get company info + brand config
     const company = await pool.query('SELECT * FROM companies WHERE id = $1', [companyId]);
     if (company.rows.length === 0) return res.status(404).json({ error: 'Empresa no encontrada' });
     const comp = company.rows[0];
 
+    // Get existing campaigns to avoid repeating platforms already covered
+    const existingCampaigns = await pool.query(
+      'SELECT platform, objective FROM ad_campaigns WHERE company_id = $1 ORDER BY created_at DESC LIMIT 5',
+      [companyId]
+    );
+    const existingPlatforms = existingCampaigns.rows.map(r => r.platform).join(', ') || 'ninguna todavía';
+
     const brand = await brandConfig.getConfig(companyId);
     const brandContext = brandConfig.buildPromptContext(brand);
 
-    const prompt = `Eres un experto en publicidad digital (Google Ads, Meta Ads, LinkedIn Ads).
+    const prompt = `Eres el Ads Strategist de ${comp.name}. Tienes acceso completo al contexto de la empresa y debes decidir tú la mejor estrategia de publicidad sin pedir ningún input adicional al usuario.
 
 ${brandContext}
 
 EMPRESA: "${comp.name}"
 Descripción: ${comp.description || 'Sin descripción'}
 Industria: ${comp.industry || 'General'}
+Campañas ya creadas en: ${existingPlatforms}
 
-PETICIÓN:
-- Plataforma: ${platform || 'la mejor para este caso'}
-- Objetivo: ${objective || 'generación de leads'}
-- Presupuesto mensual: ${budget ? budget + '€' : 'no especificado (sugiere)'}
-- Audiencia: ${audience_description || 'definir la ideal'}
+ANALIZA y DECIDE tú sin preguntar:
+1. La plataforma más efectiva para este negocio específico (considera sector, ticket medio, ciclo de venta B2B vs B2C)
+2. El objetivo más importante ahora mismo para este tipo de empresa
+3. Un presupuesto inicial conservador pero efectivo para una PYME española
+4. La audiencia exacta basada en el sector, descripción y brand config
+5. Keywords y copies optimizados para este nicho concreto
+
+Si ya hay campañas en alguna plataforma, propón una plataforma diferente o un ángulo nuevo.
+No preguntes, no pidas confirmación. Genera la estrategia más accionable posible.
 
 GENERA UNA ESTRATEGIA COMPLETA:
 
