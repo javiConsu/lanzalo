@@ -853,7 +853,7 @@ router.get('/companies/:companyId/backlog', requireAuth, requireCompanyAccess, a
 
     // Tareas activas (todo + in_progress)
     const activeTasks = await pool.query(
-      `SELECT id, COALESCE(tag, agent_type) as agent_tag, title, description, status, priority,
+      `SELECT id, tag as agent_tag, title, description, status, priority,
               error_message, output, started_at, completed_at, created_at
        FROM tasks
        WHERE company_id = $1 AND status IN ('todo', 'in_progress')
@@ -863,11 +863,11 @@ router.get('/companies/:companyId/backlog', requireAuth, requireCompanyAccess, a
 
     // Tareas completadas/fallidas (last 50)
     const completedTasks = await pool.query(
-      `SELECT id, COALESCE(tag, agent_type) as agent_tag, title, description, status, priority,
+      `SELECT id, tag as agent_tag, title, description, status, priority,
               error_message, output, started_at, completed_at, created_at
        FROM tasks
        WHERE company_id = $1 AND status IN ('completed', 'failed')
-       ORDER BY completed_at DESC LIMIT 50`,
+       ORDER BY completed_at DESC NULLS LAST LIMIT 50`,
       [companyId]
     );
 
