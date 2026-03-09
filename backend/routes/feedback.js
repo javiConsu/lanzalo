@@ -171,7 +171,22 @@ router.post('/companies/:companyId/support/feedback', requireCompanyAccess, asyn
 router.get('/admin/support/tickets', requireAdmin, async (req, res) => {
   try {
     const status = req.query.status || 'pending';
+    const type = req.query.type; // 'feedback' | 'bug' | 'agent_feedback' | undefined (all)
+    const source = req.query.source; // 'user' | 'agent' | undefined (all)
     const limit = Math.min(parseInt(req.query.limit) || 50, 100);
+
+    let whereClause = 't.status = $1';
+    const params = [status, limit];
+    
+    if (type) {
+      params.push(type);
+      whereClause += ` AND t.type = $${params.length}`;
+    }
+    if (source === 'agent') {
+      whereClause += ` AND t.source = 'agent'`;
+    } else if (source === 'user') {
+      whereClause += ` AND (t.source IS NULL OR t.source = 'user')`;
+    }
 
     const result = await pool.query(
       `SELECT t.*, u.email as user_email, u.name as user_name,
@@ -180,20 +195,29 @@ router.get('/admin/support/tickets', requireAdmin, async (req, res) => {
        FROM support_tickets t
        LEFT JOIN users u ON t.user_id = u.id
        LEFT JOIN companies c ON t.company_id = c.id
-       WHERE t.status = $1
+       WHERE ${whereClause}
        ORDER BY t.created_at DESC
        LIMIT $2`,
-      [status, limit]
+      params
     );
 
-    // Contar por status
+    // Contar por status y tipo
     const counts = await pool.query(
-      `SELECT status, COUNT(*) as count FROM support_tickets GROUP BY status`
+      `SELECT status, type, source, COUNT(*) as count FROM support_tickets GROUP BY status, type, source`
     );
+
+    const summary = { byStatus: {}, byType: {}, bySource: {} };
+    counts.rows.forEach(r => {
+      summary.byStatus[r.status] = (summary.byStatus[r.status] || 0) + parseInt(r.count);
+      summary.byType[r.type] = (summary.byType[r.type] || 0) + parseInt(r.count);
+      const src = r.source || 'user';
+      summary.bySource[src] = (summary.bySource[src] || 0) + parseInt(r.count);
+    });
 
     res.json({
       tickets: result.rows,
-      counts: counts.rows.reduce((acc, r) => { acc[r.status] = parseInt(r.count); return acc; }, {})
+      counts: summary.byStatus,
+      summary
     });
   } catch (error) {
     console.error('[Admin] Tickets error:', error.message);
@@ -494,9 +518,21 @@ Responde en formato JSON con estos campos:
           </div>
           ` : ''}
 
-          <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 12px; padding: 16px; text-align: center;">
-            <p style="margin: 0 0 12px 0; font-size: 13px; color: #1e40af;">Ticket ID: <code>${ticketId}</code></p>
-            <p style="margin: 0; font-size: 12px; color: #3b82f6;">Aprueba o rechaza en el panel admin → Soporte</p>
+          <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 12px; padding: 20px; text-align: center;">
+            <p style="margin: 0 0 16px 0; font-size: 13px; color: #1e40af;">Ticket <code>${ticketId.slice(0, 8)}</code></p>
+            <div style="display: flex; gap: 12px; justify-content: center;">
+              <a href="https://www.lanzalo.pro/admin?tab=feedback&action=approve&ticket=${ticketId}" 
+                 style="display: inline-block; padding: 10px 24px; background: #10b981; color: white; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px;">
+                ✅ Aprobar (+cr\u00e9dito)
+              </a>
+              <a href="https://www.lanzalo.pro/admin?tab=feedback&action=reject&ticket=${ticketId}" 
+                 style="display: inline-block; padding: 10px 24px; background: #ef4444; color: white; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px;">
+                ❌ Rechazar
+              </a>
+            </div>
+            <p style="margin: 12px 0 0 0; font-size: 12px; color: #3b82f6;">
+              <a href="https://www.lanzalo.pro/admin?tab=feedback" style="color: #3b82f6; text-decoration: underline;">Ver todo el feedback en el panel admin →</a>
+            </p>
           </div>
         </div>
       `
@@ -546,5 +582,54 @@ async function notifyAdmin(type, data) {
     console.error(`[Support] Error sending admin notification:`, e.message);
   }
 }
+
+// ═══════════════════════════════════════════════════════
+// AGENT FEEDBACK — Los agentes de cada negocio pueden
+// proponer mejoras para la plataforma Lánzalo
+// ═══════════════════════════════════════════════════════
+
+router.post('/agent/feedback', requireAuth, async (req, res) => {
+  try {
+    const { message, companyId, agentType } = req.body;
+
+    if (!message || message.trim().length < 20) {
+      return res.status(400).json({ error: 'El feedback del agente debe tener al menos 20 caracteres' });
+    }
+
+    const result = await pool.query(
+      `INSERT INTO support_tickets (company_id, user_id, type, message, status, source, admin_notes)
+       VALUES ($1, $2, 'feedback', $3, 'pending', 'agent', $4)
+       RETURNING id, created_at`,
+      [
+        companyId || null,
+        req.user.id,
+        message.trim(),
+        agentType ? `[Agent: ${agentType}]` : '[Agent]'
+      ]
+    );
+
+    const ticket = result.rows[0];
+
+    // Pre-análisis + notificación al admin (async)
+    analyzeIdeaAndNotifyAdmin(
+      ticket.id,
+      `[Feedback de agente ${agentType || 'desconocido'}] ${message.trim()}`,
+      `agent@${agentType || 'system'}.lanzalo`,
+      companyId || null,
+      false
+    ).catch(e => console.error('[Agent Feedback] Error en análisis:', e.message));
+
+    console.log(`[Agent Feedback] Ticket ${ticket.id} creado por agente ${agentType} (empresa: ${companyId || 'global'})`);
+
+    res.json({
+      success: true,
+      ticketId: ticket.id,
+      message: 'Feedback del agente registrado para revisión'
+    });
+  } catch (error) {
+    console.error('[Agent Feedback] Error:', error.message);
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
 
 module.exports = router;

@@ -277,7 +277,10 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [lastUpdate, setLastUpdate] = useState(null)
-  const [activeTab, setActiveTab] = useState('overview')
+  // Read URL params for deep-linking from emails
+  const urlParams = new URLSearchParams(window.location.search)
+  const initialTab = urlParams.get('tab') || 'overview'
+  const [activeTab, setActiveTab] = useState(initialTab)
   const [period, setPeriod] = useState('30d')
   const [token, setToken] = useState(localStorage.getItem('token'))
   const [authChecked, setAuthChecked] = useState(false)
@@ -399,6 +402,7 @@ export default function AdminDashboard() {
     { id: 'overview', label: 'Overview', icon: '📊' },
     { id: 'costs', label: 'Costes', icon: '💰' },
     { id: 'users', label: 'Usuarios', icon: '👥' },
+    { id: 'feedback', label: 'Feedback', icon: '💡' },
     { id: 'activity', label: 'Actividad', icon: '⚡' }
   ]
 
@@ -776,6 +780,10 @@ export default function AdminDashboard() {
           <UsersTab token={token} users={users} companies={companies} />
         )}
 
+        {activeTab === 'feedback' && (
+          <FeedbackTab token={token} urlParams={urlParams} />
+        )}
+
         {/* ─── ACTIVITY TAB ──────────────────────── */}
         {activeTab === 'activity' && (
           <>
@@ -841,6 +849,288 @@ export default function AdminDashboard() {
               </div>
             </div>
           </>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ─── Feedback Tab ────────────────────────────────────
+function FeedbackTab({ token, urlParams }) {
+  const [tickets, setTickets] = useState([])
+  const [counts, setCounts] = useState({})
+  const [summary, setSummary] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [filter, setFilter] = useState('pending')
+  const [sourceFilter, setSourceFilter] = useState('all')
+  const [actionInProgress, setActionInProgress] = useState(null)
+  const [toast, setToast] = useState(null)
+
+  // Handle deep-link action from email
+  const pendingAction = urlParams?.get('action')
+  const pendingTicket = urlParams?.get('ticket')
+  const [deepLinkHandled, setDeepLinkHandled] = useState(false)
+
+  const fetchTickets = async () => {
+    try {
+      let url = `/api/admin/support/tickets?status=${filter}&limit=100`
+      if (sourceFilter !== 'all') url += `&source=${sourceFilter}`
+      const res = await fetch(apiUrl(url), {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      const data = await res.json()
+      setTickets(data.tickets || [])
+      setCounts(data.counts || {})
+      setSummary(data.summary || null)
+    } catch (e) {
+      console.error('Error fetching tickets:', e)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => { fetchTickets() }, [filter, sourceFilter, token])
+
+  // Auto-execute deep-link action from email
+  useEffect(() => {
+    if (pendingAction && pendingTicket && !deepLinkHandled && tickets.length > 0) {
+      const ticket = tickets.find(t => t.id === pendingTicket)
+      if (ticket && ticket.status === 'pending') {
+        if (pendingAction === 'approve') {
+          handleResolve(pendingTicket, 'approved', 'Aprobado desde email')
+        } else if (pendingAction === 'reject') {
+          handleResolve(pendingTicket, 'rejected', 'Rechazado desde email')
+        }
+      }
+      setDeepLinkHandled(true)
+      // Clean URL params
+      window.history.replaceState({}, '', '/admin?tab=feedback')
+    }
+  }, [pendingAction, pendingTicket, tickets, deepLinkHandled])
+
+  const handleResolve = async (ticketId, status, notes) => {
+    setActionInProgress(ticketId)
+    try {
+      const res = await fetch(apiUrl(`/api/admin/support/tickets/${ticketId}/resolve`), {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status, adminNotes: notes || '' })
+      })
+      const data = await res.json()
+      if (data.success) {
+        setToast({
+          type: status === 'approved' ? 'success' : 'info',
+          message: status === 'approved'
+            ? `Aprobado — +${data.creditsAwarded} crédito(s) al usuario`
+            : 'Rechazado'
+        })
+        setTimeout(() => setToast(null), 4000)
+        fetchTickets()
+      }
+    } catch (e) {
+      console.error('Error resolving ticket:', e)
+    } finally {
+      setActionInProgress(null)
+    }
+  }
+
+  const parseAIAnalysis = (notes) => {
+    if (!notes || !notes.startsWith('[AI]')) return null
+    try {
+      return JSON.parse(notes.replace('[AI] ', '').replace('[AI]', ''))
+    } catch { return null }
+  }
+
+  const pendingCount = counts.pending || 0
+  const approvedCount = counts.approved || 0
+  const rejectedCount = counts.rejected || 0
+
+  if (loading) {
+    return <div className="text-gray-500 text-center py-12">Cargando feedback...</div>
+  }
+
+  return (
+    <div>
+      {/* Toast */}
+      {toast && (
+        <div className={`fixed top-20 right-6 z-50 px-4 py-3 rounded-xl text-sm font-medium shadow-lg animate-fade-in ${
+          toast.type === 'success' ? 'bg-emerald-500/20 border border-emerald-500/30 text-emerald-300' : 'bg-blue-500/20 border border-blue-500/30 text-blue-300'
+        }`}>
+          {toast.message}
+        </div>
+      )}
+
+      {/* Summary cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+        <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 text-center">
+          <div className="text-2xl font-bold text-amber-400">{pendingCount}</div>
+          <div className="text-xs text-amber-400/60">Pendientes</div>
+        </div>
+        <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 text-center">
+          <div className="text-2xl font-bold text-emerald-400">{approvedCount}</div>
+          <div className="text-xs text-emerald-400/60">Aprobados</div>
+        </div>
+        <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 text-center">
+          <div className="text-2xl font-bold text-red-400">{rejectedCount}</div>
+          <div className="text-xs text-red-400/60">Rechazados</div>
+        </div>
+        <div className="bg-violet-500/10 border border-violet-500/20 rounded-xl p-4 text-center">
+          <div className="text-2xl font-bold text-violet-400">{summary?.bySource?.agent || 0}</div>
+          <div className="text-xs text-violet-400/60">De agentes</div>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div className="flex items-center gap-3 mb-6 flex-wrap">
+        <div className="flex items-center gap-1 bg-gray-900/50 border border-gray-800 rounded-lg p-1">
+          {['pending', 'approved', 'rejected'].map(s => (
+            <button
+              key={s}
+              onClick={() => setFilter(s)}
+              className={`px-3 py-1.5 text-xs rounded-md transition-colors ${
+                filter === s ? 'bg-gray-700 text-white font-medium' : 'text-gray-500 hover:text-gray-300'
+              }`}
+            >
+              {s === 'pending' ? `Pendientes (${pendingCount})` : s === 'approved' ? 'Aprobados' : 'Rechazados'}
+            </button>
+          ))}
+        </div>
+        <div className="flex items-center gap-1 bg-gray-900/50 border border-gray-800 rounded-lg p-1">
+          {[{ id: 'all', label: 'Todos' }, { id: 'user', label: '👤 Usuarios' }, { id: 'agent', label: '🤖 Agentes' }].map(s => (
+            <button
+              key={s.id}
+              onClick={() => setSourceFilter(s.id)}
+              className={`px-3 py-1.5 text-xs rounded-md transition-colors ${
+                sourceFilter === s.id ? 'bg-gray-700 text-white font-medium' : 'text-gray-500 hover:text-gray-300'
+              }`}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Tickets list */}
+      <div className="space-y-3">
+        {tickets.map(ticket => {
+          const ai = parseAIAnalysis(ticket.admin_notes)
+          const isAgent = ticket.source === 'agent'
+          const recColor = ai?.recomendacion === 'aprobar' ? 'text-emerald-400' : ai?.recomendacion === 'rechazar' ? 'text-red-400' : 'text-amber-400'
+          const recIcon = ai?.recomendacion === 'aprobar' ? '✅' : ai?.recomendacion === 'rechazar' ? '❌' : '🔄'
+
+          return (
+            <div key={ticket.id} className={`bg-gray-900/50 border rounded-xl p-5 transition-all ${
+              pendingTicket === ticket.id ? 'border-violet-500/50 ring-1 ring-violet-500/20' : 'border-gray-800'
+            }`}>
+              {/* Header */}
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                    isAgent ? 'bg-violet-500/20 text-violet-400' : 'bg-blue-500/20 text-blue-400'
+                  }`}>
+                    {isAgent ? '🤖 Agente' : '👤 Usuario'}
+                  </span>
+                  <span className="text-sm text-gray-300">{ticket.user_email || 'Desconocido'}</span>
+                  {ticket.company_name && (
+                    <span className="text-xs text-gray-600">• {ticket.company_name}</span>
+                  )}
+                  {ticket.user_plan && (
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
+                      ticket.user_plan === 'pro' ? 'bg-purple-500/20 text-purple-400' : 'bg-gray-700/50 text-gray-500'
+                    }`}>{ticket.user_plan}</span>
+                  )}
+                </div>
+                <span className="text-xs text-gray-600">{timeAgo(ticket.created_at)}</span>
+              </div>
+
+              {/* Message */}
+              <div className="bg-gray-800/50 rounded-lg p-4 mb-3">
+                <p className="text-sm text-gray-300 leading-relaxed whitespace-pre-wrap">{ticket.message}</p>
+              </div>
+
+              {/* AI Analysis */}
+              {ai && (
+                <div className="bg-gray-800/30 border border-gray-700/50 rounded-lg p-3 mb-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-[10px] text-gray-500 uppercase font-medium">Análisis IA</span>
+                    <span className={`text-xs font-semibold ${recColor}`}>{recIcon} {(ai.recomendacion || '').toUpperCase()}</span>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                    <div>
+                      <span className="text-gray-600">Impacto:</span>
+                      <span className={`ml-1 font-medium ${
+                        ai.impacto === 'alto' ? 'text-emerald-400' : ai.impacto === 'medio' ? 'text-amber-400' : 'text-gray-400'
+                      }`}>{ai.impacto || '-'}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-600">Viabilidad:</span>
+                      <span className={`ml-1 font-medium ${
+                        ai.viabilidad === 'alta' ? 'text-emerald-400' : ai.viabilidad === 'media' ? 'text-amber-400' : 'text-red-400'
+                      }`}>{ai.viabilidad || '-'}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-600">Ya existe:</span>
+                      <span className="ml-1 text-gray-400">{ai.ya_existe ? 'Sí' : 'No'}</span>
+                    </div>
+                    <div className="col-span-2 sm:col-span-1">
+                      <span className="text-gray-600">Resumen:</span>
+                      <span className="ml-1 text-gray-400">{ai.resumen || '-'}</span>
+                    </div>
+                  </div>
+                  {ai.razon && (
+                    <p className="text-[11px] text-gray-500 mt-2 italic">{ai.razon}</p>
+                  )}
+                </div>
+              )}
+
+              {/* Agent notes if not AI */}
+              {ticket.admin_notes && !ticket.admin_notes.startsWith('[AI]') && (
+                <div className="text-xs text-gray-500 mb-3 italic">{ticket.admin_notes}</div>
+              )}
+
+              {/* Actions */}
+              {ticket.status === 'pending' && (
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => handleResolve(ticket.id, 'approved', ai ? `IA: ${ai.recomendacion} — ${ai.razon || ''}` : '')}
+                    disabled={actionInProgress === ticket.id}
+                    className="px-4 py-2 text-sm bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30 border border-emerald-500/30 rounded-lg transition-colors disabled:opacity-50"
+                  >
+                    {actionInProgress === ticket.id ? '...' : '✅ Aprobar (+crédito)'}
+                  </button>
+                  <button
+                    onClick={() => handleResolve(ticket.id, 'rejected', 'Rechazado por admin')}
+                    disabled={actionInProgress === ticket.id}
+                    className="px-4 py-2 text-sm bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/20 rounded-lg transition-colors disabled:opacity-50"
+                  >
+                    ❌ Rechazar
+                  </button>
+                  <span className="text-[10px] text-gray-600 ml-auto">{ticket.id.slice(0, 8)}</span>
+                </div>
+              )}
+
+              {/* Already resolved */}
+              {ticket.status !== 'pending' && (
+                <div className="flex items-center gap-2">
+                  <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                    ticket.status === 'approved' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'
+                  }`}>
+                    {ticket.status === 'approved' ? `✅ Aprobado (+${ticket.credits_awarded || 0} cr.)` : '❌ Rechazado'}
+                  </span>
+                  <span className="text-[10px] text-gray-600 ml-auto">{ticket.id.slice(0, 8)}</span>
+                </div>
+              )}
+            </div>
+          )
+        })}
+
+        {tickets.length === 0 && (
+          <div className="text-center py-12">
+            <div className="text-3xl mb-3">{filter === 'pending' ? '🎉' : '💭'}</div>
+            <div className="text-gray-500 text-sm">
+              {filter === 'pending' ? 'Sin feedback pendiente — todo al día' : `Sin feedback ${filter === 'approved' ? 'aprobado' : 'rechazado'} aún`}
+            </div>
+          </div>
         )}
       </div>
     </div>
