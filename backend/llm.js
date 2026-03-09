@@ -22,7 +22,7 @@ const MODEL_COSTS = {
 };
 
 const MODEL_STRATEGY = {
-  code: 'anthropic/claude-sonnet-4',
+  code: 'anthropic/claude-3.5-sonnet',
   marketing: 'anthropic/claude-3.5-sonnet',
   email: 'anthropic/claude-3-haiku',
   twitter: 'anthropic/claude-3-haiku',
