@@ -164,4 +164,224 @@ router.get('/api/user/companies/:id/waitlist', requireAuth, async (req, res) => 
   }
 });
 
+// ─── Auth: Add custom domain ─────────────────────────────────
+router.post('/api/user/companies/:id/domain', requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { domain } = req.body;
+
+    if (!domain || domain.length < 4) {
+      return res.status(400).json({ error: 'Dominio inválido' });
+    }
+
+    // Sanitizar dominio
+    const cleanDomain = domain.toLowerCase().trim().replace(/^https?:\/\//, '').replace(/\/+$/, '');
+
+    // Buscar el proyecto Vercel de esta empresa
+    const company = await pool.query('SELECT subdomain, website_url FROM companies WHERE id = $1', [id]);
+    if (!company.rows[0]) {
+      return res.status(404).json({ error: 'Empresa no encontrada' });
+    }
+
+    const { subdomain } = company.rows[0];
+    const projectName = `lanzalo-${subdomain}`;
+
+    if (!process.env.VERCEL_TOKEN) {
+      return res.status(400).json({ error: 'Dominios custom no disponibles (sin Vercel token)' });
+    }
+
+    const teamParam = process.env.VERCEL_TEAM_ID ? `?teamId=${process.env.VERCEL_TEAM_ID}` : '';
+
+    // Añadir dominio al proyecto en Vercel
+    const addRes = await fetch(
+      `https://api.vercel.com/v10/projects/${projectName}/domains${teamParam}`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${process.env.VERCEL_TOKEN}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ name: cleanDomain })
+      }
+    );
+
+    const addData = await addRes.json();
+
+    if (!addRes.ok && addRes.status !== 409) {
+      // Si el dominio ya existe en otro proyecto, informar
+      if (addData.error?.code === 'domain_already_in_use') {
+        return res.status(409).json({ error: 'Este dominio ya está en uso en otro proyecto' });
+      }
+      return res.status(400).json({ error: addData.error?.message || 'Error añadiendo dominio' });
+    }
+
+    // Verificar configuración DNS
+    const verifyRes = await fetch(
+      `https://api.vercel.com/v10/projects/${projectName}/domains/${cleanDomain}/verify${teamParam}`,
+      {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${process.env.VERCEL_TOKEN}` }
+      }
+    );
+    const verifyData = await verifyRes.json();
+
+    // Guardar dominio en la empresa
+    await pool.query(
+      `UPDATE companies SET settings = COALESCE(settings, '{}'::jsonb) || $1::jsonb WHERE id = $2`,
+      [JSON.stringify({ custom_domain: cleanDomain, domain_verified: verifyData.verified || false }), id]
+    );
+
+    // Si está verificado, actualizar website_url
+    if (verifyData.verified) {
+      await pool.query(
+        `UPDATE companies SET website_url = $1 WHERE id = $2`,
+        [`https://${cleanDomain}`, id]
+      );
+    }
+
+    res.json({
+      domain: cleanDomain,
+      verified: verifyData.verified || false,
+      // Instrucciones DNS para el usuario
+      dns_instructions: verifyData.verified ? null : {
+        type: cleanDomain.split('.').length > 2 ? 'CNAME' : 'A',
+        name: cleanDomain.split('.').length > 2 ? cleanDomain.split('.')[0] : '@',
+        value: cleanDomain.split('.').length > 2 ? 'cname.vercel-dns.com' : '76.76.21.21',
+        message: `Configura un registro ${cleanDomain.split('.').length > 2 ? 'CNAME → cname.vercel-dns.com' : 'A → 76.76.21.21'} en tu proveedor de DNS`
+      }
+    });
+  } catch (error) {
+    console.error('[Domain] Error:', error);
+    res.status(500).json({ error: 'Error configurando dominio' });
+  }
+});
+
+// ─── Auth: Check domain verification status ─────────────────
+router.get('/api/user/companies/:id/domain', requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const company = await pool.query(
+      `SELECT subdomain, settings->'custom_domain' as custom_domain, 
+              settings->'domain_verified' as domain_verified, website_url
+       FROM companies WHERE id = $1`, [id]
+    );
+
+    if (!company.rows[0] || !company.rows[0].custom_domain) {
+      return res.json({ has_custom_domain: false });
+    }
+
+    const { subdomain, custom_domain, domain_verified, website_url } = company.rows[0];
+    const cleanDomain = custom_domain.replace(/"/g, '');
+
+    // Si ya verificado, devolver estado
+    if (domain_verified === true || domain_verified === 'true') {
+      return res.json({
+        has_custom_domain: true,
+        domain: cleanDomain,
+        verified: true,
+        url: `https://${cleanDomain}`
+      });
+    }
+
+    // Re-verificar con Vercel
+    if (process.env.VERCEL_TOKEN) {
+      const projectName = `lanzalo-${subdomain}`;
+      const teamParam = process.env.VERCEL_TEAM_ID ? `?teamId=${process.env.VERCEL_TEAM_ID}` : '';
+
+      try {
+        const verifyRes = await fetch(
+          `https://api.vercel.com/v10/projects/${projectName}/domains/${cleanDomain}/verify${teamParam}`,
+          {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${process.env.VERCEL_TOKEN}` }
+          }
+        );
+        const verifyData = await verifyRes.json();
+
+        if (verifyData.verified) {
+          // Actualizar estado
+          await pool.query(
+            `UPDATE companies SET 
+               settings = COALESCE(settings, '{}'::jsonb) || '{"domain_verified": true}'::jsonb,
+               website_url = $1
+             WHERE id = $2`,
+            [`https://${cleanDomain}`, id]
+          );
+
+          return res.json({
+            has_custom_domain: true,
+            domain: cleanDomain,
+            verified: true,
+            url: `https://${cleanDomain}`
+          });
+        }
+      } catch (e) {
+        console.warn('[Domain] Verify error:', e.message);
+      }
+    }
+
+    // Aún no verificado
+    res.json({
+      has_custom_domain: true,
+      domain: cleanDomain,
+      verified: false,
+      dns_instructions: {
+        type: cleanDomain.split('.').length > 2 ? 'CNAME' : 'A',
+        name: cleanDomain.split('.').length > 2 ? cleanDomain.split('.')[0] : '@',
+        value: cleanDomain.split('.').length > 2 ? 'cname.vercel-dns.com' : '76.76.21.21'
+      }
+    });
+  } catch (error) {
+    console.error('[Domain] Status error:', error);
+    res.status(500).json({ error: 'Error verificando dominio' });
+  }
+});
+
+// ─── Auth: Remove custom domain ─────────────────────────────
+router.delete('/api/user/companies/:id/domain', requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const company = await pool.query(
+      `SELECT subdomain, settings->'custom_domain' as custom_domain FROM companies WHERE id = $1`, [id]
+    );
+
+    if (!company.rows[0]?.custom_domain) {
+      return res.json({ success: true });
+    }
+
+    const { subdomain, custom_domain } = company.rows[0];
+    const cleanDomain = custom_domain.replace(/"/g, '');
+
+    // Eliminar de Vercel
+    if (process.env.VERCEL_TOKEN) {
+      const projectName = `lanzalo-${subdomain}`;
+      const teamParam = process.env.VERCEL_TEAM_ID ? `?teamId=${process.env.VERCEL_TEAM_ID}` : '';
+
+      await fetch(
+        `https://api.vercel.com/v10/projects/${projectName}/domains/${cleanDomain}${teamParam}`,
+        {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${process.env.VERCEL_TOKEN}` }
+        }
+      );
+    }
+
+    // Limpiar de DB, restaurar URL de lanzalo.pro
+    await pool.query(
+      `UPDATE companies SET 
+         settings = settings - 'custom_domain' - 'domain_verified',
+         website_url = $1
+       WHERE id = $2`,
+      [`https://${subdomain}.lanzalo.pro`, id]
+    );
+
+    res.json({ success: true, message: 'Dominio eliminado' });
+  } catch (error) {
+    console.error('[Domain] Delete error:', error);
+    res.status(500).json({ error: 'Error eliminando dominio' });
+  }
+});
+
 module.exports = router;
