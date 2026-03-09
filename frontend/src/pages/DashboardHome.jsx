@@ -529,7 +529,7 @@ function CreditsWidget() {
 }
 
 // ─── Stats Widget ──────────────────────────────────────────
-function ProjectStatsBar({ company }) {
+function ProjectStatsBar({ company, totalCompanies }) {
   const isLive = company?.status === 'live'
   const revenue = company?.revenue_total || 0
   const balance = company?.balance || 0
@@ -590,6 +590,15 @@ function ProjectStatsBar({ company }) {
           <div className="text-center">
             <div className="text-xs text-gray-500">Visitas</div>
             <div className="text-sm font-bold text-blue-400">{visits}</div>
+          </div>
+
+          {/* Separator */}
+          <div className="w-px h-6 bg-gray-700/50 hidden sm:block" />
+
+          {/* Negocios */}
+          <div className="text-center">
+            <div className="text-xs text-gray-500">Negocios</div>
+            <div className="text-sm font-bold text-violet-400">{totalCompanies || 1}</div>
           </div>
         </div>
       </div>
@@ -940,7 +949,7 @@ export default function DashboardHome() {
 
         {/* Right: Stats bar + Chat (60%) */}
         <div className="flex-1 lg:w-3/5 min-h-0 flex flex-col gap-3">
-          <ProjectStatsBar company={company} />
+          <ProjectStatsBar company={company} totalCompanies={companies.length} />
           <InlineChat companyId={company.id} initialMessage={feedbackMessage} />
         </div>
       </div>
