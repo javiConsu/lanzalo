@@ -106,20 +106,129 @@ function SectionHeader({ icon, title, badge }) {
 }
 
 // ─── Main Component ──────────────────────────────────────
+// ─── Admin Login Screen ─────────────────────────────────
+function AdminLoginScreen({ onLogin }) {
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState(null)
+  const [submitting, setSubmitting] = useState(false)
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setError(null)
+    setSubmitting(true)
+    try {
+      const res = await fetch(apiUrl('/api/auth/login'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      })
+      const data = await res.json()
+      if (!res.ok || !data.token) throw new Error(data.message || data.error || 'Login fallido')
+      if (data.user?.role !== 'admin') throw new Error('Acceso denegado. Solo administradores.')
+      localStorage.setItem('token', data.token)
+      onLogin(data.token)
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-950 flex items-center justify-center">
+      <form onSubmit={handleSubmit} className="bg-gray-900 border border-gray-800 rounded-2xl p-8 w-full max-w-sm shadow-2xl">
+        <div className="text-center mb-6">
+          <div className="text-2xl font-bold text-white mb-1">🔒 Admin Panel</div>
+          <div className="text-gray-500 text-sm">Lanzalo.pro</div>
+        </div>
+        {error && (
+          <div className="bg-red-500/10 border border-red-500/30 text-red-400 text-sm rounded-lg px-3 py-2 mb-4">
+            {error}
+          </div>
+        )}
+        <div className="space-y-4">
+          <div>
+            <label className="text-gray-400 text-xs font-medium mb-1 block">Email</label>
+            <input
+              type="email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+              placeholder="admin@ejemplo.com"
+              required
+              autoFocus
+            />
+          </div>
+          <div>
+            <label className="text-gray-400 text-xs font-medium mb-1 block">Contraseña</label>
+            <input
+              type="password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+              placeholder="••••••••"
+              required
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={submitting}
+            className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-blue-800 disabled:text-blue-400 text-white font-medium rounded-lg py-2.5 text-sm transition-colors"
+          >
+            {submitting ? 'Verificando...' : 'Entrar'}
+          </button>
+        </div>
+      </form>
+    </div>
+  )
+}
+
+// ─── Main Admin Dashboard ────────────────────────────────
 export default function AdminDashboard() {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [lastUpdate, setLastUpdate] = useState(null)
   const [activeTab, setActiveTab] = useState('overview') // overview | costs | users | activity
-  const token = localStorage.getItem('token')
+  const [token, setToken] = useState(localStorage.getItem('token'))
+  const [authChecked, setAuthChecked] = useState(false)
+  const [isAdmin, setIsAdmin] = useState(false)
   const refreshRef = useRef(null)
 
+  // Verify if current token belongs to an admin
+  useEffect(() => {
+    if (!token) {
+      setAuthChecked(true)
+      setIsAdmin(false)
+      return
+    }
+    fetch(apiUrl('/api/user/profile'), {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.user?.role === 'admin') {
+          setIsAdmin(true)
+        } else {
+          setIsAdmin(false)
+        }
+      })
+      .catch(() => setIsAdmin(false))
+      .finally(() => setAuthChecked(true))
+  }, [token])
+
   const fetchData = useCallback(async () => {
+    if (!token) return
     try {
       const res = await fetch(apiUrl('/api/admin/live'), {
         headers: { 'Authorization': `Bearer ${token}` }
       })
+      if (res.status === 401 || res.status === 403) {
+        setIsAdmin(false)
+        setAuthChecked(true)
+        return
+      }
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const json = await res.json()
       setData(json)
@@ -133,11 +242,28 @@ export default function AdminDashboard() {
   }, [token])
 
   useEffect(() => {
-    fetchData()
-    // Auto-refresh every 30s
-    refreshRef.current = setInterval(fetchData, 30000)
-    return () => clearInterval(refreshRef.current)
-  }, [fetchData])
+    if (isAdmin && token) {
+      fetchData()
+      refreshRef.current = setInterval(fetchData, 30000)
+      return () => clearInterval(refreshRef.current)
+    }
+  }, [isAdmin, token, fetchData])
+
+  // Show login if not authenticated or not admin
+  if (!authChecked) {
+    return (
+      <div className="min-h-screen bg-gray-950 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+          <div className="text-gray-500 text-sm">Verificando acceso...</div>
+        </div>
+      </div>
+    )
+  }
+
+  if (!token || !isAdmin) {
+    return <AdminLoginScreen onLogin={(newToken) => { setToken(newToken); setAuthChecked(false) }} />
+  }
 
   if (loading) {
     return (

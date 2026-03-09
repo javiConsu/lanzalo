@@ -71,6 +71,20 @@ function App() {
     setShowLogin(true)
   }
 
+  // Check if we're on /admin path (before Router mounts)
+  const isAdminPath = window.location.pathname === '/admin'
+
+  // /admin has its own self-contained auth — always render it
+  if (isAdminPath) {
+    return (
+      <Router>
+        <Routes>
+          <Route path="/admin" element={<AdminDashboard />} />
+        </Routes>
+      </Router>
+    )
+  }
+
   // Loading user profile
   if (loading) {
     return (
@@ -124,7 +138,7 @@ function App() {
           <Route path="metrics" element={user?.isTrialExpired ? <Paywall user={user} /> : <Metrics />} />
         </Route>
 
-        <Route path="/admin" element={user?.role === 'admin' ? <AdminDashboard /> : <Navigate to="/" replace />} />
+        <Route path="/admin" element={<AdminDashboard />} />
         <Route path="*" element={needsOnboarding ? <Navigate to="/onboarding/survey" replace /> : <Navigate to="/" replace />} />
       </Routes>
     </Router>
