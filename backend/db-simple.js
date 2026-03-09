@@ -112,8 +112,8 @@ async function createTask(companyId, agentType, title, description) {
   const id = require('crypto').randomUUID();
   
   await pool.query(
-    `INSERT INTO tasks (id, company_id, agent_type, title, description, scheduled_for)
-     VALUES ($1, $2, $3, $4, $5, NOW())`,
+    `INSERT INTO tasks (id, company_id, tag, title, description, status, created_at)
+     VALUES ($1, $2, $3, $4, $5, 'todo', NOW())`,
     [id, companyId, agentType, title, description]
   );
   

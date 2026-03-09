@@ -263,8 +263,8 @@ async function handleEmailProActivation(session) {
 
     // Create task for email agent to start working
     await pool.query(
-      `INSERT INTO tasks (company_id, agent_type, tag, title, description, status, priority, created_at)
-       VALUES ($1, 'email', 'email', 'Configurar Email Pro', 
+      `INSERT INTO tasks (company_id, tag, title, description, status, priority, created_at)
+       VALUES ($1, 'email', 'Configurar Email Pro', 
                'Email Pro activado. Preparar dominio, configurar warmup y crear primera campaña de prospección.',
                'todo', 'high', NOW())`,
       [companyId]

@@ -7,6 +7,24 @@ const { callLLM } = require('../../backend/llm');
 const { pool } = require('../../backend/db');
 const crypto = require('crypto');
 
+// Safe JSON parse helper - handles LLM responses that may have markdown wrapping
+function safeParseJSON(content) {
+  if (!content) throw new Error("Empty LLM response");
+  // Try direct parse first
+  try { return JSON.parse(content); } catch(e) {}
+  // Try extracting JSON from markdown code blocks
+  const match = content.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (match) {
+    try { return JSON.parse(match[1].trim()); } catch(e) {}
+  }
+  // Try finding JSON object/array in the content
+  const jsonMatch = content.match(/\{[\s\S]*\}/);
+  if (jsonMatch) {
+    try { return JSON.parse(jsonMatch[0]); } catch(e) {}
+  }
+  throw new Error("Could not parse LLM response as JSON: " + content.substring(0, 100));
+}
+
 class EmailExecutor extends TaskExecutor {
   constructor() {
     super('email-agent', 'Email Agent');
@@ -165,7 +183,7 @@ GENERA EL EMAIL (JSON):
     });
 
     try {
-      const email = JSON.parse(response.content);
+      const email = safeParseJSON(response.content);
       
       // Validar longitud
       const wordCount = email.body.split(/\s+/).length;
@@ -211,7 +229,7 @@ Responde en JSON:
       temperature: 0.6
     });
 
-    const email = JSON.parse(response.content);
+    const email = safeParseJSON(response.content);
     const emailId = await this.saveEmail(task.company_id, email, 'followup');
 
     return {
@@ -262,7 +280,7 @@ Responde en JSON:
       temperature: 0.7
     });
 
-    const email = JSON.parse(response.content);
+    const email = safeParseJSON(response.content);
     const emailId = await this.saveEmail(task.company_id, email, 'newsletter');
 
     return {
@@ -302,7 +320,7 @@ Responde en JSON:
       temperature: 0.3
     });
 
-    const email = JSON.parse(response.content);
+    const email = safeParseJSON(response.content);
     const emailId = await this.saveEmail(task.company_id, email, 'transactional');
 
     // Transaccionales SÍ se envían automáticamente (cuando tengamos API)
@@ -340,7 +358,7 @@ Responde en JSON:
       temperature: 0.6
     });
 
-    const email = JSON.parse(response.content);
+    const email = safeParseJSON(response.content);
     const emailId = await this.saveEmail(task.company_id, email, 'generic');
 
     return {

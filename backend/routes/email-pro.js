@@ -471,8 +471,8 @@ router.post('/instantly-webhook', express.json(), async (req, res) => {
         const leadRow = await pool.query('SELECT company_id FROM leads WHERE email = $1 LIMIT 1', [leadEmail]);
         if (leadRow.rows.length > 0) {
           await pool.query(
-            `INSERT INTO tasks (company_id, agent_type, tag, title, description, status, priority, created_at)
-             VALUES ($1, 'email', 'email', 'Analizar respuesta de lead', $2, 'todo', 'high', NOW())`,
+            `INSERT INTO tasks (company_id, tag, title, description, status, priority, created_at)
+             VALUES ($1, 'email', 'Analizar respuesta de lead', $2, 'todo', 'high', NOW())`,
             [leadRow.rows[0].company_id, `Lead ${leadEmail} ha respondido: "${(event.reply_text || '').substring(0, 200)}"`]
           );
         }

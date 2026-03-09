@@ -8,6 +8,16 @@ const { pool } = require('../../backend/db');
 const { chromium } = require('playwright');
 const crypto = require('crypto');
 
+function safeParseJSON(content) {
+  if (!content) throw new Error('Empty LLM response');
+  try { return JSON.parse(content); } catch(e) {}
+  const match = content.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (match) { try { return JSON.parse(match[1].trim()); } catch(e) {} }
+  const jsonMatch = content.match(/\{[\s\S]*\}/);
+  if (jsonMatch) { try { return JSON.parse(jsonMatch[0]); } catch(e) {} }
+  throw new Error('Could not parse JSON: ' + content.substring(0, 100));
+}
+
 class BrowserExecutor extends TaskExecutor {
   constructor() {
     super('browser-agent', 'Browser Agent');
@@ -392,7 +402,7 @@ RESPONDE EN JSON:
       temperature: 0.3
     });
 
-    const decision = JSON.parse(response.content);
+    const decision = safeParseJSON(response.content);
 
     // Ejecutar según decisión
     switch (decision.action) {
@@ -464,7 +474,7 @@ Solo selectores CSS y valores.`;
       temperature: 0.3
     });
 
-    return JSON.parse(response.content);
+    return safeParseJSON(response.content);
   }
 
   /**

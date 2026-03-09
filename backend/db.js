@@ -35,8 +35,8 @@ async function createCompany(userId, name, description, industry) {
 // Tasks
 async function createTask(companyId, agentType, title, description) {
   const result = await pool.query(
-    `INSERT INTO tasks (company_id, agent_type, title, description, scheduled_for)
-     VALUES ($1, $2, $3, $4, NOW()) RETURNING *`,
+    `INSERT INTO tasks (company_id, tag, title, description, status, created_at)
+     VALUES ($1, $2, $3, $4, 'todo', NOW()) RETURNING *`,
     [companyId, agentType, title, description]
   );
   return result.rows[0];

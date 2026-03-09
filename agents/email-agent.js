@@ -372,8 +372,8 @@ JSON:
         // If interested, create a task for the user
         if (analysis.interest_score > 0.6) {
           await pool.query(
-            `INSERT INTO tasks (company_id, agent_type, tag, title, description, status, priority, created_at)
-             VALUES ($1, 'email', 'email', $2, $3, 'todo', 'high', NOW())`,
+            `INSERT INTO tasks (company_id, tag, title, description, status, priority, created_at)
+             VALUES ($1, 'email', $2, $3, 'todo', 'high', NOW())`,
             [
               company.id,
               `Lead caliente: ${lead.first_name || lead.email}`,
@@ -492,8 +492,8 @@ Responde de forma directa y práctica.`;
 
   async createTask(companyId, title, description) {
     const result = await pool.query(
-      `INSERT INTO tasks (company_id, agent_type, tag, title, description, status, created_at)
-       VALUES ($1, 'email', 'email', $2, $3, 'todo', NOW()) RETURNING *`,
+      `INSERT INTO tasks (company_id, tag, title, description, status, created_at)
+       VALUES ($1, 'email', $2, $3, 'todo', NOW()) RETURNING *`,
       [companyId, title, description]
     );
     return result.rows[0];
