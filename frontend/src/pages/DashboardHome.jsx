@@ -446,6 +446,10 @@ function ProjectStatsBar({ company }) {
   const revenue = company?.revenue_total || 0
   const balance = company?.balance || 0
   const visits = company?.visits_total || 0
+  const costLanzalo = company?.cost_lanzalo || 0
+  const costEmail = company?.cost_cold_email || 0
+  const costAds = company?.cost_ads || 0
+  const investment = costLanzalo + costEmail + costAds
 
   return (
     <div className="bg-gray-900/50 rounded-2xl border border-gray-700/50 p-3 flex-shrink-0">
@@ -486,6 +490,12 @@ function ProjectStatsBar({ company }) {
             >
               Retirar
             </button>
+          </div>
+
+          {/* Inversión */}
+          <div className="text-center">
+            <div className="text-xs text-gray-500">Inversión</div>
+            <div className="text-sm font-bold text-orange-400">${investment}</div>
           </div>
 
           {/* Visitas */}
