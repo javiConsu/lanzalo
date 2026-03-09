@@ -272,6 +272,103 @@ function dist(a, b) {
 
 function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)) }
 
+// ─── Status Banner ──────────────────────────────────────
+const IDLE_ROASTS = [
+  'viendo crecer la hierba digital',
+  'contando píxeles en el techo',
+  'en modo ahorro de energía (también conocido como vaguear)',
+  'fingiendo que procesan algo importante',
+  'mirando al infinito del código',
+  'en huelga de circuitos caídos',
+  'reflexionando sobre el sentido de la IA',
+  'jugando al solitario en binario',
+  'esperando a que alguien les mande algo',
+  'contemplando el void() de la existencia',
+  'haciendo absolutamente nada (con estilo)',
+  'simulando actividad neuronal',
+  'en modo pantalla de descanso',
+  'meditando en formato JSON',
+  'vagueando por los servidores',
+  'perdiendo el tiempo a 3GHz',
+  'haciendo scroll infinito por /dev/null',
+  'recargando baterías... o eso dicen',
+  'probablemente soñando con ovejas eléctricas',
+  'en standby profesional',
+  'calculando cuántos ciclos les quedan de siesta',
+  'pretendiendo que debuggean algo',
+  'en una reunión consigo mismos',
+  'optimizando su ratio de no hacer nada',
+  'descansando los transistores',
+]
+
+const ALL_WORKING_MSGS = [
+  'Todos los núcleos al máximo. Así da gusto.',
+  'Equipo completo operativo. Máquina bien engrasada.',
+  'Todos los agentes currando. Productividad: 100%.',
+  'Ningún vago. Esto sí que es rendimiento.',
+  'Sistema al 100%. Todos los cores quemando.',
+  'Full power. Ni un ciclo desperdiciado.',
+]
+
+function StatusBanner({ workingCount, idleCount, allIdle, agents }) {
+  const [messageIdx, setMessageIdx] = useState(() => Math.floor(Math.random() * 100))
+
+  // Rotate message every time working/idle counts change
+  useEffect(() => {
+    setMessageIdx(prev => prev + 1)
+  }, [workingCount, idleCount])
+
+  const allWorking = idleCount === 0 && workingCount > 0
+
+  // Pick names of idle agents (max 3 shown)
+  const idleNames = Object.entries(agents)
+    .filter(([, a]) => !a.state || a.state === 'idle')
+    .map(([type]) => AGENT_DEFS[type]?.name || type)
+  const shownNames = idleNames.slice(0, 3)
+  const extraCount = idleNames.length - 3
+
+  if (allWorking) {
+    const msg = ALL_WORKING_MSGS[messageIdx % ALL_WORKING_MSGS.length]
+    return (
+      <div className="mx-4 mt-2 px-4 py-2.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex items-center gap-3">
+        <span className="text-lg">⚡</span>
+        <div className="flex-1">
+          <p className="text-sm text-emerald-200">
+            <span className="font-semibold text-emerald-300">{workingCount}/{workingCount + idleCount} agentes trabajando.</span>{' '}
+            {msg}
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  const roast = IDLE_ROASTS[messageIdx % IDLE_ROASTS.length]
+  const idleNameStr = extraCount > 0
+    ? `${shownNames.join(', ')} y ${extraCount} más`
+    : shownNames.join(shownNames.length === 2 ? ' y ' : ', ')
+
+  return (
+    <div className={`mx-4 mt-2 px-4 py-2.5 ${allIdle ? 'bg-amber-500/10 border-amber-500/20' : 'bg-blue-500/10 border-blue-500/20'} border rounded-xl flex items-center gap-3`}>
+      <span className="text-lg">{allIdle ? '🔋' : '⚙️'}</span>
+      <div className="flex-1">
+        <p className={`text-sm ${allIdle ? 'text-amber-200' : 'text-blue-200'}`}>
+          {workingCount > 0 && (
+            <><span className="font-semibold text-emerald-300">{workingCount} agente{workingCount > 1 ? 's' : ''} trabajando.</span>{' '}</>
+          )}
+          <span className={allIdle ? 'text-amber-300/80' : 'text-blue-300/80'}>
+            {idleNameStr} {idleCount === 1 ? 'está' : 'están'} {roast}.
+          </span>
+          {' '}
+          <span className="text-gray-400">Habla con tu Co-Founder para ponerles a currar.</span>
+        </p>
+      </div>
+      <a href="/" className="text-xs px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition-colors whitespace-nowrap flex-shrink-0">
+        Ir al Chat
+      </a>
+    </div>
+  )
+}
+
 // ─── Pixel Art Canvas Component ────────────────────────────
 function OfficeCanvas({ agents, width, height, companyName }) {
   const canvasRef = useRef(null)
@@ -983,6 +1080,10 @@ export default function AgentOffice() {
   const agentCount = Object.keys(agents).length
   const company = companies.find(c => c.id === companyId)
   const allIdle = Object.values(agents).every(a => a.state === 'idle')
+  const workingAgents = Object.values(agents).filter(a => a.state && a.state !== 'idle')
+  const idleAgents = Object.values(agents).filter(a => !a.state || a.state === 'idle')
+  const workingCount = workingAgents.length
+  const idleCount = idleAgents.length
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
@@ -1010,19 +1111,7 @@ export default function AgentOffice() {
         )}
       </div>
 
-      {allIdle && (
-        <div className="mx-4 mt-2 px-4 py-3 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-center gap-3">
-          <span className="text-lg">💤</span>
-          <div className="flex-1">
-            <p className="text-sm text-amber-200">
-              Tus agentes están en standby. Si quieres que se ganen el sueldo, habla con tu Co-Founder para crearles tareas.
-            </p>
-          </div>
-          <a href="/" className="text-xs px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition-colors whitespace-nowrap">
-            Ir al Chat
-          </a>
-        </div>
-      )}
+      <StatusBanner workingCount={workingCount} idleCount={idleCount} allIdle={allIdle} agents={agents} />
 
       <div className="flex-1 flex flex-col lg:flex-row gap-4 p-4 overflow-hidden">
         <div ref={containerRef} className="flex-1 lg:w-3/5 min-h-0 flex items-center justify-center">
