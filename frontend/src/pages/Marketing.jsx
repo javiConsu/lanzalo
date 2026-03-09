@@ -641,7 +641,7 @@ function BrandTab({ brandConfig, hasBrandConfig, companyId, token, onRefresh }) 
     if (!desc.trim()) return
     setGenerating(true)
     try {
-      const res = await fetch(`/api/brand/${companyId}/generate`, {
+      const res = await fetch(apiUrl(`/api/companies/${companyId}/brand/generate`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ description: desc }),
@@ -658,7 +658,7 @@ function BrandTab({ brandConfig, hasBrandConfig, companyId, token, onRefresh }) 
   const handleSave = async () => {
     setSaving(true)
     try {
-      const res = await fetch(`/api/brand/${companyId}`, {
+      const res = await fetch(apiUrl(`/api/companies/${companyId}/brand`), {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify(form),
