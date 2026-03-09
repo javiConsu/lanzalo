@@ -844,28 +844,6 @@ function AgentPanel({ agents, totalActive, totalInProgress }) {
 
   return (
     <div className="flex flex-col gap-3 overflow-y-auto">
-      {/* Summary */}
-      <div className="bg-gray-900/50 rounded-2xl border border-gray-700/50 p-4">
-        <div className="flex items-center gap-2 mb-3">
-          <span className="text-sm">🤖</span>
-          <span className="text-sm font-semibold text-white">Estado del sistema</span>
-        </div>
-        <div className="grid grid-cols-3 gap-3">
-          <div className="text-center">
-            <div className="text-lg font-bold text-emerald-400">{agentList.length}</div>
-            <div className="text-xs text-gray-500">Nodos</div>
-          </div>
-          <div className="text-center">
-            <div className="text-lg font-bold text-amber-400">{totalInProgress}</div>
-            <div className="text-xs text-gray-500">Activos</div>
-          </div>
-          <div className="text-center">
-            <div className="text-lg font-bold text-blue-400">{totalActive}</div>
-            <div className="text-xs text-gray-500">Procesos</div>
-          </div>
-        </div>
-      </div>
-
       {/* Agent list */}
       <div className="bg-gray-900/50 rounded-2xl border border-gray-700/50 overflow-hidden">
         <div className="px-4 py-3 border-b border-gray-700/50">
