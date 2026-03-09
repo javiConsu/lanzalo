@@ -349,4 +349,262 @@ router.get('/insights/intake', async (req, res) => {
   }
 });
 
+/**
+ * LLM costs by model (for breakdown chart)
+ */
+router.get('/costs/llm/by-model', async (req, res) => {
+  try {
+    const days = parseInt(req.query.days) || 30;
+
+    const result = await pool.query(
+      `SELECT 
+        model,
+        SUM(tokens_used) as total_tokens,
+        SUM(estimated_cost) as total_cost,
+        COUNT(*) as call_count
+       FROM llm_usage
+       WHERE recorded_at > NOW() - INTERVAL '1 day' * $1
+       GROUP BY model
+       ORDER BY total_cost DESC`,
+      [days]
+    );
+
+    res.json({ models: result.rows });
+  } catch (error) {
+    console.error('Error obteniendo costos por modelo:', error);
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
+/**
+ * Tasks summary (all companies)
+ */
+router.get('/tasks/summary', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT 
+        status,
+        COUNT(*) as count
+       FROM tasks
+       GROUP BY status`
+    );
+
+    const recent = await pool.query(
+      `SELECT t.id, t.title, t.status, t.tag, t.priority, t.created_at, t.completed_at,
+              c.name as company_name
+       FROM tasks t
+       LEFT JOIN companies c ON t.company_id = c.id
+       ORDER BY t.created_at DESC
+       LIMIT 20`
+    );
+
+    res.json({
+      summary: result.rows,
+      recent: recent.rows
+    });
+  } catch (error) {
+    console.error('Error obteniendo resumen de tareas:', error);
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
+/**
+ * Growth Agent reports
+ */
+router.get('/growth-reports', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT * FROM growth_reports
+       ORDER BY created_at DESC
+       LIMIT 10`
+    );
+    res.json({ reports: result.rows });
+  } catch (error) {
+    // Table might not exist yet
+    res.json({ reports: [] });
+  }
+});
+
+/**
+ * User feedback summary
+ */
+router.get('/feedback/summary', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT 
+        entity_type,
+        rating,
+        COUNT(*) as count
+       FROM user_feedback
+       GROUP BY entity_type, rating
+       ORDER BY entity_type, rating`
+    );
+
+    const recent = await pool.query(
+      `SELECT uf.*, c.name as company_name
+       FROM user_feedback uf
+       LEFT JOIN companies c ON uf.company_id = c.id
+       ORDER BY uf.created_at DESC
+       LIMIT 20`
+    );
+
+    res.json({
+      summary: result.rows,
+      recent: recent.rows
+    });
+  } catch (error) {
+    // Table might not exist
+    res.json({ summary: [], recent: [] });
+  }
+});
+
+/**
+ * Comprehensive live stats (single call for dashboard)
+ */
+router.get('/live', async (req, res) => {
+  try {
+    // Users
+    const users = await pool.query(
+      `SELECT 
+        COUNT(*) as total,
+        COUNT(*) FILTER (WHERE plan = 'pro') as pro,
+        COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '7 days') as new_7d,
+        COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '24 hours') as new_24h
+       FROM users WHERE role != 'admin'`
+    );
+
+    // Companies
+    const companies = await pool.query(
+      `SELECT 
+        COUNT(*) as total,
+        COUNT(*) FILTER (WHERE status = 'live') as live,
+        COUNT(*) FILTER (WHERE status = 'building') as building,
+        COUNT(*) FILTER (WHERE status = 'paused') as paused
+       FROM companies`
+    );
+
+    // MRR
+    const proCount = parseInt(users.rows[0].pro);
+    const mrr = proCount * 39;
+
+    // LLM costs (30d)
+    const llmCosts = await pool.query(
+      `SELECT 
+        COALESCE(SUM(estimated_cost), 0) as cost_30d,
+        COALESCE(SUM(tokens_used), 0) as tokens_30d
+       FROM llm_usage
+       WHERE recorded_at > NOW() - INTERVAL '30 days'`
+    );
+
+    // LLM costs (7d)
+    const llmCosts7d = await pool.query(
+      `SELECT COALESCE(SUM(estimated_cost), 0) as cost_7d
+       FROM llm_usage
+       WHERE recorded_at > NOW() - INTERVAL '7 days'`
+    );
+
+    // LLM costs (24h)
+    const llmCosts24h = await pool.query(
+      `SELECT COALESCE(SUM(estimated_cost), 0) as cost_24h
+       FROM llm_usage
+       WHERE recorded_at > NOW() - INTERVAL '24 hours'`
+    );
+
+    // LLM by model (30d)
+    const llmByModel = await pool.query(
+      `SELECT model, SUM(estimated_cost) as cost, SUM(tokens_used) as tokens, COUNT(*) as calls
+       FROM llm_usage
+       WHERE recorded_at > NOW() - INTERVAL '30 days'
+       GROUP BY model ORDER BY cost DESC`
+    );
+
+    // LLM daily trend (14d)
+    const llmDaily = await pool.query(
+      `SELECT DATE(recorded_at) as date, SUM(estimated_cost) as cost, SUM(tokens_used) as tokens
+       FROM llm_usage
+       WHERE recorded_at > NOW() - INTERVAL '14 days'
+       GROUP BY DATE(recorded_at) ORDER BY date`
+    );
+
+    // Tasks
+    const tasks = await pool.query(
+      `SELECT status, COUNT(*) as count FROM tasks GROUP BY status`
+    );
+
+    // Recent tasks (10)
+    const recentTasks = await pool.query(
+      `SELECT t.id, t.title, t.status, t.tag, t.priority, t.assigned_to, t.created_at, t.completed_at,
+              c.name as company_name
+       FROM tasks t LEFT JOIN companies c ON t.company_id = c.id
+       ORDER BY t.created_at DESC LIMIT 10`
+    );
+
+    // Recent chat messages (10)
+    const recentChats = await pool.query(
+      `SELECT cm.role, cm.content, cm.created_at, c.name as company_name
+       FROM chat_messages cm
+       LEFT JOIN companies c ON cm.company_id = c.id
+       ORDER BY cm.created_at DESC LIMIT 10`
+    );
+
+    // Top companies by cost
+    const topCostCompanies = await pool.query(
+      `SELECT c.name, u.email as owner, SUM(l.estimated_cost) as cost, COUNT(l.id) as calls
+       FROM llm_usage l
+       LEFT JOIN companies c ON l.company_id = c.id
+       LEFT JOIN users u ON c.user_id = u.id
+       WHERE l.recorded_at > NOW() - INTERVAL '30 days'
+       GROUP BY c.name, u.email
+       ORDER BY cost DESC LIMIT 10`
+    );
+
+    // Infrastructure fixed costs (monthly estimate)
+    const infraCosts = {
+      railway: 20,
+      vercel: 20,
+      neon: 19,
+      openrouter: parseFloat(llmCosts.rows[0].cost_30d),
+      resend: 0, // Free tier
+      domain: 1.5, // ~$18/year
+      total: 60.5 + parseFloat(llmCosts.rows[0].cost_30d)
+    };
+
+    // Profit
+    const totalCosts = infraCosts.total;
+    const profit = mrr - totalCosts;
+    const margin = mrr > 0 ? ((profit / mrr) * 100).toFixed(1) : 0;
+
+    res.json({
+      timestamp: new Date().toISOString(),
+      users: users.rows[0],
+      companies: companies.rows[0],
+      revenue: { mrr, proCount, pricePerUser: 39, currency: 'USD' },
+      costs: {
+        llm: {
+          cost_30d: parseFloat(llmCosts.rows[0].cost_30d),
+          cost_7d: parseFloat(llmCosts7d.rows[0].cost_7d),
+          cost_24h: parseFloat(llmCosts24h.rows[0].cost_24h),
+          tokens_30d: parseInt(llmCosts.rows[0].tokens_30d),
+          byModel: llmByModel.rows,
+          daily: llmDaily.rows
+        },
+        infra: infraCosts,
+        total: totalCosts
+      },
+      profit: { amount: profit, margin: parseFloat(margin) },
+      tasks: {
+        summary: tasks.rows,
+        recent: recentTasks.rows
+      },
+      activity: {
+        recentChats: recentChats.rows,
+        topCostCompanies: topCostCompanies.rows
+      }
+    });
+  } catch (error) {
+    console.error('Error en admin live:', error);
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
 module.exports = router;

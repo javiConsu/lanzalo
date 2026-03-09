@@ -107,7 +107,7 @@ function App() {
           <Route path="metrics" element={user?.isTrialExpired ? <Paywall user={user} /> : <Metrics />} />
         </Route>
 
-        <Route path="/admin" element={user?.is_admin ? <AdminDashboard /> : <Navigate to="/" replace />} />
+        <Route path="/admin" element={user?.role === 'admin' ? <AdminDashboard /> : <Navigate to="/" replace />} />
         <Route path="*" element={needsOnboarding ? <Navigate to="/onboarding/survey" replace /> : <Navigate to="/" replace />} />
       </Routes>
     </Router>
