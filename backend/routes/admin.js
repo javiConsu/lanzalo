@@ -651,4 +651,22 @@ router.get('/live', async (req, res) => {
   }
 });
 
+// ─── Test: Trigger Daily Briefing ──────────────────────
+router.post('/test-briefing', async (req, res) => {
+  try {
+    const { runBriefingForAll } = require('../services/cofounder-daily');
+    const type = req.body.type || 'morning';
+    console.log(`[Admin] Triggering test briefing: ${type}`);
+    // Run async, respond immediately
+    runBriefingForAll(type).then(() => {
+      console.log(`[Admin] Test briefing ${type} completed`);
+    }).catch(err => {
+      console.error(`[Admin] Test briefing error:`, err.message);
+    });
+    res.json({ success: true, message: `Briefing ${type} disparado. Revisa tu email en ~30s.` });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 module.exports = router;
