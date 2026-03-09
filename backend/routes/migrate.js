@@ -171,11 +171,45 @@ router.post('/test-briefing', async (req, res) => {
     return res.status(401).json({ error: 'Unauthorized' });
   }
   try {
-    const { runBriefingForAll } = require('../services/cofounder-daily');
+    const { generateAndSendBriefing, gatherBriefingData } = require('../services/cofounder-daily');
+    const { Pool: PgPool } = require('pg');
+    const dbPool = new PgPool({ connectionString: process.env.DATABASE_URL, ssl: process.env.DATABASE_URL?.includes('railway') ? { rejectUnauthorized: false } : false });
     const type = req.body.type || 'morning';
-    console.log(`[Test] Triggering test briefing: ${type}`);
-    await runBriefingForAll(type);
-    res.json({ success: true, message: `Briefing ${type} enviado correctamente.` });
+
+    // Find companies with their users
+    const result = await dbPool.query(`
+      SELECT c.id as company_id, c.name, c.description, c.industry, c.status,
+             c.revenue_total, c.subdomain,
+             u.id as user_id, u.email, u.name as user_name
+      FROM companies c
+      JOIN users u ON c.user_id = u.id
+      LIMIT 10
+    `);
+
+    const projects = result.rows;
+    const debug = {
+      total_companies: projects.length,
+      companies: projects.map(p => ({ name: p.name, status: p.status, email: p.email })),
+    };
+
+    if (projects.length === 0) {
+      return res.json({ success: false, message: 'No se encontraron empresas', debug });
+    }
+
+    // Send to ALL companies (not just active, for testing)
+    const results = [];
+    for (const project of projects) {
+      try {
+        const data = await gatherBriefingData(project.company_id);
+        await generateAndSendBriefing(project, type);
+        results.push({ name: project.name, email: project.email, status: 'sent', tasks: data.stats });
+      } catch (err) {
+        results.push({ name: project.name, email: project.email, status: 'error', error: err.message });
+      }
+    }
+
+    await dbPool.end();
+    res.json({ success: true, type, results, debug });
   } catch (error) {
     console.error(`[Test] Briefing error:`, error);
     res.status(500).json({ error: error.message, stack: error.stack?.split('\n').slice(0, 5) });
