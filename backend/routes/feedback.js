@@ -750,33 +750,136 @@ router.post('/support/ticket', requireAuth, async (req, res) => {
 });
 
 /**
- * Notificar al admin de un nuevo ticket de soporte general
+ * Agente de análisis de tickets de soporte
+ * Analiza el ticket y devuelve diagnóstico estructurado
+ */
+async function analyzeTicketWithAgent(data) {
+  try {
+    const prompt = `Eres el agente de soporte técnico de Lánzalo, una plataforma SaaS de agentes IA para emprendedores.
+
+Analizas tickets de soporte entrantes y produces un diagnóstico rápido para el equipo CS.
+
+Ticket recibido:
+- Tipo: ${data.type}
+- Área: ${data.category || 'no especificada'}
+- Usuario: ${data.userEmail}
+- URL donde ocurrió: ${data.url || 'no especificada'}
+- Mensaje del usuario: "${data.message}"
+
+Responde SOLO con un JSON válido con esta estructura exacta:
+{
+  "prioridad": "critica" | "alta" | "media" | "baja",
+  "causa_probable": "string corto (max 80 chars)",
+  "solucion_sugerida": "string con los pasos concretos a seguir (max 200 chars)",
+  "requiere_accion_tecnica": true | false,
+  "respuesta_usuario": "string con el mensaje que enviarías al usuario para tranquilizarle y orientarle (max 150 chars)",
+  "etiquetas": ["array", "de", "etiquetas", "relevantes"]
+}
+
+Criterios de prioridad:
+- critica: el usuario no puede acceder a la plataforma o ha perdido datos
+- alta: funcionalidad core rota (tareas, agentes, pagos)
+- media: funcionalidad secundaria con workaround posible
+- baja: duda, sugerencia o mejora`;
+
+    const response = await callLLM(prompt, {
+      taskType: 'analytics',
+      temperature: 0.2,
+      maxTokens: 500,
+    });
+
+    const content = response?.choices?.[0]?.message?.content || '';
+    // Extraer JSON de la respuesta
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('No JSON en respuesta del agente');
+    return JSON.parse(jsonMatch[0]);
+  } catch (e) {
+    console.error('[Support Agent] Error en análisis:', e.message);
+    // Fallback si el agente falla
+    return {
+      prioridad: data.type === 'bug' ? 'alta' : 'media',
+      causa_probable: 'Análisis automático no disponible',
+      solucion_sugerida: 'Revisar manualmente el ticket',
+      requiere_accion_tecnica: data.type === 'bug',
+      respuesta_usuario: 'Hemos recibido tu incidencia y la revisaremos en breve.',
+      etiquetas: [data.type, data.category].filter(Boolean)
+    };
+  }
+}
+
+/**
+ * Notificar al admin con diagnóstico del agente IA
  */
 async function notifyAdminSupport(ticketId, data) {
   if (!resend) return;
+
+  // Analizar el ticket con el agente antes de enviar
+  const analysis = await analyzeTicketWithAgent(data);
+
+  // Guardar el análisis en admin_notes del ticket
+  try {
+    const analysisNote = `[IA] Prioridad: ${analysis.prioridad} | Causa: ${analysis.causa_probable} | Acción técnica: ${analysis.requiere_accion_tecnica ? 'Sí' : 'No'}`;
+    await pool.query(
+      `UPDATE support_tickets SET admin_notes = COALESCE(admin_notes || ' ', '') || $2 WHERE id = $1`,
+      [ticketId, analysisNote]
+    );
+  } catch (e) { /* silencioso */ }
+
   const typeLabels = { bug: '🐛 Bug', feedback: '💡 Feedback', question: '❓ Pregunta', other: '📝 Otro' };
   const typeLabel = typeLabels[data.type] || '📝 Ticket';
+  const prioColors = { critica: '#ef4444', alta: '#f97316', media: '#eab308', baja: '#22c55e' };
+  const prioColor = prioColors[analysis.prioridad] || '#6b7280';
+  const prioEmoji = { critica: '🔴', alta: '🟠', media: '🟡', baja: '🟢' }[analysis.prioridad] || '⚪';
+
   try {
     await resend.emails.send({
       from: FROM_EMAIL,
       to: ADMIN_EMAIL,
-      subject: `${typeLabel} — ${data.userEmail} — Lánzalo Soporte`,
+      subject: `${prioEmoji} [${analysis.prioridad.toUpperCase()}] ${typeLabel} — ${data.userEmail} — Lánzalo Soporte`,
       html: `
-        <div style="font-family: -apple-system, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
-          <h2 style="color: #10b981;">🎫 Nuevo Ticket de Soporte</h2>
-          <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
-            <tr style="background: #f9fafb;"><td style="padding: 10px; color: #6b7280; width: 120px;">Tipo</td><td style="padding: 10px; font-weight: bold;">${typeLabel}</td></tr>
-            <tr><td style="padding: 10px; color: #6b7280;">Usuario</td><td style="padding: 10px;">${data.userName || ''} &lt;${data.userEmail}&gt;</td></tr>
-            ${data.category ? `<tr style="background: #f9fafb;"><td style="padding: 10px; color: #6b7280;">Categoría</td><td style="padding: 10px;">${data.category}</td></tr>` : ''}
-            ${data.url ? `<tr><td style="padding: 10px; color: #6b7280;">URL</td><td style="padding: 10px;"><code>${data.url}</code></td></tr>` : ''}
-            <tr style="background: #f9fafb;"><td style="padding: 10px; color: #6b7280;">Ticket ID</td><td style="padding: 10px;"><code>${ticketId.slice(0, 8)}</code></td></tr>
-          </table>
-          <div style="background: #f3f4f6; border-left: 4px solid #10b981; padding: 16px; border-radius: 4px; margin: 16px 0;">
-            <p style="margin: 0; white-space: pre-wrap; font-size: 15px;">${data.message}</p>
+        <div style="font-family: -apple-system, sans-serif; max-width: 620px; margin: 0 auto; padding: 24px; background: #ffffff;">
+          
+          <!-- Header -->
+          <div style="border-left: 5px solid ${prioColor}; padding-left: 16px; margin-bottom: 24px;">
+            <h2 style="margin: 0 0 4px 0; font-size: 18px; color: #111827;">${prioEmoji} Ticket de Soporte — Prioridad <span style="color: ${prioColor}; text-transform: uppercase;">${analysis.prioridad}</span></h2>
+            <p style="margin: 0; color: #6b7280; font-size: 13px;">Ticket <code style="background:#f3f4f6; padding: 2px 6px; border-radius: 4px;">${ticketId.slice(0, 8)}</code> · ${new Date().toLocaleString('es-ES')}</p>
           </div>
-          <p style="color: #6b7280; font-size: 13px; margin-top: 24px;">
-            <a href="https://www.lanzalo.pro/admin?tab=feedback" style="color: #10b981;">Ver todos los tickets en el panel admin →</a>
-          </p>
+
+          <!-- Datos del usuario -->
+          <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 14px;">
+            <tr style="background: #f9fafb;"><td style="padding: 9px 12px; color: #6b7280; width: 130px; border-bottom: 1px solid #e5e7eb;">Usuario</td><td style="padding: 9px 12px; font-weight: 600; border-bottom: 1px solid #e5e7eb;">${data.userName || ''} &lt;${data.userEmail}&gt;</td></tr>
+            <tr><td style="padding: 9px 12px; color: #6b7280; border-bottom: 1px solid #e5e7eb;">Tipo</td><td style="padding: 9px 12px; border-bottom: 1px solid #e5e7eb;">${typeLabel}</td></tr>
+            ${data.category ? `<tr style="background: #f9fafb;"><td style="padding: 9px 12px; color: #6b7280; border-bottom: 1px solid #e5e7eb;">Área</td><td style="padding: 9px 12px; border-bottom: 1px solid #e5e7eb;">${data.category}</td></tr>` : ''}
+            ${data.url ? `<tr><td style="padding: 9px 12px; color: #6b7280; border-bottom: 1px solid #e5e7eb;">URL</td><td style="padding: 9px 12px; border-bottom: 1px solid #e5e7eb;"><code style="font-size: 12px; color: #3b82f6;">${data.url}</code></td></tr>` : ''}
+          </table>
+
+          <!-- Mensaje del usuario -->
+          <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+            <p style="margin: 0 0 6px 0; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: #94a3b8;">Mensaje del usuario</p>
+            <p style="margin: 0; white-space: pre-wrap; font-size: 15px; color: #1e293b; line-height: 1.6;">${data.message}</p>
+          </div>
+
+          <!-- Análisis del agente IA -->
+          <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 20px; margin-bottom: 20px;">
+            <p style="margin: 0 0 14px 0; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #15803d;">🤖 Análisis del Agente IA</p>
+            
+            <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+              <tr><td style="padding: 7px 0; color: #166534; width: 160px; vertical-align: top;">Causa probable</td><td style="padding: 7px 0; font-weight: 600; color: #111827;">${analysis.causa_probable}</td></tr>
+              <tr><td style="padding: 7px 0; color: #166534; vertical-align: top;">Solución sugerida</td><td style="padding: 7px 0; color: #374151;">${analysis.solucion_sugerida}</td></tr>
+              <tr><td style="padding: 7px 0; color: #166534;">Acción técnica</td><td style="padding: 7px 0;">${analysis.requiere_accion_tecnica ? '<span style="color: #ef4444; font-weight: 600;">Sí, requiere intervención</span>' : '<span style="color: #22c55e;">No, puede resolverse con CS</span>'}</td></tr>
+              ${analysis.etiquetas?.length ? `<tr><td style="padding: 7px 0; color: #166534;">Etiquetas</td><td style="padding: 7px 0;">${analysis.etiquetas.map(t => `<span style="display:inline-block; background:#dcfce7; color:#166534; font-size:11px; padding:2px 8px; border-radius:99px; margin-right:4px;">${t}</span>`).join('')}</td></tr>` : ''}
+            </table>
+
+            <div style="margin-top: 14px; padding-top: 14px; border-top: 1px solid #bbf7d0;">
+              <p style="margin: 0 0 4px 0; font-size: 11px; color: #166534; text-transform: uppercase; letter-spacing: 0.05em;">Respuesta sugerida para el usuario</p>
+              <p style="margin: 0; font-style: italic; color: #374151; font-size: 14px;">“${analysis.respuesta_usuario}”</p>
+            </div>
+          </div>
+
+          <!-- CTA -->
+          <div style="text-align: center; padding-top: 8px;">
+            <a href="https://www.lanzalo.pro/admin?tab=feedback" style="display: inline-block; background: #10b981; color: white; text-decoration: none; padding: 10px 28px; border-radius: 8px; font-weight: 600; font-size: 14px;">Ver en panel admin →</a>
+          </div>
         </div>
       `
     });
