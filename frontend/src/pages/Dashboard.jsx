@@ -30,9 +30,7 @@ export default function Dashboard({ user, onLogout }) {
 
   const navItems = [
     { path: '/', icon: '🏠', label: 'Dashboard' },
-    { path: '/agents', icon: '🏢', label: 'Agentes' },
-    { path: '/backlog', icon: '📋', label: 'Cola de Tareas' },
-    { path: '/marketing', icon: '📣', label: 'Marketing' },
+    { path: '/backlog', icon: '📋', label: 'Tareas' },
     { path: '/ideas', icon: '💡', label: 'Ideas' },
   ]
 
