@@ -5,6 +5,7 @@
 const express = require('express');
 const router = express.Router();
 const { register, login, requireAuth } = require('../middleware/auth');
+const { pool } = require('../db');
 
 // ============================
 // ENDPOINT DE PRUEBA - SIN AUTH
@@ -25,7 +26,7 @@ router.post('/test-login', (req, res) => {
  */
 router.post('/register', async (req, res) => {
   try {
-    const { email, password, name } = req.body;
+    const { email, password, name, referralCode } = req.body;
 
     if (!email || !password) {
       return res.status(400).json({
@@ -40,6 +41,19 @@ router.post('/register', async (req, res) => {
     }
 
     const result = await register(email, password, name);
+
+    // Track referral if provided
+    if (referralCode) {
+      try {
+        const referrer = await pool.query('SELECT id FROM users WHERE referral_code = $1', [referralCode.toUpperCase()]);
+        if (referrer.rows[0]) {
+          await pool.query(
+            'UPDATE users SET referred_by = $1 WHERE id = $2',
+            [referrer.rows[0].id, result.user.id]
+          );
+        }
+      } catch(e) { /* silencioso — no bloquear registro */ }
+    }
 
     res.json({
       status: 'ok',

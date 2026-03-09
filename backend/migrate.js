@@ -30,6 +30,7 @@ const migrationFiles = [
   { name: '019_add_brand_config.sql', file: path.join(__dirname, '..', 'database', 'migrations', '019_add_brand_config.sql') },
   { name: '020_fix_tasks_columns.sql', file: path.join(__dirname, '..', 'database', 'migrations', '020_fix_tasks_columns.sql') },
   { name: '021_business_slots.sql', file: path.join(__dirname, '..', 'database', 'migrations', '021_business_slots.sql') },
+  { name: '022_referral_system.sql', file: path.join(__dirname, '..', 'database', 'migrations', '022_referral_system.sql') },
 ];
 
 async function runMigrations() {

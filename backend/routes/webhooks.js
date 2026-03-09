@@ -82,6 +82,27 @@ async function handleCheckoutComplete(session) {
     const credits = parseInt(session.metadata.credits);
     await addCredits(userId, credits, 'pack_purchase', { packId: session.metadata.packId });
     console.log(`[Webhook] Pack de ${credits} créditos añadido a ${userId}`);
+
+    // Award referral credits on first purchase
+    try {
+      const referrerCheck = await pool.query(
+        `SELECT u.referred_by FROM users u
+         LEFT JOIN referral_conversions rc ON rc.referred_id = u.id
+         WHERE u.id = $1 AND u.referred_by IS NOT NULL AND rc.id IS NULL`,
+        [userId]
+      );
+      if (referrerCheck.rows[0]?.referred_by) {
+        const referrerId = referrerCheck.rows[0].referred_by;
+        await pool.query(
+          `INSERT INTO referral_conversions (referrer_id, referred_id, credits_awarded)
+           VALUES ($1, $2, 20) ON CONFLICT (referred_id) DO NOTHING`,
+          [referrerId, userId]
+        );
+        await addCredits(referrerId, 20, 'referral_bonus', { referredUserId: userId });
+        console.log(`[Webhook] 20 créditos de referral añadidos a ${referrerId}`);
+      }
+    } catch(e) { console.warn('[Webhook] Referral credit error:', e.message); }
+
     return;
   }
 

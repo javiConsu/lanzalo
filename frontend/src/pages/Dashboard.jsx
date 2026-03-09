@@ -117,9 +117,13 @@ export default function Dashboard({ user, onLogout }) {
 
           {/* User menu */}
           <div className="flex items-center gap-2 pl-2 border-l border-gray-800">
-            <div className="w-7 h-7 bg-emerald-500/20 rounded-lg flex items-center justify-center text-emerald-400 text-xs font-bold">
+            <button
+              onClick={() => navigate('/settings')}
+              className="w-7 h-7 bg-emerald-500/20 rounded-lg flex items-center justify-center text-emerald-400 text-xs font-bold hover:bg-emerald-500/30 transition-colors cursor-pointer"
+              title="Configuración"
+            >
               {user?.email?.[0]?.toUpperCase() || 'U'}
-            </div>
+            </button>
             <button
               onClick={onLogout}
               className="text-xs text-gray-500 hover:text-red-400 transition-colors"
@@ -159,6 +163,14 @@ export default function Dashboard({ user, onLogout }) {
                 <span>{user.credits.total} crédito{user.credits.total !== 1 ? 's' : ''}</span>
               </button>
             )}
+            <Link
+              to="/settings"
+              onClick={() => setMenuOpen(false)}
+              className="flex items-center gap-2 text-xs text-gray-400 hover:text-white mb-2"
+            >
+              <span>⚙️</span>
+              <span>Configuración</span>
+            </Link>
             <div className="flex items-center justify-between">
               <span className="text-xs text-gray-500">{user?.email}</span>
               <button onClick={onLogout} className="text-xs text-red-400 hover:text-red-300">

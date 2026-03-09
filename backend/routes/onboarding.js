@@ -25,7 +25,7 @@ const { initCredits } = require('../middleware/credits');
  */
 router.post('/register', async (req, res) => {
   try {
-    const { email, password, name, aboutMe, lookingFor } = req.body;
+    const { email, password, name, aboutMe, lookingFor, referralCode } = req.body;
     
     // Validation
     if (!email || !password) {
@@ -79,7 +79,18 @@ router.post('/register', async (req, res) => {
     );
     
     console.log(`[Onboarding] New user registered: ${email}`);
-    
+
+    // Track referral if provided
+    if (referralCode) {
+      try {
+        const referrer = await pool.query('SELECT id FROM users WHERE referral_code = $1', [referralCode.toUpperCase()]);
+        if (referrer.rows[0]) {
+          await pool.query('UPDATE users SET referred_by = $1 WHERE id = $2', [referrer.rows[0].id, userId]);
+          console.log(`[Onboarding] Referral tracked: ${email} referred by ${referrer.rows[0].id}`);
+        }
+      } catch(e) { /* silencioso */ }
+    }
+
     // Inicializar créditos (5 para trial)
     await initCredits(userId, 'trial').catch(err => {
       console.error('[Onboarding] Failed to init credits:', err);

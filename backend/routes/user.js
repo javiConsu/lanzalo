@@ -18,7 +18,7 @@ router.use(requireAuth);
 router.get('/profile', async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT id, email, name, role, plan, subscription_tier, trial_ends_at, onboarding_completed, business_slots, created_at FROM users WHERE id = $1',
+      'SELECT id, email, name, role, plan, subscription_tier, trial_ends_at, onboarding_completed, business_slots, referral_code, created_at FROM users WHERE id = $1',
       [req.user.id]
     );
 
@@ -48,6 +48,19 @@ router.get('/profile', async (req, res) => {
     const businessSlots = user.business_slots ?? 1;
     const companiesUsed = companiesCount.rows[0]?.count ?? 0;
 
+    // Referral stats
+    let referralStats = { totalReferred: 0, totalCreditsEarned: 0 };
+    try {
+      const refResult = await pool.query(
+        'SELECT COUNT(*)::int as total, COALESCE(SUM(credits_awarded), 0)::int as credits FROM referral_conversions WHERE referrer_id = $1',
+        [req.user.id]
+      );
+      referralStats = {
+        totalReferred: refResult.rows[0]?.total || 0,
+        totalCreditsEarned: refResult.rows[0]?.credits || 0
+      };
+    } catch(e) { /* tabla puede no existir aún */ }
+
     res.json({
       user: {
         ...user,
@@ -59,7 +72,9 @@ router.get('/profile', async (req, res) => {
         credits,
         businessSlots,
         companiesUsed,
-        slotsAvailable: businessSlots - companiesUsed
+        slotsAvailable: businessSlots - companiesUsed,
+        referralCode: user.referral_code,
+        referralStats
       }
     });
   } catch (error) {
@@ -919,6 +934,154 @@ router.get('/companies/:companyId/backlog', requireAuth, requireCompanyAccess, a
 
   } catch (error) {
     console.error('Error obteniendo cola de tareas:', error);
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
+// ═══════════════════════════════════════
+// SETTINGS — Update profile, password, referrals
+// ═══════════════════════════════════════
+
+/**
+ * PATCH /api/user/profile
+ * Update user name and/or email
+ */
+router.patch('/profile', async (req, res) => {
+  try {
+    const { name, email } = req.body;
+    const updates = [];
+    const values = [];
+    let idx = 1;
+
+    if (name !== undefined) {
+      if (!name.trim()) return res.status(400).json({ error: 'El nombre no puede estar vacío' });
+      updates.push(`name = $${idx++}`);
+      values.push(name.trim());
+    }
+
+    if (email !== undefined) {
+      if (!email.trim() || !email.includes('@')) return res.status(400).json({ error: 'Email inválido' });
+      // Check uniqueness
+      const existing = await pool.query('SELECT id FROM users WHERE email = $1 AND id != $2', [email.trim().toLowerCase(), req.user.id]);
+      if (existing.rows.length > 0) return res.status(409).json({ error: 'Ese email ya está en uso' });
+      updates.push(`email = $${idx++}`);
+      values.push(email.trim().toLowerCase());
+    }
+
+    if (updates.length === 0) return res.status(400).json({ error: 'Nada que actualizar' });
+
+    values.push(req.user.id);
+    const result = await pool.query(
+      `UPDATE users SET ${updates.join(', ')} WHERE id = $${idx} RETURNING id, email, name`,
+      values
+    );
+
+    res.json({ success: true, user: result.rows[0] });
+  } catch (error) {
+    console.error('Error actualizando perfil:', error);
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
+/**
+ * POST /api/user/change-password
+ * Change password (requires current password)
+ */
+router.post('/change-password', async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ error: 'Contraseña actual y nueva son requeridas' });
+    }
+    if (newPassword.length < 8) {
+      return res.status(400).json({ error: 'La nueva contraseña debe tener al menos 8 caracteres' });
+    }
+
+    const { verifyPassword, hashPassword } = require('../middleware/auth');
+
+    // Verify current password
+    const userResult = await pool.query('SELECT password_hash FROM users WHERE id = $1', [req.user.id]);
+    if (!userResult.rows[0]) return res.status(404).json({ error: 'Usuario no encontrado' });
+
+    const valid = await verifyPassword(currentPassword, userResult.rows[0].password_hash);
+    if (!valid) return res.status(401).json({ error: 'Contraseña actual incorrecta' });
+
+    // Hash and save new password
+    const newHash = await hashPassword(newPassword);
+    await pool.query('UPDATE users SET password_hash = $1 WHERE id = $2', [newHash, req.user.id]);
+
+    res.json({ success: true, message: 'Contraseña actualizada' });
+  } catch (error) {
+    console.error('Error cambiando contraseña:', error);
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
+/**
+ * GET /api/user/referral-info
+ * Get referral code and stats
+ */
+router.get('/referral-info', async (req, res) => {
+  try {
+    // Ensure user has a referral code
+    let result = await pool.query('SELECT referral_code FROM users WHERE id = $1', [req.user.id]);
+    let code = result.rows[0]?.referral_code;
+
+    if (!code) {
+      // Generate one
+      code = Math.random().toString(36).substring(2, 10).toUpperCase();
+      await pool.query('UPDATE users SET referral_code = $1 WHERE id = $2', [code, req.user.id]);
+    }
+
+    // Get conversion stats
+    let conversions = [];
+    try {
+      const convResult = await pool.query(
+        `SELECT rc.converted_at, rc.credits_awarded, u.email
+         FROM referral_conversions rc
+         JOIN users u ON rc.referred_id = u.id
+         WHERE rc.referrer_id = $1
+         ORDER BY rc.converted_at DESC LIMIT 20`,
+        [req.user.id]
+      );
+      conversions = convResult.rows;
+    } catch(e) {}
+
+    res.json({
+      referralCode: code,
+      referralLink: `https://www.lanzalo.pro/?ref=${code}`,
+      conversions,
+      totalReferred: conversions.length,
+      totalCreditsEarned: conversions.reduce((sum, c) => sum + (c.credits_awarded || 0), 0)
+    });
+  } catch (error) {
+    console.error('Error obteniendo referral info:', error);
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
+/**
+ * GET /api/user/companies-list
+ * Get user's companies for settings page (lightweight)
+ */
+router.get('/companies-list', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT id, name, status, created_at FROM companies WHERE user_id = $1 ORDER BY created_at DESC`,
+      [req.user.id]
+    );
+    const slotsResult = await pool.query('SELECT business_slots FROM users WHERE id = $1', [req.user.id]);
+    const slots = slotsResult.rows[0]?.business_slots ?? 1;
+
+    res.json({
+      companies: result.rows,
+      used: result.rows.length,
+      slots,
+      available: slots - result.rows.length
+    });
+  } catch (error) {
+    console.error('Error listando empresas (settings):', error);
     res.status(500).json({ error: 'Error del servidor' });
   }
 });

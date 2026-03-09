@@ -18,6 +18,7 @@ import OnboardingChooseIdea from './pages/OnboardingChooseIdea'
 import OnboardingDescribeIdea from './pages/OnboardingDescribeIdea'
 import AdminDashboard from './pages/AdminDashboard'
 import Paywall from './components/Paywall'
+import Settings from './pages/Settings'
 
 function App() {
   const [token, setToken] = useState(localStorage.getItem('token'))
@@ -99,8 +100,13 @@ function App() {
 
   // Not authenticated: show landing or login
   if (!token) {
-    // Preserve feedback deep-link params through login flow
+    // Preserve referral code through login flow
     const urlParams = new URLSearchParams(window.location.search)
+    if (urlParams.get('ref')) {
+      localStorage.setItem('pendingRef', urlParams.get('ref'))
+    }
+
+    // Preserve feedback deep-link params through login flow
     if (urlParams.get('feedback') && urlParams.get('company')) {
       localStorage.setItem('pendingFeedback', JSON.stringify({
         feedback: urlParams.get('feedback'),
@@ -150,6 +156,7 @@ function App() {
           <Route path="backlog" element={user?.isTrialExpired ? <Paywall user={user} /> : <Backlog />} />
           <Route path="marketing" element={user?.isTrialExpired ? <Paywall user={user} /> : <Marketing />} />
           <Route path="metrics" element={user?.isTrialExpired ? <Paywall user={user} /> : <Metrics />} />
+          <Route path="settings" element={<Settings />} />
         </Route>
 
         <Route path="/admin" element={<AdminDashboard />} />

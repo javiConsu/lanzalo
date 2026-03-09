@@ -15,10 +15,15 @@ export default function Login({ onLogin, initialMode, onBack }) {
 
     try {
       const endpoint = mode === 'login' ? '/api/auth/login' : '/api/onboarding/register'
+      // Pass referral code on registration if present in URL
+      const refCode = new URLSearchParams(window.location.search).get('ref') || localStorage.getItem('pendingRef') || ''
+      const body = mode === 'register' && refCode
+        ? { email, password, referralCode: refCode }
+        : { email, password }
       const res = await fetch(apiUrl(endpoint), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify(body)
       })
 
       const data = await res.json()
