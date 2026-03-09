@@ -66,6 +66,7 @@ app.use('/sites', require('./routes/sites'));
 app.use('/api/webhooks', require('./routes/webhooks'));
 app.use('/api/migrate', require('./routes/migrate')); // Migrations (before email-pro auth catch)
 app.use('/api', require('./routes/email-pro')); // Email Pro (cold email service)
+app.use('/api', require('./routes/marketing-content')); // Marketing content + Gamma + Ads
 // Magic link login (NO auth required - must be BEFORE ceo-chat catch-all)
 app.post('/api/minimal-login', require('./routes/minimal-login'));
 app.get('/api/verify-magic', require('./routes/verify-magic'));

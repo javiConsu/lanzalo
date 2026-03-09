@@ -423,6 +423,7 @@ export default function AdminDashboard() {
                       { name: 'Neon (PG)', data: infra.neon, color: 'bg-green-500' },
                       { name: 'OpenRouter', data: infra.openrouter, color: 'bg-orange-500' },
                       { name: 'Instantly', data: infra.instantly, color: 'bg-yellow-500' },
+                      { name: 'Gamma', data: infra.gamma, color: 'bg-violet-500' },
                       { name: 'Resend', data: infra.resend, color: 'bg-blue-500' },
                       { name: 'Dominio', data: infra.domain, color: 'bg-gray-500' }
                     ].map(item => {
@@ -574,6 +575,7 @@ export default function AdminDashboard() {
                       { name: 'Neon (PostgreSQL)', data: infra.neon },
                       { name: 'OpenRouter (LLMs)', data: infra.openrouter },
                       { name: 'Instantly (Email)', data: infra.instantly },
+                      { name: 'Gamma (Contenido)', data: infra.gamma },
                       { name: 'Resend', data: infra.resend },
                       { name: 'Dominio', data: infra.domain }
                     ].map(item => {
@@ -581,7 +583,7 @@ export default function AdminDashboard() {
                       return (
                         <div key={item.name} className="flex justify-between text-xs">
                           <span className="text-gray-500">{item.name}</span>
-                          <span className="text-red-400 tabular-nums">-{fmtUSD(cost)}</span>
+                          <span className={`tabular-nums ${cost === 0 ? 'text-green-400' : 'text-red-400'}`}>{cost === 0 ? 'Gratis (plan usuario)' : `-${fmtUSD(cost)}`}</span>
                         </div>
                       )
                     })}

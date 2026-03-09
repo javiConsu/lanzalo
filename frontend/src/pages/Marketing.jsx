@@ -119,7 +119,9 @@ export default function Marketing() {
   const content = data?.content || { posts: [], metrics: { total: 0, published: 0, scheduled: 0, drafts: 0 } }
   const emails = data?.emails || { campaigns: [], metrics: { total: 0, sent: 0, replied: 0, bounced: 0 } }
   const emailPro = data?.emailPro || { subscription: null, campaigns: [], leads: { total: 0, statusCounts: {} } }
-  const ads = data?.ads || { tasks: [], metrics: { total: 0, active: 0, completed: 0, budget: 0 } }
+  const contentPieces = data?.contentPieces || []
+  const gamma = data?.gamma || { enabled: false, totalGenerated: 0, creditsUsed: 0 }
+  const ads = data?.ads || { tasks: [], campaigns: [], metrics: { total: 0, active: 0, completed: 0 } }
   const marketingTasks = data?.marketingTasks || []
 
   const companyName = companies.find(c => c.id === selectedCompany)?.name || ''
@@ -163,22 +165,26 @@ export default function Marketing() {
         </div>
 
         {/* Summary counters */}
-        <div className="grid grid-cols-4 gap-3 mb-4">
-          <div className="bg-gray-800/60 rounded-xl border border-gray-700/50 p-3 text-center">
-            <div className="text-xl font-bold text-pink-400">{content.metrics.published}</div>
-            <div className="text-xs text-gray-500 mt-0.5">Publicados</div>
+        <div className="grid grid-cols-5 gap-2 mb-4">
+          <div className="bg-gray-800/60 rounded-xl border border-gray-700/50 p-2.5 text-center">
+            <div className="text-lg font-bold text-pink-400">{contentPieces.filter(p => p.status === 'ready' || p.status === 'posted').length + content.metrics.published}</div>
+            <div className="text-[10px] text-gray-500 mt-0.5">Contenido</div>
           </div>
-          <div className="bg-gray-800/60 rounded-xl border border-gray-700/50 p-3 text-center">
-            <div className="text-xl font-bold text-amber-400">{content.metrics.scheduled}</div>
-            <div className="text-xs text-gray-500 mt-0.5">Programados</div>
+          <div className="bg-gray-800/60 rounded-xl border border-gray-700/50 p-2.5 text-center">
+            <div className="text-lg font-bold text-violet-400">{gamma.totalGenerated}</div>
+            <div className="text-[10px] text-gray-500 mt-0.5">Gamma</div>
           </div>
-          <div className="bg-gray-800/60 rounded-xl border border-gray-700/50 p-3 text-center">
-            <div className="text-xl font-bold text-blue-400">{emails.metrics.sent}</div>
-            <div className="text-xs text-gray-500 mt-0.5">Emails enviados</div>
+          <div className="bg-gray-800/60 rounded-xl border border-gray-700/50 p-2.5 text-center">
+            <div className="text-lg font-bold text-blue-400">{emails.metrics.sent}</div>
+            <div className="text-[10px] text-gray-500 mt-0.5">Emails</div>
           </div>
-          <div className="bg-gray-800/60 rounded-xl border border-gray-700/50 p-3 text-center">
-            <div className="text-xl font-bold text-purple-400">{emailPro.leads.total || 0}</div>
-            <div className="text-xs text-gray-500 mt-0.5">Leads</div>
+          <div className="bg-gray-800/60 rounded-xl border border-gray-700/50 p-2.5 text-center">
+            <div className="text-lg font-bold text-amber-400">{ads.metrics.total}</div>
+            <div className="text-[10px] text-gray-500 mt-0.5">Campanas Ads</div>
+          </div>
+          <div className="bg-gray-800/60 rounded-xl border border-gray-700/50 p-2.5 text-center">
+            <div className="text-lg font-bold text-purple-400">{emailPro.leads.total || 0}</div>
+            <div className="text-[10px] text-gray-500 mt-0.5">Leads</div>
           </div>
         </div>
 
@@ -221,7 +227,15 @@ export default function Marketing() {
           <>
             {/* ─── Tab: Contenido ──────────────────────── */}
             {tab === 'contenido' && (
-              <ContentTab content={content} marketingTasks={marketingTasks} />
+              <ContentTab 
+                content={content} 
+                contentPieces={contentPieces}
+                gamma={gamma}
+                companyId={selectedCompany}
+                token={token}
+                marketingTasks={marketingTasks}
+                onRefresh={fetchMarketing}
+              />
             )}
 
             {/* ─── Tab: Emails (Email Pro) ─────────────── */}
@@ -237,7 +251,12 @@ export default function Marketing() {
 
             {/* ─── Tab: Ads ────────────────────────────── */}
             {tab === 'ads' && (
-              <AdsTab ads={ads} />
+              <AdsTab 
+                ads={ads}
+                companyId={selectedCompany}
+                token={token}
+                onRefresh={fetchMarketing}
+              />
             )}
           </>
         )}
@@ -246,31 +265,273 @@ export default function Marketing() {
   )
 }
 
+// ─── Type configs for content pieces ────────────────────────
+const CONTENT_TYPE_CONFIG = {
+  presentation: { label: 'Presentación', icon: '📊', color: 'text-violet-400', bg: 'bg-violet-900/30', border: 'border-violet-700' },
+  carousel:     { label: 'Carrusel', icon: '🎠', color: 'text-pink-400', bg: 'bg-pink-900/30', border: 'border-pink-700' },
+  document:     { label: 'Documento', icon: '📄', color: 'text-blue-400', bg: 'bg-blue-900/30', border: 'border-blue-700' },
+  webpage:      { label: 'Web', icon: '🌐', color: 'text-cyan-400', bg: 'bg-cyan-900/30', border: 'border-cyan-700' },
+  social_post:  { label: 'Post Social', icon: '📱', color: 'text-pink-400', bg: 'bg-pink-900/30', border: 'border-pink-700' },
+}
+
+const PIECE_STATUS = {
+  draft:      { label: 'Borrador', icon: '📝', bg: 'bg-gray-700/50', text: 'text-gray-300', border: 'border-gray-600' },
+  generating: { label: 'Generando...', icon: '⏳', bg: 'bg-amber-900/30', text: 'text-amber-300', border: 'border-amber-700' },
+  ready:      { label: 'Listo', icon: '✅', bg: 'bg-green-900/30', text: 'text-green-300', border: 'border-green-700' },
+  posted:     { label: 'Publicado', icon: '🚀', bg: 'bg-blue-900/30', text: 'text-blue-300', border: 'border-blue-700' },
+  failed:     { label: 'Error', icon: '❌', bg: 'bg-red-900/30', text: 'text-red-300', border: 'border-red-700' },
+  scheduled:  { label: 'Programado', icon: '📅', bg: 'bg-amber-900/30', text: 'text-amber-300', border: 'border-amber-700' },
+}
+
 // ─── Contenido Tab ──────────────────────────────────────────
-function ContentTab({ content, marketingTasks }) {
+function ContentTab({ content, contentPieces, gamma, companyId, token, marketingTasks, onRefresh }) {
   const posts = content.posts || []
-  const contentTasks = marketingTasks.filter(t =>
-    ['marketing', 'twitter'].includes(t.agent_tag)
-  )
+  const pieces = contentPieces || []
+  const contentTasks = marketingTasks.filter(t => ['marketing', 'twitter'].includes(t.agent_tag))
+  
+  const [generating, setGenerating] = useState(false)
+  const [genForm, setGenForm] = useState({ type: 'presentation', title: '', content: '' })
+  const [showGenForm, setShowGenForm] = useState(false)
+  const [pollingId, setPollingId] = useState(null)
+
+  // Poll for Gamma generation status
+  useEffect(() => {
+    if (!pollingId) return
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(apiUrl(`/api/companies/${companyId}/content/status/${pollingId}`), {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+        const data = await res.json()
+        if (data.status === 'completed' || data.status === 'failed') {
+          setPollingId(null)
+          onRefresh()
+        }
+      } catch (e) { /* ignore */ }
+    }, 4000)
+    return () => clearInterval(interval)
+  }, [pollingId, companyId, token, onRefresh])
+
+  const handleGenerate = async () => {
+    if (!genForm.title && !genForm.content) return
+    setGenerating(true)
+    try {
+      const res = await fetch(apiUrl(`/api/companies/${companyId}/content/generate`), {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(genForm)
+      })
+      const data = await res.json()
+      if (data.success) {
+        setPollingId(data.generationId)
+        setShowGenForm(false)
+        setGenForm({ type: 'presentation', title: '', content: '' })
+        onRefresh()
+      } else {
+        alert(data.error || data.message || 'Error generando contenido')
+      }
+    } catch (e) {
+      alert('Error conectando con el servidor')
+    } finally {
+      setGenerating(false)
+    }
+  }
+
+  const gammaPieces = pieces.filter(p => p.gamma_url || p.gamma_generation_id)
+  const socialPieces = pieces.filter(p => p.type === 'social_post' && !p.gamma_generation_id)
 
   return (
     <div className="space-y-4 pt-4">
-      {/* Engagement metrics row */}
+      {/* Gamma section */}
+      <div className="bg-gradient-to-r from-violet-900/20 to-purple-900/10 border border-violet-700/30 rounded-xl p-4">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-violet-500/15 flex items-center justify-center">
+              <span className="text-lg">✨</span>
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                Gamma AI
+                {gamma.enabled ? (
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-green-500/20 text-green-300 border border-green-500/30">Conectado</span>
+                ) : (
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-gray-500/20 text-gray-400 border border-gray-500/30">No configurado</span>
+                )}
+              </h3>
+              <p className="text-xs text-gray-500">Presentaciones, carruseles, documentos y webs con IA</p>
+            </div>
+          </div>
+          {gamma.enabled && (
+            <button
+              onClick={() => setShowGenForm(!showGenForm)}
+              className="px-3 py-1.5 bg-violet-600 hover:bg-violet-500 text-white text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5"
+            >
+              <span>✨</span> Generar
+            </button>
+          )}
+        </div>
+
+        {/* Generation form */}
+        {showGenForm && gamma.enabled && (
+          <div className="mt-3 space-y-3 bg-gray-800/40 rounded-xl p-4 border border-gray-700/40">
+            <div className="flex gap-2">
+              {['presentation', 'carousel', 'document', 'webpage'].map(t => {
+                const cfg = CONTENT_TYPE_CONFIG[t]
+                return (
+                  <button
+                    key={t}
+                    onClick={() => setGenForm(prev => ({ ...prev, type: t }))}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                      genForm.type === t
+                        ? `${cfg.bg} ${cfg.color} border ${cfg.border}`
+                        : 'text-gray-500 hover:text-gray-300 bg-gray-800/60 border border-gray-700/40'
+                    }`}
+                  >
+                    <span>{cfg.icon}</span> {cfg.label}
+                  </button>
+                )
+              })}
+            </div>
+            <input
+              type="text"
+              placeholder="Titulo (ej: Pitch Deck para inversores)"
+              value={genForm.title}
+              onChange={e => setGenForm(prev => ({ ...prev, title: e.target.value }))}
+              className="w-full px-3 py-2 bg-gray-900/60 border border-gray-700 rounded-lg text-sm text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-violet-500"
+            />
+            <textarea
+              placeholder="Contenido o tema (describe lo que quieres generar...)"
+              value={genForm.content}
+              onChange={e => setGenForm(prev => ({ ...prev, content: e.target.value }))}
+              rows={3}
+              className="w-full px-3 py-2 bg-gray-900/60 border border-gray-700 rounded-lg text-sm text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-violet-500 resize-none"
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setShowGenForm(false)}
+                className="px-3 py-1.5 text-xs text-gray-400 hover:text-gray-200"
+              >Cancelar</button>
+              <button
+                onClick={handleGenerate}
+                disabled={generating || (!genForm.title && !genForm.content)}
+                className="px-4 py-1.5 bg-violet-600 hover:bg-violet-500 text-white text-xs font-medium rounded-lg transition-colors disabled:opacity-50 flex items-center gap-1.5"
+              >
+                {generating ? (
+                  <><span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" /> Generando...</>
+                ) : (
+                  <><span>✨</span> Crear con Gamma</>
+                )}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Gamma status info when not configured */}
+        {!gamma.enabled && (
+          <div className="mt-2 text-xs text-gray-500">
+            Configura tu API key de Gamma Pro en ajustes para generar presentaciones y carruseles.
+          </div>
+        )}
+
+        {/* Polling indicator */}
+        {pollingId && (
+          <div className="mt-3 flex items-center gap-2 text-sm text-violet-300">
+            <span className="w-3 h-3 border-2 border-violet-400 border-t-transparent rounded-full animate-spin" />
+            Generando contenido con Gamma...
+          </div>
+        )}
+      </div>
+
+      {/* Gamma-generated content */}
+      {gammaPieces.length > 0 && (
+        <div>
+          <h3 className="text-xs font-semibold text-violet-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+            <span>✨</span> Contenido Gamma
+          </h3>
+          <div className="space-y-2">
+            {gammaPieces.map(piece => {
+              const typeCfg = CONTENT_TYPE_CONFIG[piece.type] || CONTENT_TYPE_CONFIG.presentation
+              const statusCfg = PIECE_STATUS[piece.status] || PIECE_STATUS.draft
+              return (
+                <div key={piece.id} className="bg-gray-800/60 rounded-xl border border-gray-700/40 p-4 hover:border-gray-600/60 transition-colors">
+                  <div className="flex items-start justify-between gap-3 mb-2">
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <span className={`text-base ${typeCfg.color}`}>{typeCfg.icon}</span>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-white truncate">{piece.title || 'Sin titulo'}</p>
+                        {piece.body && (
+                          <p className="text-xs text-gray-500 mt-0.5 line-clamp-1">{piece.body.substring(0, 100)}</p>
+                        )}
+                      </div>
+                    </div>
+                    <span className={`px-2 py-0.5 text-xs font-medium border rounded-full flex-shrink-0 ${statusCfg.bg} ${statusCfg.text} ${statusCfg.border}`}>
+                      {statusCfg.icon} {statusCfg.label}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3 text-xs text-gray-500">
+                    <span className={`px-1.5 py-0.5 rounded ${typeCfg.bg} ${typeCfg.color} border ${typeCfg.border}`}>{typeCfg.label}</span>
+                    {piece.gamma_url && (
+                      <a 
+                        href={piece.gamma_url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-violet-400 hover:text-violet-300 flex items-center gap-1 transition-colors"
+                      >
+                        <span>🔗</span> Abrir en Gamma
+                      </a>
+                    )}
+                    {piece.gamma_credits_used > 0 && (
+                      <span>{piece.gamma_credits_used} créditos</span>
+                    )}
+                    <span className="ml-auto">{piece.created_by === 'agent' ? '🤖 IA' : '👤 Manual'}</span>
+                    <span>{timeAgo(piece.created_at)}</span>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Metrics row */}
       <div className="grid grid-cols-3 gap-3">
-        <MetricCard label="Total posts" value={content.metrics.total} icon="📱" color="text-pink-400" />
-        <MetricCard label="Borradores" value={content.metrics.drafts} icon="📝" color="text-gray-400" />
+        <MetricCard label="Total posts" value={content.metrics.total + socialPieces.length} icon="📱" color="text-pink-400" />
+        <MetricCard label="Borradores" value={content.metrics.drafts + pieces.filter(p => p.status === 'draft').length} icon="📝" color="text-gray-400" />
         <MetricCard label="Engagement" value={
-          posts.reduce((sum, p) => sum + (p.engagement_likes || 0) + (p.engagement_retweets || 0), 0)
+          posts.reduce((sum, p) => sum + (p.engagement_likes || 0) + (p.engagement_retweets || 0), 0) +
+          pieces.reduce((sum, p) => sum + (p.engagement_likes || 0) + (p.engagement_shares || 0), 0)
         } icon="❤️" color="text-red-400" />
       </div>
 
-      {/* Posts */}
-      {posts.length > 0 ? (
+      {/* Social posts (legacy tweets + new content_pieces posts) */}
+      {(posts.length > 0 || socialPieces.length > 0) && (
         <div>
           <h3 className="text-xs font-semibold text-pink-400 uppercase tracking-wider mb-3 flex items-center gap-2">
             <span>📱</span> Posts y contenido social
           </h3>
           <div className="space-y-2">
+            {/* Agent-generated social posts */}
+            {socialPieces.map(piece => {
+              const statusCfg = PIECE_STATUS[piece.status] || PIECE_STATUS.draft
+              return (
+                <div key={piece.id} className="bg-gray-800/60 rounded-xl border border-gray-700/40 p-4 hover:border-gray-600/60 transition-colors">
+                  <div className="flex items-start justify-between gap-3 mb-2">
+                    <p className="text-sm text-gray-200 leading-relaxed flex-1">
+                      {piece.body?.substring(0, 200)}{piece.body?.length > 200 ? '...' : ''}
+                    </p>
+                    <span className={`px-2 py-0.5 text-xs font-medium border rounded-full flex-shrink-0 ${statusCfg.bg} ${statusCfg.text} ${statusCfg.border}`}>
+                      {statusCfg.icon} {statusCfg.label}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-4 text-xs text-gray-500">
+                    {piece.platform && <span className="px-1.5 py-0.5 rounded bg-gray-700 text-gray-400">{piece.platform}</span>}
+                    <span>{piece.created_by === 'agent' ? '🤖 IA' : '👤'}</span>
+                    <span>{timeAgo(piece.created_at)}</span>
+                  </div>
+                </div>
+              )
+            })}
+            {/* Legacy tweet posts */}
             {posts.map(post => {
               const status = CONTENT_STATUS[post.status] || CONTENT_STATUS.draft
               return (
@@ -284,16 +545,8 @@ function ContentTab({ content, marketingTasks }) {
                     </span>
                   </div>
                   <div className="flex items-center gap-4 text-xs text-gray-500">
-                    {post.scheduled_for && (
-                      <span className="flex items-center gap-1">
-                        <span>📅</span> {formatDate(post.scheduled_for)}
-                      </span>
-                    )}
-                    {post.posted_at && (
-                      <span className="flex items-center gap-1">
-                        <span>✅</span> {formatDate(post.posted_at)}
-                      </span>
-                    )}
+                    {post.scheduled_for && <span className="flex items-center gap-1"><span>📅</span> {formatDate(post.scheduled_for)}</span>}
+                    {post.posted_at && <span className="flex items-center gap-1"><span>✅</span> {formatDate(post.posted_at)}</span>}
                     {(post.engagement_likes > 0 || post.engagement_retweets > 0) && (
                       <span className="flex items-center gap-2">
                         <span>❤️ {post.engagement_likes || 0}</span>
@@ -307,7 +560,7 @@ function ContentTab({ content, marketingTasks }) {
             })}
           </div>
         </div>
-      ) : null}
+      )}
 
       {/* Marketing tasks */}
       {contentTasks.length > 0 && (
@@ -323,11 +576,11 @@ function ContentTab({ content, marketingTasks }) {
         </div>
       )}
 
-      {posts.length === 0 && contentTasks.length === 0 && (
+      {posts.length === 0 && pieces.length === 0 && contentTasks.length === 0 && (
         <EmptyState
           icon="📱"
-          title="Sin contenido todavía"
-          subtitle="Tu CMO creará posts y contenido social cuando le des tareas"
+          title="Sin contenido todavia"
+          subtitle={gamma.enabled ? 'Usa el boton Generar para crear presentaciones, carruseles y documentos con Gamma AI' : 'Tu CMO creara posts y contenido social cuando le des tareas'}
         />
       )}
     </div>
@@ -709,8 +962,53 @@ function EmailProUpsell({ companyId, token, subscribing, setSubscribing }) {
 }
 
 // ─── Ads Tab ────────────────────────────────────────────────
-function AdsTab({ ads }) {
+const PLATFORM_CONFIG = {
+  google_ads:   { label: 'Google Ads', icon: '🌐', color: 'text-blue-400', bg: 'bg-blue-900/30' },
+  meta_ads:     { label: 'Meta Ads', icon: '🟦', color: 'text-sky-400', bg: 'bg-sky-900/30' },
+  linkedin_ads: { label: 'LinkedIn Ads', icon: '💼', color: 'text-cyan-400', bg: 'bg-cyan-900/30' },
+  tiktok_ads:   { label: 'TikTok Ads', icon: '🎥', color: 'text-pink-400', bg: 'bg-pink-900/30' },
+  general:      { label: 'General', icon: '📢', color: 'text-purple-400', bg: 'bg-purple-900/30' },
+}
+
+const AD_STATUS = {
+  draft:     { label: 'Borrador', icon: '📝', bg: 'bg-gray-700/50', text: 'text-gray-300', border: 'border-gray-600' },
+  ready:     { label: 'Lista', icon: '✅', bg: 'bg-green-900/30', text: 'text-green-300', border: 'border-green-700' },
+  active:    { label: 'Activa', icon: '🟢', bg: 'bg-green-900/30', text: 'text-green-300', border: 'border-green-700' },
+  paused:    { label: 'Pausada', icon: '⏸️', bg: 'bg-amber-900/30', text: 'text-amber-300', border: 'border-amber-700' },
+  completed: { label: 'Completada', icon: '🏁', bg: 'bg-blue-900/30', text: 'text-blue-300', border: 'border-blue-700' },
+}
+
+function AdsTab({ ads, companyId, token, onRefresh }) {
   const tasks = ads.tasks || []
+  const campaigns = ads.campaigns || []
+  const metrics = ads.metrics || {}
+  const [generating, setGenerating] = useState(false)
+  const [showGenForm, setShowGenForm] = useState(false)
+  const [adForm, setAdForm] = useState({ platform: 'google_ads', objective: 'leads', budget: '', audience_description: '' })
+  const [expandedCampaign, setExpandedCampaign] = useState(null)
+
+  const handleGenerate = async () => {
+    setGenerating(true)
+    try {
+      const res = await fetch(apiUrl(`/api/companies/${companyId}/ads/generate`), {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(adForm)
+      })
+      const data = await res.json()
+      if (data.success) {
+        setShowGenForm(false)
+        setAdForm({ platform: 'google_ads', objective: 'leads', budget: '', audience_description: '' })
+        onRefresh()
+      } else {
+        alert(data.error || 'Error generando estrategia')
+      }
+    } catch (e) {
+      alert('Error conectando con el servidor')
+    } finally {
+      setGenerating(false)
+    }
+  }
 
   return (
     <div className="space-y-4 pt-4">
@@ -720,24 +1018,226 @@ function AdsTab({ ads }) {
         <div>
           <p className="text-sm text-amber-300 font-medium">La publicidad puede suponer coste extra</p>
           <p className="text-xs text-amber-400/70 mt-0.5">
-            Las campañas de ads requieren presupuesto publicitario adicional (Google Ads, Meta Ads, etc.).
-            El agente puede crear y optimizar campañas, pero el gasto en anuncios es aparte.
+            El agente genera estrategia, copies y audiencias. El presupuesto en ads lo aplicas tu en la plataforma.
           </p>
         </div>
       </div>
 
-      {/* Metrics */}
-      <div className="grid grid-cols-3 gap-3">
-        <MetricCard label="Tareas ads" value={ads.metrics.total} icon="📢" color="text-purple-400" />
-        <MetricCard label="Activas" value={ads.metrics.active} icon="⚡" color="text-green-400" />
-        <MetricCard label="Completadas" value={ads.metrics.completed} icon="✅" color="text-gray-400" />
+      {/* Generate strategy button */}
+      <div className="flex justify-between items-center">
+        <h3 className="text-xs font-semibold text-purple-400 uppercase tracking-wider flex items-center gap-2">
+          <span>📢</span> Ads Strategist
+        </h3>
+        <button
+          onClick={() => setShowGenForm(!showGenForm)}
+          className="px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5"
+        >
+          <span>🎯</span> Nueva estrategia
+        </button>
       </div>
 
-      {/* Ad tasks */}
-      {tasks.length > 0 ? (
+      {/* Generation form */}
+      {showGenForm && (
+        <div className="bg-gray-800/40 rounded-xl p-4 border border-gray-700/40 space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-[10px] text-gray-500 uppercase tracking-wider mb-1 block">Plataforma</label>
+              <select
+                value={adForm.platform}
+                onChange={e => setAdForm(prev => ({ ...prev, platform: e.target.value }))}
+                className="w-full px-3 py-2 bg-gray-900/60 border border-gray-700 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+              >
+                <option value="google_ads">Google Ads</option>
+                <option value="meta_ads">Meta Ads (Facebook/Instagram)</option>
+                <option value="linkedin_ads">LinkedIn Ads</option>
+                <option value="tiktok_ads">TikTok Ads</option>
+                <option value="general">General (mejor opcion)</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-[10px] text-gray-500 uppercase tracking-wider mb-1 block">Objetivo</label>
+              <select
+                value={adForm.objective}
+                onChange={e => setAdForm(prev => ({ ...prev, objective: e.target.value }))}
+                className="w-full px-3 py-2 bg-gray-900/60 border border-gray-700 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+              >
+                <option value="leads">Generacion de leads</option>
+                <option value="traffic">Trafico web</option>
+                <option value="awareness">Notoriedad de marca</option>
+                <option value="conversions">Conversiones/Ventas</option>
+                <option value="engagement">Engagement</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <label className="text-[10px] text-gray-500 uppercase tracking-wider mb-1 block">Presupuesto mensual (EUR)</label>
+            <input
+              type="number"
+              placeholder="Ej: 300"
+              value={adForm.budget}
+              onChange={e => setAdForm(prev => ({ ...prev, budget: e.target.value }))}
+              className="w-full px-3 py-2 bg-gray-900/60 border border-gray-700 rounded-lg text-sm text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-purple-500"
+            />
+          </div>
+          <div>
+            <label className="text-[10px] text-gray-500 uppercase tracking-wider mb-1 block">Describe tu audiencia ideal</label>
+            <textarea
+              placeholder="Ej: Emprendedores de 25-45, interesados en SaaS, en España..."
+              value={adForm.audience_description}
+              onChange={e => setAdForm(prev => ({ ...prev, audience_description: e.target.value }))}
+              rows={2}
+              className="w-full px-3 py-2 bg-gray-900/60 border border-gray-700 rounded-lg text-sm text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
+            />
+          </div>
+          <div className="flex justify-end gap-2">
+            <button onClick={() => setShowGenForm(false)} className="px-3 py-1.5 text-xs text-gray-400 hover:text-gray-200">Cancelar</button>
+            <button
+              onClick={handleGenerate}
+              disabled={generating}
+              className="px-4 py-1.5 bg-purple-600 hover:bg-purple-500 text-white text-xs font-medium rounded-lg transition-colors disabled:opacity-50 flex items-center gap-1.5"
+            >
+              {generating ? (
+                <><span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" /> Generando...</>
+              ) : (
+                <><span>🎯</span> Generar estrategia</>
+              )}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Metrics */}
+      <div className="grid grid-cols-4 gap-2">
+        <MetricCard label="Campanas" value={campaigns.length} icon="📢" color="text-purple-400" />
+        <MetricCard label="Gasto total" value={`${(metrics.totalSpend || 0).toFixed(0)}€`} icon="💰" color="text-amber-400" />
+        <MetricCard label="Clicks" value={metrics.totalClicks || 0} icon="👆" color="text-blue-400" />
+        <MetricCard label="Conversiones" value={metrics.totalConversions || 0} icon="🎯" color="text-green-400" />
+      </div>
+
+      {/* Ad Campaigns */}
+      {campaigns.length > 0 ? (
+        <div className="space-y-3">
+          {campaigns.map(campaign => {
+            const platCfg = PLATFORM_CONFIG[campaign.platform] || PLATFORM_CONFIG.general
+            const statusCfg = AD_STATUS[campaign.status] || AD_STATUS.draft
+            const isExpanded = expandedCampaign === campaign.id
+            const copies = typeof campaign.ad_copies === 'string' ? JSON.parse(campaign.ad_copies || '[]') : (campaign.ad_copies || [])
+            const audience = typeof campaign.target_audience === 'string' ? JSON.parse(campaign.target_audience || '{}') : (campaign.target_audience || {})
+
+            return (
+              <div key={campaign.id} className="bg-gray-800/60 rounded-xl border border-gray-700/40 overflow-hidden hover:border-gray-600/60 transition-colors">
+                <button
+                  onClick={() => setExpandedCampaign(isExpanded ? null : campaign.id)}
+                  className="w-full p-4 text-left"
+                >
+                  <div className="flex items-start justify-between gap-3 mb-2">
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <span className={platCfg.color}>{platCfg.icon}</span>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-white truncate">{campaign.name}</p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded ${platCfg.bg} ${platCfg.color}`}>{platCfg.label}</span>
+                          {campaign.objective && <span className="text-[10px] text-gray-600">{campaign.objective}</span>}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className={`px-2 py-0.5 text-xs font-medium border rounded-full flex-shrink-0 ${statusCfg.bg} ${statusCfg.text} ${statusCfg.border}`}>
+                        {statusCfg.icon} {statusCfg.label}
+                      </span>
+                      <span className="text-gray-600 text-xs">{isExpanded ? '▲' : '▼'}</span>
+                    </div>
+                  </div>
+                  {/* Quick stats */}
+                  <div className="flex items-center gap-4 text-xs text-gray-500">
+                    {campaign.suggested_monthly_budget && (
+                      <span>💰 {campaign.suggested_monthly_budget}€/mes</span>
+                    )}
+                    {copies.length > 0 && <span>📝 {copies.length} copys</span>}
+                    <span className="ml-auto">{timeAgo(campaign.created_at)}</span>
+                  </div>
+                </button>
+
+                {/* Expanded details */}
+                {isExpanded && (
+                  <div className="border-t border-gray-700/40 p-4 space-y-4">
+                    {/* Audience */}
+                    {(audience.demographics || audience.interests) && (
+                      <div>
+                        <h4 className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">🎯 Audiencia</h4>
+                        {audience.demographics && <p className="text-xs text-gray-300 mb-1">{audience.demographics}</p>}
+                        {audience.interests?.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {audience.interests.map((int, i) => (
+                              <span key={i} className="text-[10px] px-1.5 py-0.5 rounded bg-purple-900/30 text-purple-300 border border-purple-700/40">{int}</span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Keywords */}
+                    {campaign.keywords?.length > 0 && (
+                      <div>
+                        <h4 className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">🔍 Keywords</h4>
+                        <div className="flex flex-wrap gap-1">
+                          {campaign.keywords.map((kw, i) => (
+                            <span key={i} className="text-[10px] px-1.5 py-0.5 rounded bg-blue-900/30 text-blue-300 border border-blue-700/40">{kw}</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Ad Copies */}
+                    {copies.length > 0 && (
+                      <div>
+                        <h4 className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">📝 Ad Copies</h4>
+                        <div className="space-y-2">
+                          {copies.map((copy, i) => (
+                            <div key={i} className="bg-gray-900/40 rounded-lg p-3 border border-gray-700/30">
+                              <div className="flex items-center justify-between mb-1">
+                                <p className="text-xs font-bold text-white">{copy.headline}</p>
+                                {copy.variant && <span className="text-[10px] text-gray-600">Variante {copy.variant}</span>}
+                              </div>
+                              <p className="text-xs text-gray-400">{copy.description}</p>
+                              {copy.cta && <p className="text-[10px] text-purple-400 mt-1 font-medium">👉 {copy.cta}</p>}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Budget */}
+                    {(campaign.suggested_daily_budget || campaign.suggested_monthly_budget) && (
+                      <div>
+                        <h4 className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">💰 Presupuesto sugerido</h4>
+                        <div className="flex gap-4 text-xs">
+                          {campaign.suggested_daily_budget && <span className="text-gray-300">{campaign.suggested_daily_budget}€/dia</span>}
+                          {campaign.suggested_monthly_budget && <span className="text-amber-400 font-medium">{campaign.suggested_monthly_budget}€/mes</span>}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Notes */}
+                    {campaign.notes && (
+                      <div>
+                        <h4 className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">💬 Notas del strategist</h4>
+                        <p className="text-xs text-gray-400 leading-relaxed">{campaign.notes}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      ) : null}
+
+      {/* Legacy ad tasks */}
+      {tasks.length > 0 && (
         <div>
-          <h3 className="text-xs font-semibold text-purple-400 uppercase tracking-wider mb-3 flex items-center gap-2">
-            <span>📢</span> Campañas y tareas de Ads
+          <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
+            <span>⚡</span> Tareas de Ads
           </h3>
           <div className="space-y-2">
             {tasks.map(task => (
@@ -745,11 +1245,13 @@ function AdsTab({ ads }) {
             ))}
           </div>
         </div>
-      ) : (
+      )}
+
+      {campaigns.length === 0 && tasks.length === 0 && (
         <EmptyState
           icon="📢"
-          title="Sin campañas de ads"
-          subtitle="Tu CMO puede crear campañas de Google Ads, Meta Ads, etc."
+          title="Sin campanas de ads"
+          subtitle="Pulsa 'Nueva estrategia' para que el Ads Strategist genere campanas con copies, audiencias y presupuestos"
         />
       )}
     </div>

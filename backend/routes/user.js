@@ -451,7 +451,29 @@ router.get('/companies/:companyId/marketing', requireAuth, requireCompanyAccess,
                proCampaigns.rows.reduce((s, c) => s + (c.emails_bounced || 0), 0),
     };
 
-    // ─── Ads (marketing tasks tagged as ads or data-related) ──
+    // ─── Content Pieces (Gamma + agent-generated) ──────
+    const contentPieces = await pool.query(
+      `SELECT id, type, format, title, body, gamma_generation_id, gamma_url, gamma_status,
+              gamma_credits_used, status, platform, scheduled_for, posted_at, post_url,
+              engagement_views, engagement_likes, engagement_comments, engagement_shares,
+              engagement_clicks, created_by, agent_tag, tags, created_at
+       FROM content_pieces WHERE company_id = $1
+       ORDER BY created_at DESC LIMIT 50`,
+      [companyId]
+    ).catch(() => ({ rows: [] }));
+
+    const gammaStatus = {
+      enabled: !!process.env.GAMMA_API_KEY,
+      totalGenerated: contentPieces.rows.filter(p => p.gamma_url).length,
+      creditsUsed: contentPieces.rows.reduce((s, p) => s + (p.gamma_credits_used || 0), 0),
+    };
+
+    // ─── Ad Campaigns (Strategist) ─────────────────────
+    const adCampaigns = await pool.query(
+      `SELECT * FROM ad_campaigns WHERE company_id = $1 ORDER BY created_at DESC LIMIT 30`,
+      [companyId]
+    ).catch(() => ({ rows: [] }));
+
     const adTasks = await pool.query(
       `SELECT id, COALESCE(tag, agent_type) as agent_tag, title, description, status, priority,
               started_at, completed_at, created_at
@@ -465,9 +487,13 @@ router.get('/companies/:companyId/marketing', requireAuth, requireCompanyAccess,
     ).catch(() => ({ rows: [] }));
 
     const adsMetrics = {
-      total: adTasks.rows.length,
-      active: adTasks.rows.filter(t => t.status === 'in_progress' || t.status === 'todo').length,
-      completed: adTasks.rows.filter(t => t.status === 'completed').length,
+      total: adCampaigns.rows.length + adTasks.rows.length,
+      active: adCampaigns.rows.filter(c => c.status === 'active').length + adTasks.rows.filter(t => t.status === 'in_progress' || t.status === 'todo').length,
+      completed: adCampaigns.rows.filter(c => c.status === 'completed').length + adTasks.rows.filter(t => t.status === 'completed').length,
+      totalSpend: adCampaigns.rows.reduce((s, c) => s + parseFloat(c.actual_spend || 0), 0),
+      totalImpressions: adCampaigns.rows.reduce((s, c) => s + (c.impressions || 0), 0),
+      totalClicks: adCampaigns.rows.reduce((s, c) => s + (c.clicks || 0), 0),
+      totalConversions: adCampaigns.rows.reduce((s, c) => s + (c.conversions || 0), 0),
     };
 
     // ─── Marketing tasks (all tasks from marketing/email/twitter agents) ──
@@ -488,7 +514,9 @@ router.get('/companies/:companyId/marketing', requireAuth, requireCompanyAccess,
         campaigns: proCampaigns.rows,
         leads: { total: totalLeads, statusCounts: leadsStatusCounts },
       },
-      ads: { tasks: adTasks.rows, metrics: adsMetrics },
+      contentPieces: contentPieces.rows,
+      gamma: gammaStatus,
+      ads: { tasks: adTasks.rows, campaigns: adCampaigns.rows, metrics: adsMetrics },
       marketingTasks: mktTasks.rows
     });
 

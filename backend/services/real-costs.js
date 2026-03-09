@@ -425,6 +425,39 @@ async function getInstantlyCosts() {
   }
 }
 
+// ─── Gamma ────────────────────────────────────────────────
+async function getGammaCosts() {
+  // Gamma Pro: included with user's plan, but we track credits usage
+  const cached = getCached('gamma');
+  if (cached) return cached;
+
+  const apiKey = process.env.GAMMA_API_KEY;
+  if (!apiKey) {
+    return { source: 'disabled', total: 0, note: 'Gamma no configurado' };
+  }
+
+  try {
+    const { pool } = require('../db');
+    const usage = await pool.query(
+      `SELECT COALESCE(SUM(credits_deducted), 0) as total_credits, COUNT(*) as total_generations
+       FROM gamma_usage WHERE created_at > NOW() - INTERVAL '30 days'`
+    );
+
+    const result = {
+      source: 'user_plan',
+      total: 0, // No direct cost to us — user's Gamma Pro plan
+      credits_used_30d: parseInt(usage.rows[0]?.total_credits || 0),
+      generations_30d: parseInt(usage.rows[0]?.total_generations || 0),
+      note: 'Gamma Pro del usuario — sin coste adicional para la plataforma'
+    };
+
+    setCache('gamma', result);
+    return result;
+  } catch (e) {
+    return { source: 'user_plan', total: 0, note: 'Gamma Pro', error: e.message };
+  }
+}
+
 // ─── Domain ────────────────────────────────────────────────
 function getDomainCosts() {
   // Fixed cost, roughly $18/year = $1.50/month
@@ -439,13 +472,14 @@ function getDomainCosts() {
 
 // ─── Aggregate All Costs ───────────────────────────────────
 async function getAllRealCosts() {
-  const [openrouter, vercel, neon, railway, resend, instantly] = await Promise.all([
+  const [openrouter, vercel, neon, railway, resend, instantly, gammaData] = await Promise.all([
     getOpenRouterCosts(),
     getVercelCosts(),
     getNeonCosts(),
     getRailwayCosts(),
     getResendCosts(),
-    getInstantlyCosts()
+    getInstantlyCosts(),
+    getGammaCosts()
   ]);
 
   const domain = getDomainCosts();
@@ -457,6 +491,7 @@ async function getAllRealCosts() {
     railway,
     resend,
     instantly,
+    gamma: gammaData,
     domain
   };
 
@@ -485,6 +520,7 @@ module.exports = {
   getRailwayCosts,
   getResendCosts,
   getInstantlyCosts,
+  getGammaCosts,
   getDomainCosts,
   getAllRealCosts
 };
