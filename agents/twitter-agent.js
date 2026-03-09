@@ -2,23 +2,13 @@
  * Agente de Twitter - Automatización de redes sociales
  */
 
-const { pool, createTask, updateTask, createTweet, logActivity } = require('../backend/db');
+const { createTask, updateTask, createTweet, logActivity } = require('../backend/db');
 const { callLLM } = require('../backend/llm');
 const { postTweet } = require('../backend/twitter');
 const brandConfig = require('../backend/services/brand-config');
 
 class TwitterAgent {
   async execute(company) {
-    // Guard: skip if already ran today
-    const existing = await pool.query(
-      `SELECT id FROM tasks WHERE company_id = $1 AND title = 'Publicación diaria en Twitter' AND created_at >= CURRENT_DATE LIMIT 1`,
-      [company.id]
-    );
-    if (existing.rows.length > 0) {
-      console.log(`[TwitterAgent] Skipping ${company.name} — already ran today`);
-      return { success: true, summary: 'Already ran today, skipped' };
-    }
-
     const task = await createTask(company.id, 'twitter',
       'Publicación diaria en Twitter',
       'Generar y publicar contenido atractivo');

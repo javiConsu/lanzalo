@@ -16,16 +16,6 @@ const instantly = require('../backend/services/instantly-service');
 
 class EmailAgent {
   async execute(company) {
-    // Guard: skip if already ran today
-    const existing = await pool.query(
-      `SELECT id FROM tasks WHERE company_id = $1 AND title = 'Outreach por email' AND created_at >= CURRENT_DATE LIMIT 1`,
-      [company.id]
-    );
-    if (existing.rows.length > 0) {
-      console.log(`[EmailAgent] Skipping ${company.name} — already ran today`);
-      return { success: true, summary: 'Already ran today, skipped' };
-    }
-
     const task = await this.createTask(company.id,
       'Outreach por email',
       'Buscar prospectos ideales y crear campañas de cold email personalizadas');

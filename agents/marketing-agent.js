@@ -15,20 +15,6 @@ const brandConfig = require('../backend/services/brand-config');
 
 class MarketingAgent {
   async execute(company) {
-    // Guard: skip if already ran today for this company
-    const existing = await pool.query(
-      `SELECT id FROM tasks
-       WHERE company_id = $1
-         AND title = 'Marketing diario'
-         AND created_at >= CURRENT_DATE
-       LIMIT 1`,
-      [company.id]
-    );
-    if (existing.rows.length > 0) {
-      console.log(`[MarketingAgent] Skipping ${company.name} — already ran today`);
-      return { success: true, summary: 'Already ran today, skipped' };
-    }
-
     const task = await this.createTask(company.id,
       'Marketing diario',
       'Generar contenido y revisar estrategia de marketing');
