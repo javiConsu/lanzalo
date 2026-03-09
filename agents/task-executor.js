@@ -27,6 +27,8 @@ class TaskExecutor {
 
     const EXECUTORS = {
       'code':        () => require('./executors/code-executor'),
+      'landing':     () => require('./executors/code-executor'),
+      'web':         () => require('./executors/code-executor'),
       'engineering': () => require('./executors/code-executor'),
       'research':    () => require('./executors/research-executor'),
       'browser':     () => require('./executors/browser-executor'),

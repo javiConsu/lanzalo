@@ -371,6 +371,7 @@ function StatsWidget({ company }) {
 function LinksWidget({ company, companyId }) {
   const [documents, setDocuments] = useState([])
   const [expandedDoc, setExpandedDoc] = useState(null)
+  const [landing, setLanding] = useState(null)
   const token = localStorage.getItem('token')
 
   useEffect(() => {
@@ -381,9 +382,18 @@ function LinksWidget({ company, companyId }) {
       .then(r => r.json())
       .then(d => setDocuments(d.documents || []))
       .catch(() => {})
+
+    // Fetch landing status
+    fetch(apiUrl(`/api/user/companies/${companyId}/landing`), {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+      .then(r => r.json())
+      .then(d => setLanding(d))
+      .catch(() => {})
   }, [companyId, token])
 
   const subdomain = company?.subdomain
+  const websiteUrl = company?.website_url
 
   const DOC_ICONS = {
     research: '📊',
@@ -401,18 +411,45 @@ function LinksWidget({ company, companyId }) {
         </span>
       </div>
       <div className="p-3 space-y-2">
-        {/* User's website — placeholder until validated */}
+        {/* Landing page — live or pending */}
         {subdomain && (
-          <div className="flex items-center gap-3 px-3 py-2.5 bg-gray-800/50 rounded-xl">
-            <span className="text-sm">🌐</span>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm text-gray-400 truncate">
-                {subdomain}.lanzalo.pro
-              </p>
-              <p className="text-xs text-amber-400/70">Pendiente de validar idea</p>
+          landing?.deployed ? (
+            <a
+              href={landing.url || websiteUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-3 px-3 py-2.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl hover:bg-emerald-500/15 transition-colors group"
+            >
+              <span className="text-sm">🌐</span>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm text-emerald-400 group-hover:text-emerald-300 truncate font-medium">
+                  {subdomain}.lanzalo.pro
+                </p>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <span className="flex items-center gap-1 text-xs text-emerald-500">
+                    <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full" /> Live
+                  </span>
+                  {landing.waitlistCount > 0 && (
+                    <span className="text-xs text-gray-500">
+                      · {landing.waitlistCount} lead{landing.waitlistCount !== 1 ? 's' : ''}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <span className="text-xs text-gray-500 group-hover:text-emerald-400">↗</span>
+            </a>
+          ) : (
+            <div className="flex items-center gap-3 px-3 py-2.5 bg-gray-800/50 rounded-xl">
+              <span className="text-sm">🌐</span>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm text-gray-400 truncate">
+                  {subdomain}.lanzalo.pro
+                </p>
+                <p className="text-xs text-amber-400/70">Pendiente — tu Co-Founder la construirá</p>
+              </div>
+              <span className="text-xs text-gray-600">⏳</span>
             </div>
-            <span className="text-xs text-gray-600">🔒</span>
-          </div>
+          )
         )}
 
         {/* Generated documents from completed tasks — CLICKABLE */}

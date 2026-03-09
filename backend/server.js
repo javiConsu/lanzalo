@@ -71,6 +71,7 @@ app.use('/api', require('./routes/ceo-chat')); // Co-Founder Agent chat
 app.use('/api/credits', require('./routes/credits')); // Sistema de créditos
 app.use('/api/changes', require('./routes/change-requests')); // Cambios en assets (gratis)
 app.use('/api', require('./routes/feedback')); // User feedback (thumbs up/down)
+app.use('/', require('./routes/landing')); // Landing pages: waitlist + deploy status
 
 // One-time: promote owner to admin
 app.post('/api/promote-admin', require('./middleware/auth').requireAuth, async (req, res) => {

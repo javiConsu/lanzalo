@@ -3,15 +3,15 @@
  * 
  * Flujo:
  * 1. LLM genera código (HTML/CSS/JS) con tool use
- * 2. Código se guarda en DB (deployments table)
- * 3. Se sirve via ruta /sites/:subdomain
- * 4. Resultado visible en dashboard
+ * 2. Vercel Deploy Service sube archivos y despliega
+ * 3. URL live guardada en companies.website_url
+ * 4. Resultado visible en dashboard (LinksWidget)
  */
 
 const { callLLMWithTools } = require('../../backend/llm');
 const { getSystemPrompt } = require('../system-prompts');
 const { pool } = require('../../backend/db');
-const crypto = require('crypto');
+const vercelDeploy = require('../../backend/services/vercel-deploy');
 
 class CodeExecutor {
   constructor() {
@@ -24,8 +24,13 @@ class CodeExecutor {
     const company = await this.getCompany(task.company_id);
     if (!company) throw new Error('Company not found');
 
+    const subdomain = company.subdomain || company.name.toLowerCase().replace(/[^a-z0-9]/g, '-');
+
     // System prompt
     const systemPrompt = getSystemPrompt('code', company.name);
+
+    // Get market analysis if available (for better landing page content)
+    const analysis = await this.getMarketAnalysis(task.company_id);
 
     // Tools para el code agent
     const tools = [
@@ -48,7 +53,7 @@ class CodeExecutor {
         type: 'function',
         function: {
           name: 'deploy_site',
-          description: 'Desplegar el sitio web del proyecto',
+          description: 'Desplegar el sitio web del proyecto a producción',
           parameters: {
             type: 'object',
             properties: {
@@ -82,49 +87,38 @@ class CodeExecutor {
           return { error: 'No hay archivos para desplegar' };
         }
 
-        // Guardar en DB como deployment
-        const deployId = crypto.randomUUID();
-        const htmlContent = files['index.html'] || this.buildDefaultHTML(files, company);
-
-        await pool.query(
-          `INSERT INTO deployments (id, company_id, url, type, framework, status, deploy_log, created_at)
-           VALUES ($1, $2, $3, 'landing_page', 'static', 'live', $4, NOW())`,
-          [
-            deployId,
-            company.id,
-            `${company.subdomain || company.name.toLowerCase().replace(/[^a-z0-9]/g, '-')}.lanzalo.app`,
-            JSON.stringify({ files, message: args.message || 'Deploy automático' })
-          ]
-        );
-
-        // Guardar HTML completo en tabla separada para servir
-        await pool.query(
-          `INSERT INTO build_previews (id, company_id, html_content, created_at)
-           VALUES ($1, $2, $3, NOW())
-           ON CONFLICT (company_id) DO UPDATE SET html_content = $3, created_at = NOW()`,
-          [crypto.randomUUID(), company.id, htmlContent]
-        );
+        // Deploy via Vercel (o local como fallback)
+        const result = await vercelDeploy.deploy(company.id, files, {
+          subdomain,
+          companyName: company.name
+        });
 
         // Log actividad
         await pool.query(
           `INSERT INTO activity_log (company_id, activity_type, message, created_at)
            VALUES ($1, 'deploy', $2, NOW())`,
-          [company.id, `🚀 Sitio desplegado: ${Object.keys(files).length} archivos`]
+          [company.id, `🚀 Landing desplegada: ${result.url}`]
         );
 
-        // Actualizar status de la empresa
-        await pool.query(
-          `UPDATE companies SET status = 'live', updated_at = NOW() WHERE id = $1`,
-          [company.id]
-        );
+        // Broadcast
+        if (global.broadcastActivity) {
+          global.broadcastActivity({
+            companyId: company.id,
+            type: 'deploy',
+            message: `🚀 Landing live: ${result.url}`,
+            timestamp: new Date().toISOString()
+          });
+        }
 
-        console.log(`  🚀 Deploy completado: ${Object.keys(files).length} archivos`);
+        console.log(`  🚀 Deploy completado: ${result.url}`);
 
         return {
           deployed: true,
-          url: `${company.subdomain || 'preview'}.lanzalo.app`,
+          url: result.url,
+          vercelUrl: result.vercelUrl,
           files: Object.keys(files),
-          deployId
+          deploymentId: result.deploymentId,
+          local: result.local || false
         };
       },
 
@@ -143,30 +137,49 @@ class CodeExecutor {
       }
     };
 
+    // Build context from market analysis
+    const analysisContext = analysis
+      ? `\nANÁLISIS DE MERCADO DISPONIBLE:\n${analysis.substring(0, 2000)}\nUsa estos datos reales (competidores, precios, target market) para hacer la landing más persuasiva.\n`
+      : '';
+
     // Prompt
     const prompt = `TAREA: ${task.title}
-DESCRIPCIÓN: ${task.description || 'Generar landing page para el negocio'}
+DESCRIPCIÓN: ${task.description || 'Generar landing page profesional para el negocio'}
 
 EMPRESA:
 - Nombre: ${company.name}
 - Descripción: ${company.description || 'Sin descripción'}
 - Industria: ${company.industry || 'General'}
-- Web: ${company.subdomain || company.name.toLowerCase().replace(/[^a-z0-9]/g, '-')}.lanzalo.app
-
+- Subdominio: ${subdomain}
+${company.target_market ? `- Target: ${company.target_market}` : ''}
+${company.business_model ? `- Modelo: ${company.business_model}` : ''}
+${analysisContext}
 INSTRUCCIONES:
-1. Genera el código HTML/CSS/JS necesario
-2. Usa save_file() para guardar cada archivo
+1. Genera una landing page COMPLETA y PROFESIONAL
+2. Usa save_file() para guardar cada archivo (mínimo: index.html)
 3. Usa deploy_site() para desplegar cuando esté listo
 
-ESTÁNDARES:
-- HTML completo con <!DOCTYPE html>
+ESTÁNDARES DE DISEÑO OBLIGATORIOS:
+- HTML5 completo con <!DOCTYPE html>, meta viewport, favicon
 - Tailwind CSS via CDN (https://cdn.tailwindcss.com)
-- Dark theme por defecto
-- Mobile responsive
-- CTA claro above the fold
-- Formulario de captura de email
-- Sin placeholders — todo funcional
-- Español`;
+- Paleta oscura elegante: fondo gris 950, acentos emerald-500
+- Mobile-first responsive (sm:, md:, lg:)
+- Hero section con headline potente y CTA above the fold
+- Secciones: Hero → Propuesta de valor → Beneficios/Features → Social proof → CTA final → Footer
+- Formulario de captura de email funcional (conectado a /api/public/waitlist)
+- Animaciones sutiles con CSS transitions
+- Tipografía: Inter o system-ui, jerarquía clara
+- Sin imágenes placeholder — usa emojis, iconos SVG inline, o gradientes
+- Footer con "Construido con Lánzalo" y año
+- Español nativo, tono profesional pero cercano
+- El formulario hace POST a: https://lanzalo-production.up.railway.app/api/public/waitlist
+  con body: { email, company_id: "${company.id}" }
+
+NO HAGAS:
+- No uses lorem ipsum — escribe copy real basado en la descripción del negocio
+- No dejes secciones vacías o con texto genérico
+- No hagas diseños que parezcan templates de BootstrapH
+- No uses más de 2 colores de acento`;
 
     const response = await callLLMWithTools(prompt, {
       tools,
@@ -178,41 +191,38 @@ ESTÁNDARES:
       temperature: 0.3
     });
 
+    // Get the final URL
+    const deployStatus = await vercelDeploy.getDeployStatus(company.id);
+
     return {
-      summary: response.content || `${Object.keys(files).length} archivos generados y desplegados`,
+      output: response.content || `Landing page desplegada: ${deployStatus.url || 'en proceso'}`,
+      summary: `Landing page generada: ${Object.keys(files).length} archivos`,
       filesCreated: Object.keys(files),
-      deployed: Object.keys(files).length > 0,
+      deployed: deployStatus.deployed,
+      url: deployStatus.url,
       turns: response.turns
     };
   }
 
   /**
-   * Si no hay index.html explícito, construir uno que incluya los demás archivos
+   * Get market analysis output for better landing content
    */
-  buildDefaultHTML(files, company) {
-    const css = files['styles.css'] || files['style.css'] || '';
-    const js = files['app.js'] || files['script.js'] || '';
-
-    return `<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${company.name} — Powered by Lanzalo</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  ${css ? `<style>${css}</style>` : ''}
-</head>
-<body class="bg-gray-900 text-white">
-  <div class="min-h-screen flex items-center justify-center">
-    <div class="text-center p-8">
-      <h1 class="text-4xl font-bold mb-4">${company.name}</h1>
-      <p class="text-gray-400 text-lg mb-8">${company.description || 'Próximamente'}</p>
-      <p class="text-sm text-gray-500">Construido con Lanzalo.pro</p>
-    </div>
-  </div>
-  ${js ? `<script>${js}</script>` : ''}
-</body>
-</html>`;
+  async getMarketAnalysis(companyId) {
+    try {
+      const result = await pool.query(
+        `SELECT output FROM tasks 
+         WHERE company_id = $1 
+         AND tag = 'research' 
+         AND status = 'completed'
+         AND output IS NOT NULL
+         ORDER BY completed_at DESC
+         LIMIT 1`,
+        [companyId]
+      );
+      return result.rows[0]?.output || null;
+    } catch (e) {
+      return null;
+    }
   }
 
   async getCompany(companyId) {
