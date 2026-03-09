@@ -70,7 +70,7 @@ async function getVercelCosts() {
   if (cached) return cached;
 
   const token = process.env.VERCEL_TOKEN;
-  if (!token) return { error: 'No VERCEL_TOKEN', total: 0, breakdown: [] };
+  if (!token) return { source: 'fallback', total: 20, breakdown: [{ service: 'Pro Plan (estimado)', cost: 20 }], note: 'No VERCEL_TOKEN configurado' };
 
   try {
     // Get billing period dates (current month)
@@ -110,6 +110,18 @@ async function getVercelCosts() {
       })),
       raw_count: charges.length
     };
+
+    // If API returned empty/0, use Pro plan fallback
+    if (result.total === 0 && result.raw_count === 0) {
+      const fallback = {
+        source: 'fallback',
+        total: 20,
+        breakdown: [{ service: 'Pro Plan (estimado)', cost: 20 }],
+        note: 'API vacía - configurar VERCEL_TOKEN con permisos de billing'
+      };
+      setCache('vercel', fallback);
+      return fallback;
+    }
 
     setCache('vercel', result);
     return result;
