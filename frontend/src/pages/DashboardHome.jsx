@@ -174,7 +174,7 @@ function TasksWidget({ companyId }) {
       headers: { 'Authorization': `Bearer ${token}` }
     })
       .then(r => r.json())
-      .then(d => setTasks((d.backlog || []).slice(0, 5)))
+      .then(d => setTasks((d.backlog || []).slice(0, 2)))
       .catch(() => {})
   }, [companyId, token])
 
@@ -608,7 +608,7 @@ function ActivityWidget({ companyId }) {
             id: Date.now(),
             ...activity,
             time: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
-          }, ...prev].slice(0, 20))
+          }, ...prev].slice(0, 2))
         }
       } catch(e) {}
     }
@@ -633,7 +633,7 @@ function ActivityWidget({ companyId }) {
           </span>
         </span>
       </div>
-      <div className="max-h-48 overflow-y-auto divide-y divide-gray-800/50">
+      <div className="divide-y divide-gray-800/50">
         {events.length === 0 ? (
           <div className="px-4 py-6 text-center">
             <p className="text-gray-600 text-xs">Esperando actividad de los agentes...</p>
