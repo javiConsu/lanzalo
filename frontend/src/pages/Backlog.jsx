@@ -1,5 +1,6 @@
 import { apiUrl } from '../api.js'
 import { useState, useEffect, useCallback } from 'react'
+import useCompanySelection from '../hooks/useCompanySelection.js'
 
 // ─── Helpers ────────────────────────────────────────────────
 function timeAgo(dateStr) {
@@ -45,8 +46,7 @@ const PRIORITY_CONFIG = {
 
 // ─── Main Component ─────────────────────────────────────────
 export default function Backlog() {
-  const [companies, setCompanies] = useState([])
-  const [selectedCompany, setSelectedCompany] = useState(null)
+  const { companies, selectedCompanyId: selectedCompany, selectCompany: setSelectedCompany } = useCompanySelection()
   const [activeTasks, setActiveTasks] = useState([])
   const [completedTasks, setCompletedTasks] = useState([])
   const [recentChat, setRecentChat] = useState([])
@@ -55,21 +55,6 @@ export default function Backlog() {
   const [tab, setTab] = useState('activas')
 
   const token = localStorage.getItem('token')
-
-  // Load companies
-  useEffect(() => {
-    fetch(apiUrl('/api/user/companies'), {
-      headers: { 'Authorization': `Bearer ${token}` }
-    })
-      .then(res => res.json())
-      .then(data => {
-        if (data.companies?.length > 0) {
-          setCompanies(data.companies)
-          setSelectedCompany(data.companies[0].id)
-        }
-      })
-      .catch(console.error)
-  }, [token])
 
   // Fetch backlog data
   const fetchBacklog = useCallback(() => {

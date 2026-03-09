@@ -1,5 +1,6 @@
 import { apiUrl } from '../api.js'
 import { useState, useEffect, useCallback, useRef } from 'react'
+import useCompanySelection from '../hooks/useCompanySelection.js'
 
 // ─── Helpers ────────────────────────────────────────────────
 function timeAgo(dateStr) {
@@ -53,8 +54,7 @@ const LEAD_STATUS = {
 
 // ─── Main Component ─────────────────────────────────────────
 export default function Marketing() {
-  const [companies, setCompanies] = useState([])
-  const [selectedCompany, setSelectedCompany] = useState(null)
+  const { companies, selectedCompanyId: selectedCompany, selectCompany: setSelectedCompany } = useCompanySelection()
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(false)
   const [tab, setTab] = useState('contenido')
@@ -66,21 +66,6 @@ export default function Marketing() {
     const params = new URLSearchParams(window.location.search)
     if (params.get('tab') === 'emails') setTab('emails')
   }, [])
-
-  // Load companies
-  useEffect(() => {
-    fetch(apiUrl('/api/user/companies'), {
-      headers: { 'Authorization': `Bearer ${token}` }
-    })
-      .then(res => res.json())
-      .then(d => {
-        if (d.companies?.length > 0) {
-          setCompanies(d.companies)
-          setSelectedCompany(d.companies[0].id)
-        }
-      })
-      .catch(console.error)
-  }, [token])
 
   // Fetch marketing data
   const fetchMarketing = useCallback(() => {

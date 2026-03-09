@@ -5,6 +5,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { apiUrl, API_URL } from '../api.js'
+import useCompanySelection from '../hooks/useCompanySelection.js'
 
 // ─── Inline Chat (altura limitada, no infinito) ──────────────────
 function InlineChat({ companyId, initialMessage }) {
@@ -694,58 +695,40 @@ function CompanySelector({ companies, selected, onSelect, onCreateNew }) {
 
 // ─── Main DashboardHome ────────────────────────────────────
 export default function DashboardHome() {
-  const [companies, setCompanies] = useState([])
-  const [company, setCompany] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const { companies, selectedCompany: company, selectCompany, loadingCompanies: loading } = useCompanySelection()
   const [feedbackMessage, setFeedbackMessage] = useState(null)
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const token = localStorage.getItem('token')
 
+  // Handle feedback deep link: ?feedback=web&company=xxx
   useEffect(() => {
-    fetch(apiUrl('/api/user/companies'), {
-      headers: { 'Authorization': `Bearer ${token}` }
-    })
-      .then(r => r.json())
-      .then(d => {
-        const list = d.companies || []
-        setCompanies(list)
+    if (companies.length === 0) return
 
-        // Handle feedback deep link: ?feedback=web&company=xxx (or from localStorage)
-        let feedbackParam = searchParams.get('feedback')
-        let companyParam = searchParams.get('company')
+    let feedbackParam = searchParams.get('feedback')
+    let companyParam = searchParams.get('company')
 
-        // Also check localStorage (survives login redirect)
-        if (!feedbackParam) {
-          try {
-            const pending = JSON.parse(localStorage.getItem('pendingFeedback'))
-            if (pending?.feedback && pending?.company) {
-              feedbackParam = pending.feedback
-              companyParam = pending.company
-              localStorage.removeItem('pendingFeedback')
-            }
-          } catch(e) {}
+    // Also check localStorage (survives login redirect)
+    if (!feedbackParam) {
+      try {
+        const pending = JSON.parse(localStorage.getItem('pendingFeedback'))
+        if (pending?.feedback && pending?.company) {
+          feedbackParam = pending.feedback
+          companyParam = pending.company
+          localStorage.removeItem('pendingFeedback')
         }
+      } catch(e) {}
+    }
 
-        if (feedbackParam === 'web' && companyParam) {
-          // Find the matching company and select it
-          const target = list.find(c => c.id === companyParam)
-          if (target) {
-            setCompany(target)
-            setFeedbackMessage('Quiero ajustar cosas de la web')
-          } else if (list[0]) {
-            setCompany(list[0])
-          }
-          // Clean URL params
-          setSearchParams({})
-        } else if (list[0]) {
-          setCompany(list[0])
-        }
-
-        setLoading(false)
-      })
-      .catch(() => setLoading(false))
-  }, [token])
+    if (feedbackParam === 'web' && companyParam) {
+      const target = companies.find(c => c.id === companyParam)
+      if (target) {
+        selectCompany(target.id)
+        setFeedbackMessage('Quiero ajustar cosas de la web')
+      }
+      setSearchParams({})
+    }
+  }, [companies])
 
   if (loading) {
     return (
@@ -782,11 +765,11 @@ export default function DashboardHome() {
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Company selector header */}
       {companies.length > 0 && (
-        <div className="flex items-center justify-between px-4 pt-3 pb-1 flex-shrink-0">
+        <div className="flex items-center justify-end px-4 pt-3 pb-1 flex-shrink-0">
           <CompanySelector
             companies={companies}
             selected={company}
-            onSelect={setCompany}
+            onSelect={(c) => selectCompany(c.id)}
             onCreateNew={() => navigate('/onboarding/describe-idea')}
           />
         </div>

@@ -6,6 +6,7 @@
  */
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { apiUrl, API_URL } from '../api.js'
+import useCompanySelection from '../hooks/useCompanySelection.js'
 
 // ─── Agent definitions ─────────────────────────────────────
 const AGENT_DEFS = {
@@ -961,26 +962,10 @@ export default function AgentOffice() {
 
   const [agents, setAgents] = useState(DEFAULT_AGENTS)
   const [stats, setStats] = useState({ totalActive: 0, totalInProgress: 0, totalQueued: 0 })
-  const [companyId, setCompanyId] = useState(null)
-  const [companies, setCompanies] = useState([])
-  const [loading, setLoading] = useState(true)
+  const { companies, selectedCompanyId: companyId, selectCompany: setCompanyId, loadingCompanies: loading } = useCompanySelection()
   const [canvasSize, setCanvasSize] = useState({ w: 800, h: 450 })
   const containerRef = useRef(null)
   const token = localStorage.getItem('token')
-
-  useEffect(() => {
-    fetch(apiUrl('/api/user/companies'), {
-      headers: { 'Authorization': `Bearer ${token}` }
-    })
-      .then(r => r.json())
-      .then(d => {
-        const list = d.companies || []
-        setCompanies(list)
-        if (list[0]) setCompanyId(list[0].id)
-        setLoading(false)
-      })
-      .catch(() => setLoading(false))
-  }, [token])
 
   useEffect(() => {
     if (!companyId) return

@@ -1,28 +1,13 @@
 import { apiUrl } from '../api.js'
 import { useState, useEffect } from 'react'
+import useCompanySelection from '../hooks/useCompanySelection.js'
 
 export default function Metrics() {
-  const [companies, setCompanies] = useState([])
-  const [selectedCompany, setSelectedCompany] = useState(null)
+  const { companies, selectedCompanyId: selectedCompany, selectCompany: setSelectedCompany } = useCompanySelection()
   const [metrics, setMetrics] = useState(null)
   const [loading, setLoading] = useState(false)
 
   const token = localStorage.getItem('token')
-
-  // Cargar empresas
-  useEffect(() => {
-    fetch(apiUrl('/api/user/companies'), {
-      headers: { 'Authorization': `Bearer ${token}` }
-    })
-      .then(res => res.json())
-      .then(data => {
-        if (data.companies?.length > 0) {
-          setCompanies(data.companies)
-          setSelectedCompany(data.companies[0].id)
-        }
-      })
-      .catch(console.error)
-  }, [token])
 
   // Cargar métricas cuando cambia empresa
   useEffect(() => {
@@ -133,28 +118,35 @@ export default function Metrics() {
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Header */}
       <div className="bg-gray-800 border-b border-gray-700 p-4">
-        <div className="flex items-center gap-4">
-          <select
-            value={selectedCompany || ''}
-            onChange={(e) => setSelectedCompany(e.target.value)}
-            className="px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            {companies.map(company => (
-              <option key={company.id} value={company.id}>
-                {company.name}
-              </option>
-            ))}
-          </select>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <span className="text-lg">📊</span>
+            <h1 className="text-lg font-bold text-white">Métricas</h1>
+          </div>
 
-          <div className="flex-1" />
+          <div className="flex items-center gap-3">
+            <button
+              onClick={loadMetrics}
+              disabled={loading}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50 text-sm"
+            >
+              {loading ? 'Cargando...' : 'Actualizar'}
+            </button>
 
-          <button
-            onClick={loadMetrics}
-            disabled={loading}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50 text-sm"
-          >
-            {loading ? 'Cargando...' : 'Actualizar'}
-          </button>
+            {companies.length > 1 && (
+              <select
+                value={selectedCompany || ''}
+                onChange={(e) => setSelectedCompany(e.target.value)}
+                className="text-sm px-3 py-1.5 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              >
+                {companies.map(company => (
+                  <option key={company.id} value={company.id}>
+                    {company.name}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
         </div>
       </div>
 

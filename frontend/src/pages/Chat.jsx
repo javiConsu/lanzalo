@@ -1,5 +1,6 @@
 import { apiUrl } from '../api.js'
 import { useState, useEffect, useRef, useCallback } from 'react'
+import useCompanySelection from '../hooks/useCompanySelection.js'
 
 // ═══════════════════════════════════════════════════════
 // ICONOS SVG
@@ -67,8 +68,7 @@ function Modal({ isOpen, onClose, children }) {
 // ═══════════════════════════════════════════════════════
 
 export default function Chat() {
-  const [companies, setCompanies] = useState([])
-  const [selectedCompany, setSelectedCompany] = useState(null)
+  const { companies, selectedCompanyId: selectedCompany, selectCompany: setSelectedCompany } = useCompanySelection()
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
@@ -85,21 +85,6 @@ export default function Chat() {
   
   const messagesEndRef = useRef(null)
   const token = localStorage.getItem('token')
-
-  // ─── Cargar empresas ───
-  useEffect(() => {
-    fetch(apiUrl('/api/user/companies'), {
-      headers: { 'Authorization': `Bearer ${token}` }
-    })
-      .then(res => res.json())
-      .then(data => {
-        if (data.companies?.length > 0) {
-          setCompanies(data.companies)
-          setSelectedCompany(data.companies[0].id)
-        }
-      })
-      .catch(console.error)
-  }, [token])
 
   // ─── Cargar historial ───
   useEffect(() => {
@@ -326,25 +311,25 @@ export default function Chat() {
     <div className="flex-1 flex flex-col">
       {/* ═══ Header ═══ */}
       <div className="bg-gray-800 border-b border-gray-700 p-4">
-        <div className="flex items-center gap-4">
-          <select
-            value={selectedCompany || ''}
-            onChange={(e) => setSelectedCompany(e.target.value)}
-            className="px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            {companies.map(company => (
-              <option key={company.id} value={company.id}>
-                {company.name}
-              </option>
-            ))}
-          </select>
-
-          <div className="flex-1" />
-
+        <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
             <span className="text-sm text-gray-400">Co-Founder</span>
           </div>
+
+          {companies.length > 1 && (
+            <select
+              value={selectedCompany || ''}
+              onChange={(e) => setSelectedCompany(e.target.value)}
+              className="text-sm px-3 py-1.5 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            >
+              {companies.map(company => (
+                <option key={company.id} value={company.id}>
+                  {company.name}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
 
         {/* Like hint banner */}
