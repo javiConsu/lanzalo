@@ -6,6 +6,7 @@ const express = require('express');
 const router = express.Router();
 const { requireAuth, requireAdmin } = require('../middleware/auth');
 const { pool } = require('../db');
+const { getAllRealCosts, getOpenRouterCosts } = require('../services/real-costs');
 
 // Todas las rutas requieren auth + admin
 router.use(requireAuth);
@@ -558,15 +559,32 @@ router.get('/live', async (req, res) => {
        ORDER BY cost DESC LIMIT 10`
     );
 
-    // Infrastructure fixed costs (monthly estimate)
+    // ─── Real costs from external APIs ───────────────────────
+    const realCosts = await getAllRealCosts();
+    const openrouterReal = realCosts.services.openrouter;
+    const vercelReal = realCosts.services.vercel;
+    const neonReal = realCosts.services.neon;
+    const railwayReal = realCosts.services.railway;
+    const resendReal = realCosts.services.resend;
+    const domainReal = realCosts.services.domain;
+
+    // Use OpenRouter API for real LLM costs, DB estimates as fallback
+    const llmCostReal30d = openrouterReal.usage_monthly || parseFloat(llmCosts.rows[0].cost_30d);
+    const llmCostReal7d = openrouterReal.usage_weekly || parseFloat(llmCosts7d.rows[0].cost_7d);
+    const llmCostReal24h = openrouterReal.usage_daily || parseFloat(llmCosts24h.rows[0].cost_24h);
+
+    // Infrastructure costs (real where available)
     const infraCosts = {
-      railway: 20,
-      vercel: 20,
-      neon: 19,
-      openrouter: parseFloat(llmCosts.rows[0].cost_30d),
-      resend: 0, // Free tier
-      domain: 1.5, // ~$18/year
-      total: 60.5 + parseFloat(llmCosts.rows[0].cost_30d)
+      railway: { cost: railwayReal.total, source: railwayReal.source, breakdown: railwayReal.breakdown },
+      vercel: { cost: vercelReal.total, source: vercelReal.source, breakdown: vercelReal.breakdown },
+      neon: { cost: neonReal.total, source: neonReal.source, breakdown: neonReal.breakdown },
+      openrouter: { cost: llmCostReal30d, source: openrouterReal.error ? 'db_estimate' : 'openrouter_api' },
+      resend: { cost: resendReal.total, source: resendReal.source, plan: resendReal.plan, emails_sent: resendReal.emails_sent_30d },
+      domain: { cost: domainReal.total, source: 'fixed' },
+      total: Math.round((
+        railwayReal.total + vercelReal.total + neonReal.total + 
+        llmCostReal30d + resendReal.total + domainReal.total
+      ) * 100) / 100
     };
 
     // Profit
@@ -581,15 +599,40 @@ router.get('/live', async (req, res) => {
       revenue: { mrr, proCount, pricePerUser: 39, currency: 'USD' },
       costs: {
         llm: {
-          cost_30d: parseFloat(llmCosts.rows[0].cost_30d),
-          cost_7d: parseFloat(llmCosts7d.rows[0].cost_7d),
-          cost_24h: parseFloat(llmCosts24h.rows[0].cost_24h),
+          cost_30d: llmCostReal30d,
+          cost_7d: llmCostReal7d,
+          cost_24h: llmCostReal24h,
           tokens_30d: parseInt(llmCosts.rows[0].tokens_30d),
           byModel: llmByModel.rows,
-          daily: llmDaily.rows
+          daily: llmDaily.rows,
+          // Real OpenRouter data
+          openrouter_real: {
+            usage_monthly: openrouterReal.usage_monthly || 0,
+            usage_weekly: openrouterReal.usage_weekly || 0,
+            usage_daily: openrouterReal.usage_daily || 0,
+            usage_total: openrouterReal.usage_total || 0,
+            limit: openrouterReal.limit,
+            limit_remaining: openrouterReal.limit_remaining,
+            source: openrouterReal.error ? 'error' : 'api'
+          },
+          // DB estimates for comparison
+          db_estimates: {
+            cost_30d: parseFloat(llmCosts.rows[0].cost_30d),
+            cost_7d: parseFloat(llmCosts7d.rows[0].cost_7d),
+            cost_24h: parseFloat(llmCosts24h.rows[0].cost_24h)
+          }
         },
         infra: infraCosts,
-        total: totalCosts
+        total: totalCosts,
+        // Metadata about data sources
+        _sources: {
+          openrouter: openrouterReal.source || 'unknown',
+          vercel: vercelReal.source || 'unknown',
+          neon: neonReal.source || 'unknown',
+          railway: railwayReal.source || 'unknown',
+          resend: resendReal.source || 'unknown',
+          cache_ttl: '5min'
+        }
       },
       profit: { amount: profit, margin: parseFloat(margin) },
       tasks: {

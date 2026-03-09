@@ -417,21 +417,31 @@ export default function AdminDashboard() {
                   <SectionHeader icon="🏗️" title="Infraestructura (mes)" />
                   <div className="space-y-2">
                     {[
-                      { name: 'Railway', cost: infra.railway, color: 'bg-purple-500' },
-                      { name: 'Vercel', cost: infra.vercel, color: 'bg-white' },
-                      { name: 'Neon (PG)', cost: infra.neon, color: 'bg-green-500' },
-                      { name: 'OpenRouter', cost: infra.openrouter, color: 'bg-orange-500' },
-                      { name: 'Resend', cost: infra.resend, color: 'bg-blue-500' },
-                      { name: 'Dominio', cost: infra.domain, color: 'bg-gray-500' }
-                    ].map(item => (
-                      <div key={item.name} className="flex items-center justify-between text-sm">
-                        <div className="flex items-center gap-2">
-                          <div className={`w-2 h-2 rounded-full ${item.color}`} />
-                          <span className="text-gray-400">{item.name}</span>
+                      { name: 'Railway', data: infra.railway, color: 'bg-purple-500' },
+                      { name: 'Vercel', data: infra.vercel, color: 'bg-white' },
+                      { name: 'Neon (PG)', data: infra.neon, color: 'bg-green-500' },
+                      { name: 'OpenRouter', data: infra.openrouter, color: 'bg-orange-500' },
+                      { name: 'Resend', data: infra.resend, color: 'bg-blue-500' },
+                      { name: 'Dominio', data: infra.domain, color: 'bg-gray-500' }
+                    ].map(item => {
+                      const cost = typeof item.data === 'object' ? item.data?.cost : item.data
+                      const source = typeof item.data === 'object' ? item.data?.source : null
+                      const isReal = source && !source.includes('fallback') && !source.includes('estimate')
+                      return (
+                        <div key={item.name} className="flex items-center justify-between text-sm">
+                          <div className="flex items-center gap-2">
+                            <div className={`w-2 h-2 rounded-full ${item.color}`} />
+                            <span className="text-gray-400">{item.name}</span>
+                            {source && (
+                              <span className={`text-[9px] px-1 py-0.5 rounded ${isReal ? 'bg-green-500/10 text-green-500' : 'bg-yellow-500/10 text-yellow-500'}`}>
+                                {isReal ? 'API' : 'est.'}
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-gray-300 tabular-nums">{fmtUSD(cost)}</span>
                         </div>
-                        <span className="text-gray-300 tabular-nums">{fmtUSD(item.cost)}</span>
-                      </div>
-                    ))}
+                      )
+                    })}
                     <div className="flex items-center justify-between text-sm pt-2 border-t border-gray-700 font-medium">
                       <span className="text-gray-300">Total</span>
                       <span className="text-red-400 tabular-nums">{fmtUSD(infra.total)}</span>
@@ -556,26 +566,22 @@ export default function AdminDashboard() {
                     <span className="text-green-400 tabular-nums font-medium">+{fmtUSD(revenue.mrr)}</span>
                   </div>
                   <div className="border-t border-gray-800 pt-2 space-y-1">
-                    <div className="flex justify-between text-xs">
-                      <span className="text-gray-500">Railway</span>
-                      <span className="text-red-400 tabular-nums">-{fmtUSD(infra.railway)}</span>
-                    </div>
-                    <div className="flex justify-between text-xs">
-                      <span className="text-gray-500">Vercel</span>
-                      <span className="text-red-400 tabular-nums">-{fmtUSD(infra.vercel)}</span>
-                    </div>
-                    <div className="flex justify-between text-xs">
-                      <span className="text-gray-500">Neon (PostgreSQL)</span>
-                      <span className="text-red-400 tabular-nums">-{fmtUSD(infra.neon)}</span>
-                    </div>
-                    <div className="flex justify-between text-xs">
-                      <span className="text-gray-500">OpenRouter (LLMs)</span>
-                      <span className="text-red-400 tabular-nums">-{fmtUSD(infra.openrouter)}</span>
-                    </div>
-                    <div className="flex justify-between text-xs">
-                      <span className="text-gray-500">Resend + Dominio</span>
-                      <span className="text-red-400 tabular-nums">-{fmtUSD((infra.resend || 0) + (infra.domain || 0))}</span>
-                    </div>
+                    {[
+                      { name: 'Railway', data: infra.railway },
+                      { name: 'Vercel', data: infra.vercel },
+                      { name: 'Neon (PostgreSQL)', data: infra.neon },
+                      { name: 'OpenRouter (LLMs)', data: infra.openrouter },
+                      { name: 'Resend', data: infra.resend },
+                      { name: 'Dominio', data: infra.domain }
+                    ].map(item => {
+                      const cost = typeof item.data === 'object' ? item.data?.cost : item.data
+                      return (
+                        <div key={item.name} className="flex justify-between text-xs">
+                          <span className="text-gray-500">{item.name}</span>
+                          <span className="text-red-400 tabular-nums">-{fmtUSD(cost)}</span>
+                        </div>
+                      )
+                    })}
                   </div>
                   <div className="border-t border-gray-700 pt-2 flex justify-between text-sm font-bold">
                     <span className="text-gray-300">Beneficio neto</span>
@@ -592,6 +598,14 @@ export default function AdminDashboard() {
                   {profit.amount < 0 && (
                     <div className="text-xs text-yellow-500/80 bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-2 mt-2">
                       Break-even: {Math.ceil(costs.total / 39)} usuarios Pro necesarios
+                    </div>
+                  )}
+                  {/* Data source info */}
+                  {costs._sources && (
+                    <div className="text-[10px] text-gray-700 mt-3 flex flex-wrap gap-x-3">
+                      {Object.entries(costs._sources).filter(([k]) => k !== 'cache_ttl').map(([k, v]) => (
+                        <span key={k}>{k}: <span className={v.includes('api') ? 'text-green-600' : 'text-yellow-600'}>{v}</span></span>
+                      ))}
                     </div>
                   )}
                 </div>
