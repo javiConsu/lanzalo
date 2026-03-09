@@ -383,6 +383,12 @@ router.get('/companies/:companyId/marketing', requireAuth, requireCompanyAccess,
   try {
     const { companyId } = req.params;
 
+    // ─── Brand config ────────────────────────────────────
+    const comp_brand = await pool.query(
+      'SELECT brand_config FROM companies WHERE id = $1',
+      [companyId]
+    ).then(r => r.rows[0]).catch(() => ({}));
+
     // ─── Content (tweets/posts) ───────────────────────────
     const tweets = await pool.query(
       `SELECT id, content, media_url, status, type, published, published_at,
@@ -517,7 +523,9 @@ router.get('/companies/:companyId/marketing', requireAuth, requireCompanyAccess,
       contentPieces: contentPieces.rows,
       gamma: gammaStatus,
       ads: { tasks: adTasks.rows, campaigns: adCampaigns.rows, metrics: adsMetrics },
-      marketingTasks: mktTasks.rows
+      marketingTasks: mktTasks.rows,
+      brandConfig: comp_brand?.brand_config || {},
+      hasBrandConfig: Object.keys(comp_brand?.brand_config || {}).length > 0,
     });
 
   } catch (error) {

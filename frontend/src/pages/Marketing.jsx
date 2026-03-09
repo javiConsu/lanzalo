@@ -123,10 +123,13 @@ export default function Marketing() {
   const gamma = data?.gamma || { enabled: false, totalGenerated: 0, creditsUsed: 0 }
   const ads = data?.ads || { tasks: [], campaigns: [], metrics: { total: 0, active: 0, completed: 0 } }
   const marketingTasks = data?.marketingTasks || []
+  const brandCfg = data?.brandConfig || {}
+  const hasBrandConfig = data?.hasBrandConfig || false
 
   const companyName = companies.find(c => c.id === selectedCompany)?.name || ''
 
   const tabs = [
+    { id: 'marca', label: 'Marca', icon: '🎨' },
     { id: 'contenido', label: 'Contenido', icon: '📱', count: content.metrics.total },
     { id: 'emails', label: 'Emails', icon: '📧', count: emails.metrics.total, costExtra: true },
     { id: 'ads', label: 'Ads', icon: '📢', count: ads.metrics.total, costExtra: true },
@@ -225,6 +228,17 @@ export default function Marketing() {
           </div>
         ) : (
           <>
+            {/* ─── Tab: Marca ─────────────────────────── */}
+            {tab === 'marca' && (
+              <BrandTab
+                brandConfig={brandCfg}
+                hasBrandConfig={hasBrandConfig}
+                companyId={selectedCompany}
+                token={token}
+                onRefresh={fetchMarketing}
+              />
+            )}
+
             {/* ─── Tab: Contenido ──────────────────────── */}
             {tab === 'contenido' && (
               <ContentTab 
@@ -587,7 +601,421 @@ function ContentTab({ content, contentPieces, gamma, companyId, token, marketing
   )
 }
 
-// ─── Emails Tab (Email Pro) ─────────────────────────────────
+// ─── Brand Tab (Marca) ──────────────────────────────────────
+function BrandTab({ brandConfig, hasBrandConfig, companyId, token, onRefresh }) {
+  const [editing, setEditing] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [generating, setGenerating] = useState(false)
+  const [desc, setDesc] = useState('')
+  const [form, setForm] = useState({
+    voice: {
+      tono: brandConfig?.voice?.tono || 'profesional',
+      personalidad: brandConfig?.voice?.personalidad || 'cercano',
+      formalidad: brandConfig?.voice?.formalidad ?? 60,
+      humor: brandConfig?.voice?.humor ?? 30,
+      confianza: brandConfig?.voice?.confianza ?? 70,
+      calidez: brandConfig?.voice?.calidez ?? 60,
+    },
+    visual: {
+      colorPrimario: brandConfig?.visual?.colorPrimario || '#ec4899',
+      colorSecundario: brandConfig?.visual?.colorSecundario || '#8b5cf6',
+      colorFondo: brandConfig?.visual?.colorFondo || '#1a1a2e',
+      estilo: brandConfig?.visual?.estilo || 'moderno',
+      fontPreferida: brandConfig?.visual?.fontPreferida || '',
+    },
+    audiencia: {
+      sector: brandConfig?.audiencia?.sector || '',
+      tamano: brandConfig?.audiencia?.tamano || '',
+      idioma: brandConfig?.audiencia?.idioma || 'es',
+      painPoints: brandConfig?.audiencia?.painPoints || [],
+    },
+    vocabulario: {
+      palabrasClave: brandConfig?.vocabulario?.palabrasClave || [],
+      evitar: brandConfig?.vocabulario?.evitar || [],
+      hashtags: brandConfig?.vocabulario?.hashtags || [],
+    },
+    dosAndDonts: {
+      hacer: brandConfig?.dosAndDonts?.hacer || [],
+      noHacer: brandConfig?.dosAndDonts?.noHacer || [],
+    },
+  })
+
+  const [painInput, setPainInput] = useState('')
+  const [kwInput, setKwInput] = useState('')
+  const [avoidInput, setAvoidInput] = useState('')
+  const [hashInput, setHashInput] = useState('')
+  const [doInput, setDoInput] = useState('')
+  const [dontInput, setDontInput] = useState('')
+
+  useEffect(() => {
+    if (brandConfig && Object.keys(brandConfig).length > 0) {
+      setForm({
+        voice: { ...form.voice, ...brandConfig.voice },
+        visual: { ...form.visual, ...brandConfig.visual },
+        audiencia: { ...form.audiencia, ...brandConfig.audiencia },
+        vocabulario: { ...form.vocabulario, ...brandConfig.vocabulario },
+        dosAndDonts: { ...form.dosAndDonts, ...brandConfig.dosAndDonts },
+      })
+    }
+  }, [brandConfig])
+
+  const handleAutoGenerate = async () => {
+    if (!desc.trim()) return
+    setGenerating(true)
+    try {
+      const res = await fetch(`/api/brand/${companyId}/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ description: desc }),
+      })
+      if (res.ok) {
+        onRefresh()
+        setDesc('')
+        setEditing(false)
+      }
+    } catch (e) { console.error(e) }
+    setGenerating(false)
+  }
+
+  const handleSave = async () => {
+    setSaving(true)
+    try {
+      const res = await fetch(`/api/brand/${companyId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(form),
+      })
+      if (res.ok) {
+        onRefresh()
+        setEditing(false)
+      }
+    } catch (e) { console.error(e) }
+    setSaving(false)
+  }
+
+  const addToArray = (path, value, setter) => {
+    if (!value.trim()) return
+    const keys = path.split('.')
+    const newForm = { ...form }
+    let obj = newForm
+    for (let i = 0; i < keys.length - 1; i++) obj = obj[keys[i]]
+    obj[keys[keys.length - 1]] = [...(obj[keys[keys.length - 1]] || []), value.trim()]
+    setForm(newForm)
+    setter('')
+  }
+
+  const removeFromArray = (path, idx) => {
+    const keys = path.split('.')
+    const newForm = { ...form }
+    let obj = newForm
+    for (let i = 0; i < keys.length - 1; i++) obj = obj[keys[i]]
+    obj[keys[keys.length - 1]] = obj[keys[keys.length - 1]].filter((_, i) => i !== idx)
+    setForm(newForm)
+  }
+
+  const Slider = ({ label, value, onChange }) => (
+    <div className="space-y-1">
+      <div className="flex justify-between text-xs">
+        <span className="text-gray-400">{label}</span>
+        <span className="text-gray-500">{value}%</span>
+      </div>
+      <input
+        type="range" min="0" max="100" value={value} onChange={e => onChange(parseInt(e.target.value))}
+        className="w-full h-1.5 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-pink-500"
+      />
+    </div>
+  )
+
+  const TagList = ({ items, path, input, setInput, placeholder, color = 'pink' }) => (
+    <div className="space-y-2">
+      <div className="flex flex-wrap gap-1.5">
+        {(items || []).map((item, i) => (
+          <span key={i} className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-${color}-500/15 text-${color}-400 border border-${color}-500/25`}>
+            {item}
+            {editing && (
+              <button onClick={() => removeFromArray(path, i)} className="hover:text-white ml-0.5">&times;</button>
+            )}
+          </span>
+        ))}
+      </div>
+      {editing && (
+        <div className="flex gap-2">
+          <input
+            value={input} onChange={e => setInput(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addToArray(path, input, setInput))}
+            placeholder={placeholder}
+            className="flex-1 text-xs px-2 py-1 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:ring-1 focus:ring-pink-500"
+          />
+          <button onClick={() => addToArray(path, input, setInput)} className="text-xs px-2 py-1 bg-pink-600 hover:bg-pink-500 rounded text-white">+</button>
+        </div>
+      )}
+    </div>
+  )
+
+  const colorMap = { pink: 'bg-pink-500/15 text-pink-400 border-pink-500/25', violet: 'bg-violet-500/15 text-violet-400 border-violet-500/25', amber: 'bg-amber-500/15 text-amber-400 border-amber-500/25', emerald: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/25', red: 'bg-red-500/15 text-red-400 border-red-500/25' }
+
+  // No brand config yet — show setup prompt
+  if (!hasBrandConfig && !editing) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 space-y-4">
+        <div className="w-16 h-16 rounded-2xl bg-pink-500/10 flex items-center justify-center text-3xl">🎨</div>
+        <h3 className="text-lg font-bold text-white">Configura tu marca</h3>
+        <p className="text-sm text-gray-400 text-center max-w-md">
+          Define el tono, colores y estilo de tu marca. Todos los agentes (CMO, Twitter, contenido web, Gamma)
+          seguiran estas directrices automaticamente.
+        </p>
+        <div className="flex gap-3">
+          <button onClick={() => setEditing(true)} className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm text-white transition-colors">
+            Configurar manualmente
+          </button>
+          <div className="flex gap-2">
+            <input
+              value={desc} onChange={e => setDesc(e.target.value)}
+              placeholder="Describe tu marca en una frase..."
+              className="text-sm px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white w-64 focus:outline-none focus:ring-2 focus:ring-pink-500"
+            />
+            <button
+              onClick={handleAutoGenerate} disabled={generating || !desc.trim()}
+              className="px-4 py-2 bg-pink-600 hover:bg-pink-500 disabled:opacity-50 rounded-lg text-sm text-white font-medium transition-colors flex items-center gap-2"
+            >
+              {generating ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : '✨'}
+              Generar con IA
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-4 py-3">
+      {/* Header Actions */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="text-lg">🎨</span>
+          <h3 className="text-sm font-bold text-white">Guia de Marca</h3>
+          {hasBrandConfig && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/25">Activa</span>}
+        </div>
+        <div className="flex gap-2">
+          {editing ? (
+            <>
+              <button onClick={() => setEditing(false)} className="text-xs px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded-lg text-gray-300">Cancelar</button>
+              <button onClick={handleSave} disabled={saving} className="text-xs px-3 py-1.5 bg-pink-600 hover:bg-pink-500 disabled:opacity-50 rounded-lg text-white font-medium flex items-center gap-1">
+                {saving ? <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" /> : null}
+                Guardar
+              </button>
+            </>
+          ) : (
+            <>
+              <div className="flex gap-2 items-center">
+                <input
+                  value={desc} onChange={e => setDesc(e.target.value)}
+                  placeholder="Regenerar con una descripcion..."
+                  className="text-xs px-2 py-1.5 bg-gray-800 border border-gray-700 rounded-lg text-white w-48 focus:outline-none focus:ring-1 focus:ring-pink-500"
+                />
+                <button
+                  onClick={handleAutoGenerate} disabled={generating || !desc.trim()}
+                  className="text-xs px-3 py-1.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 rounded-lg text-white font-medium flex items-center gap-1"
+                >
+                  {generating ? <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" /> : '✨'}
+                  IA
+                </button>
+              </div>
+              <button onClick={() => setEditing(true)} className="text-xs px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded-lg text-gray-300">Editar</button>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Voz */}
+      <div className="bg-gray-800/60 rounded-xl border border-gray-700/50 p-4 space-y-3">
+        <div className="flex items-center gap-2 mb-1">
+          <span className="text-sm">🗣️</span>
+          <h4 className="text-xs font-bold text-white uppercase tracking-wider">Voz y Tono</h4>
+        </div>
+        {editing ? (
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <label className="text-xs text-gray-400">Tono</label>
+              <input value={form.voice.tono} onChange={e => setForm({...form, voice: {...form.voice, tono: e.target.value}})}
+                className="w-full text-xs px-2 py-1.5 bg-gray-900 border border-gray-700 rounded text-white focus:outline-none focus:ring-1 focus:ring-pink-500" />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-gray-400">Personalidad</label>
+              <input value={form.voice.personalidad} onChange={e => setForm({...form, voice: {...form.voice, personalidad: e.target.value}})}
+                className="w-full text-xs px-2 py-1.5 bg-gray-900 border border-gray-700 rounded text-white focus:outline-none focus:ring-1 focus:ring-pink-500" />
+            </div>
+            <Slider label="Formalidad" value={form.voice.formalidad} onChange={v => setForm({...form, voice: {...form.voice, formalidad: v}})} />
+            <Slider label="Humor" value={form.voice.humor} onChange={v => setForm({...form, voice: {...form.voice, humor: v}})} />
+            <Slider label="Confianza" value={form.voice.confianza} onChange={v => setForm({...form, voice: {...form.voice, confianza: v}})} />
+            <Slider label="Calidez" value={form.voice.calidez} onChange={v => setForm({...form, voice: {...form.voice, calidez: v}})} />
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-3">
+            <div className="text-xs"><span className="text-gray-500">Tono:</span> <span className="text-white">{form.voice.tono}</span></div>
+            <div className="text-xs"><span className="text-gray-500">Personalidad:</span> <span className="text-white">{form.voice.personalidad}</span></div>
+            <div className="text-xs"><span className="text-gray-500">Formalidad:</span> <span className="text-white">{form.voice.formalidad}%</span></div>
+            <div className="text-xs"><span className="text-gray-500">Humor:</span> <span className="text-white">{form.voice.humor}%</span></div>
+            <div className="text-xs"><span className="text-gray-500">Confianza:</span> <span className="text-white">{form.voice.confianza}%</span></div>
+            <div className="text-xs"><span className="text-gray-500">Calidez:</span> <span className="text-white">{form.voice.calidez}%</span></div>
+          </div>
+        )}
+      </div>
+
+      {/* Visual */}
+      <div className="bg-gray-800/60 rounded-xl border border-gray-700/50 p-4 space-y-3">
+        <div className="flex items-center gap-2 mb-1">
+          <span className="text-sm">🎨</span>
+          <h4 className="text-xs font-bold text-white uppercase tracking-wider">Identidad Visual</h4>
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-1">
+            <span className="text-xs text-gray-400">Primario</span>
+            <div className="flex items-center gap-2">
+              {editing ? (
+                <input type="color" value={form.visual.colorPrimario} onChange={e => setForm({...form, visual: {...form.visual, colorPrimario: e.target.value}})}
+                  className="w-8 h-8 rounded border-0 cursor-pointer bg-transparent" />
+              ) : (
+                <div className="w-8 h-8 rounded-lg border border-gray-600" style={{ backgroundColor: form.visual.colorPrimario }} />
+              )}
+              <span className="text-xs text-gray-300 font-mono">{form.visual.colorPrimario}</span>
+            </div>
+          </div>
+          <div className="space-y-1">
+            <span className="text-xs text-gray-400">Secundario</span>
+            <div className="flex items-center gap-2">
+              {editing ? (
+                <input type="color" value={form.visual.colorSecundario} onChange={e => setForm({...form, visual: {...form.visual, colorSecundario: e.target.value}})}
+                  className="w-8 h-8 rounded border-0 cursor-pointer bg-transparent" />
+              ) : (
+                <div className="w-8 h-8 rounded-lg border border-gray-600" style={{ backgroundColor: form.visual.colorSecundario }} />
+              )}
+              <span className="text-xs text-gray-300 font-mono">{form.visual.colorSecundario}</span>
+            </div>
+          </div>
+          <div className="space-y-1">
+            <span className="text-xs text-gray-400">Fondo</span>
+            <div className="flex items-center gap-2">
+              {editing ? (
+                <input type="color" value={form.visual.colorFondo} onChange={e => setForm({...form, visual: {...form.visual, colorFondo: e.target.value}})}
+                  className="w-8 h-8 rounded border-0 cursor-pointer bg-transparent" />
+              ) : (
+                <div className="w-8 h-8 rounded-lg border border-gray-600" style={{ backgroundColor: form.visual.colorFondo }} />
+              )}
+              <span className="text-xs text-gray-300 font-mono">{form.visual.colorFondo}</span>
+            </div>
+          </div>
+          <div className="space-y-1">
+            <span className="text-xs text-gray-400">Estilo</span>
+            {editing ? (
+              <select value={form.visual.estilo} onChange={e => setForm({...form, visual: {...form.visual, estilo: e.target.value}})}
+                className="w-full text-xs px-2 py-1.5 bg-gray-900 border border-gray-700 rounded text-white focus:outline-none focus:ring-1 focus:ring-pink-500">
+                <option value="moderno">Moderno</option>
+                <option value="minimalista">Minimalista</option>
+                <option value="corporativo">Corporativo</option>
+                <option value="creativo">Creativo</option>
+                <option value="elegante">Elegante</option>
+                <option value="juvenil">Juvenil</option>
+              </select>
+            ) : (
+              <div className="text-xs text-white capitalize">{form.visual.estilo}</div>
+            )}
+          </div>
+        </div>
+        {editing && (
+          <div className="space-y-1">
+            <label className="text-xs text-gray-400">Fuente preferida</label>
+            <input value={form.visual.fontPreferida} onChange={e => setForm({...form, visual: {...form.visual, fontPreferida: e.target.value}})}
+              placeholder="ej: Inter, Montserrat..." className="w-full text-xs px-2 py-1.5 bg-gray-900 border border-gray-700 rounded text-white focus:outline-none focus:ring-1 focus:ring-pink-500" />
+          </div>
+        )}
+      </div>
+
+      {/* Audiencia */}
+      <div className="bg-gray-800/60 rounded-xl border border-gray-700/50 p-4 space-y-3">
+        <div className="flex items-center gap-2 mb-1">
+          <span className="text-sm">🎯</span>
+          <h4 className="text-xs font-bold text-white uppercase tracking-wider">Audiencia</h4>
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-1">
+            <span className="text-xs text-gray-400">Sector</span>
+            {editing ? (
+              <input value={form.audiencia.sector} onChange={e => setForm({...form, audiencia: {...form.audiencia, sector: e.target.value}})}
+                className="w-full text-xs px-2 py-1.5 bg-gray-900 border border-gray-700 rounded text-white focus:outline-none focus:ring-1 focus:ring-pink-500" />
+            ) : (
+              <div className="text-xs text-white">{form.audiencia.sector || '-'}</div>
+            )}
+          </div>
+          <div className="space-y-1">
+            <span className="text-xs text-gray-400">Tamano empresa</span>
+            {editing ? (
+              <input value={form.audiencia.tamano} onChange={e => setForm({...form, audiencia: {...form.audiencia, tamano: e.target.value}})}
+                className="w-full text-xs px-2 py-1.5 bg-gray-900 border border-gray-700 rounded text-white focus:outline-none focus:ring-1 focus:ring-pink-500" />
+            ) : (
+              <div className="text-xs text-white">{form.audiencia.tamano || '-'}</div>
+            )}
+          </div>
+        </div>
+        <div className="space-y-1">
+          <span className="text-xs text-gray-400">Pain Points</span>
+          <TagList items={form.audiencia.painPoints} path="audiencia.painPoints" input={painInput} setInput={setPainInput} placeholder="Anadir pain point..." color="amber" />
+        </div>
+      </div>
+
+      {/* Vocabulario */}
+      <div className="bg-gray-800/60 rounded-xl border border-gray-700/50 p-4 space-y-3">
+        <div className="flex items-center gap-2 mb-1">
+          <span className="text-sm">💬</span>
+          <h4 className="text-xs font-bold text-white uppercase tracking-wider">Vocabulario</h4>
+        </div>
+        <div className="space-y-3">
+          <div className="space-y-1">
+            <span className="text-xs text-gray-400">Palabras clave</span>
+            <TagList items={form.vocabulario.palabrasClave} path="vocabulario.palabrasClave" input={kwInput} setInput={setKwInput} placeholder="Anadir palabra clave..." color="pink" />
+          </div>
+          <div className="space-y-1">
+            <span className="text-xs text-gray-400">Evitar</span>
+            <TagList items={form.vocabulario.evitar} path="vocabulario.evitar" input={avoidInput} setInput={setAvoidInput} placeholder="Palabra a evitar..." color="red" />
+          </div>
+          <div className="space-y-1">
+            <span className="text-xs text-gray-400">Hashtags</span>
+            <TagList items={form.vocabulario.hashtags} path="vocabulario.hashtags" input={hashInput} setInput={setHashInput} placeholder="#hashtag" color="violet" />
+          </div>
+        </div>
+      </div>
+
+      {/* Dos and Donts */}
+      <div className="bg-gray-800/60 rounded-xl border border-gray-700/50 p-4 space-y-3">
+        <div className="flex items-center gap-2 mb-1">
+          <span className="text-sm">📋</span>
+          <h4 className="text-xs font-bold text-white uppercase tracking-wider">Directrices</h4>
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-1">
+            <span className="text-xs text-emerald-400 font-medium">Hacer</span>
+            <TagList items={form.dosAndDonts.hacer} path="dosAndDonts.hacer" input={doInput} setInput={setDoInput} placeholder="Buena practica..." color="emerald" />
+          </div>
+          <div className="space-y-1">
+            <span className="text-xs text-red-400 font-medium">No hacer</span>
+            <TagList items={form.dosAndDonts.noHacer} path="dosAndDonts.noHacer" input={dontInput} setInput={setDontInput} placeholder="Mala practica..." color="red" />
+          </div>
+        </div>
+      </div>
+
+      {/* Info note */}
+      <div className="bg-gray-800/40 rounded-xl border border-gray-700/30 p-3 flex items-start gap-2">
+        <span className="text-sm mt-0.5">💡</span>
+        <p className="text-xs text-gray-400 leading-relaxed">
+          Esta configuracion se aplica automaticamente a todos los agentes: CMO (posts/social), Twitter, contenido web y presentaciones Gamma.
+          Cualquier cambio se refleja en la proxima generacion de contenido.
+        </p>
+      </div>
+    </div>
+  )
+}
+
+// ─── Emails Tab (Email Pro) ──────────────────────────────────
 function EmailsTab({ emails, emailPro, companyId, token, onRefresh }) {
   const sub = emailPro?.subscription
   const hasEmailPro = sub && ['active', 'setting_up'].includes(sub.status)

@@ -1,0 +1,59 @@
+-- 019: Brand config — centralised brand voice & style guide per company
+-- All content-generating agents (marketing, gamma, ads, twitter) read this
+
+ALTER TABLE companies ADD COLUMN IF NOT EXISTS brand_config JSONB DEFAULT '{}';
+
+-- Example brand_config structure:
+-- {
+--   "brand_name": "MiEmpresa",
+--   "tagline": "Tu solución para...",
+--   "voice": {
+--     "tone": "profesional pero cercano",
+--     "personality": ["directo", "honesto", "accesible"],
+--     "formality": 4,          -- 1=muy casual, 10=muy formal
+--     "humor": 3,              -- 1=serio, 10=muy divertido
+--     "confidence": 7,         -- 1=reservado, 10=audaz
+--     "warmth": 7,             -- 1=frío/directo, 10=muy cálido
+--     "language": "es",
+--     "use_emojis": true,
+--     "emoji_level": "moderado"
+--   },
+--   "vocabulary": {
+--     "preferred": ["lanzar", "crecer", "automatizar"],
+--     "avoid": ["disruptivo", "sinergia", "paradigma"],
+--     "jargon_level": "light",
+--     "signature_phrases": []
+--   },
+--   "visual": {
+--     "primary_color": "#10b981",
+--     "secondary_color": "#3b82f6",
+--     "accent_color": "#ec4899",
+--     "font_preference": "moderna sans-serif",
+--     "style": "minimalista y limpio",
+--     "image_style": "profesional, fotos reales o ilustraciones modernas"
+--   },
+--   "audience": {
+--     "description": "Emprendedores y startups de 25-45 años en España",
+--     "sophistication": "intermediate",
+--     "pain_points": ["falta de tiempo", "no saben marketing"],
+--     "goals": ["conseguir clientes", "automatizar ventas"]
+--   },
+--   "platform_rules": {
+--     "linkedin": { "max_chars": 1300, "tone_shift": "más profesional", "hashtags": 3 },
+--     "twitter": { "max_chars": 280, "tone_shift": "más directo y punchy", "hashtags": 2 },
+--     "instagram": { "tone_shift": "más visual y cercano", "hashtags": 5 },
+--     "email": { "tone_shift": "más personal", "greeting": "Hola {nombre}" },
+--     "presentations": { "tone_shift": "más formal y convincente", "style": "limpio con datos" },
+--     "ads": { "tone_shift": "orientado a beneficios y urgencia" }
+--   },
+--   "dos": ["usar datos y cifras reales", "hablar en primera persona", "ser específico"],
+--   "donts": ["usar jerga corporativa", "prometer resultados imposibles", "sonar genérico"],
+--   "examples": {
+--     "on_brand": ["Tu negocio puede crecer sin quemarte. Así lo hicimos."],
+--     "off_brand": ["Nuestra solución integral optimiza tus procesos empresariales."]
+--   },
+--   "updated_at": "2026-03-09T10:00:00Z",
+--   "updated_by": "cofounder"
+-- }
+
+COMMENT ON COLUMN companies.brand_config IS 'Centralised brand voice & style guide — read by all content agents';

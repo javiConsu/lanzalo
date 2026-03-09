@@ -14,6 +14,7 @@ const router = express.Router();
 const { pool } = require('../db');
 const { callLLM } = require('../llm');
 const gamma = require('../services/gamma-service');
+const brandConfig = require('../services/brand-config');
 
 // ─── Auth middleware ───────────────────────────────
 function requireAuth(req, res, next) {
@@ -70,36 +71,58 @@ router.post('/companies/:companyId/content/generate', requireAuth, requireCompan
     const inputText = content || title;
     let generation;
 
+    // Load brand config for consistent style
+    const brand = await brandConfig.getConfig(companyId);
+    const gammaOpts = brandConfig.getGammaOptions(brand);
+
+    // Merge user options with brand defaults
+    const mergedTone = tone || gammaOpts.tone;
+    const mergedAudience = audience || gammaOpts.audience;
+    const brandInstructions = gammaOpts.additionalInstructions || '';
+    const titleInstructions = title ? `Título: ${title}` : '';
+    const combinedInstructions = [brandInstructions, titleInstructions].filter(Boolean).join('. ');
+
     // Route to appropriate Gamma generator
     switch (type) {
       case 'presentation':
         generation = await gamma.generatePresentation(inputText, {
           numCards: numCards || 10,
-          tone, audience, exportAs,
-          additionalInstructions: title ? `Título: ${title}` : undefined,
+          tone: mergedTone, audience: mergedAudience, exportAs,
+          language: gammaOpts.language,
+          additionalInstructions: combinedInstructions || undefined,
         });
         break;
       case 'carousel':
         generation = await gamma.generateCarousel(inputText, {
           numCards: numCards || 8,
-          tone, audience,
+          tone: mergedTone, audience: mergedAudience,
+          language: gammaOpts.language,
           dimensions: platform === 'instagram' ? '4x5' : '4x5',
+          additionalInstructions: brandInstructions || undefined,
         });
         break;
       case 'document':
         generation = await gamma.generateDocument(inputText, {
           numCards: numCards || 6,
-          tone, audience, exportAs,
+          tone: mergedTone, audience: mergedAudience, exportAs,
+          language: gammaOpts.language,
+          additionalInstructions: brandInstructions || undefined,
         });
         break;
       case 'webpage':
         generation = await gamma.generateWebpage(inputText, {
           numCards: numCards || 5,
-          tone, audience,
+          tone: mergedTone, audience: mergedAudience,
+          language: gammaOpts.language,
+          additionalInstructions: brandInstructions || undefined,
         });
         break;
       default:
-        generation = await gamma.generatePresentation(inputText, { tone, audience });
+        generation = await gamma.generatePresentation(inputText, {
+          tone: mergedTone, audience: mergedAudience,
+          language: gammaOpts.language,
+          additionalInstructions: brandInstructions || undefined,
+        });
     }
 
     // Save content piece with pending status
@@ -237,12 +260,17 @@ router.post('/companies/:companyId/ads/generate', requireAuth, requireCompanyAcc
     const { companyId } = req.params;
     const { platform, objective, budget, audience_description } = req.body;
 
-    // Get company info
+    // Get company info + brand config
     const company = await pool.query('SELECT * FROM companies WHERE id = $1', [companyId]);
     if (company.rows.length === 0) return res.status(404).json({ error: 'Empresa no encontrada' });
     const comp = company.rows[0];
 
+    const brand = await brandConfig.getConfig(companyId);
+    const brandContext = brandConfig.buildPromptContext(brand);
+
     const prompt = `Eres un experto en publicidad digital (Google Ads, Meta Ads, LinkedIn Ads).
+
+${brandContext}
 
 EMPRESA: "${comp.name}"
 Descripción: ${comp.description || 'Sin descripción'}

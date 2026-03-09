@@ -5,6 +5,7 @@
 const { createTask, updateTask, createTweet, logActivity } = require('../backend/db');
 const { callLLM } = require('../backend/llm');
 const { postTweet } = require('../backend/twitter');
+const brandConfig = require('../backend/services/brand-config');
 
 class TwitterAgent {
   async execute(company) {
@@ -17,13 +18,17 @@ class TwitterAgent {
       await logActivity(company.id, task.id, 'task_start',
         `Agente de Twitter iniciado para ${company.name}`);
 
+      // 0. Load brand config
+      const brand = await brandConfig.getConfig(company.id);
+      const brandContext = brandConfig.buildPromptContext(brand);
+
       // 1. Decidir sobre qué tweetear hoy
-      const strategy = await this.getTweetStrategy(company);
+      const strategy = await this.getTweetStrategy(company, brandContext);
       
       // 2. Generar tweet(s)
       const tweets = [];
       for (const topic of strategy.topics.slice(0, 2)) { // Máx 2 tweets por día
-        const tweet = await this.generateTweet(company, topic);
+        const tweet = await this.generateTweet(company, topic, brandContext, brand);
         tweets.push(tweet);
         
         // Guardar en base de datos
@@ -74,65 +79,101 @@ class TwitterAgent {
     }
   }
 
-  async getTweetStrategy(company) {
-    const prompt = `You are the Twitter agent for "${company.name}".
-Description: ${company.description}
-Industry: ${company.industry}
+  async getTweetStrategy(company, brandContext) {
+    const prompt = `Eres el agente de Twitter/X de "${company.name}".
+${brandContext}
 
-Decide what to tweet about TODAY to:
-- Build brand awareness
-- Attract potential customers
-- Share value/insights
-- Drive engagement
+Descripción: ${company.description}
+Industria: ${company.industry}
 
-Respond in JSON:
+Decide qué tweetear HOY para:
+- Construir reconocimiento de marca
+- Atraer clientes potenciales
+- Compartir valor/insights
+- Generar engagement
+
+IMPORTANTE: Sigue la guía de marca en tono y vocabulario.
+
+Responde en JSON:
 {
-  "summary": "today's strategy",
+  "summary": "estrategia del día",
   "topics": [
     {
       "type": "educational|promotional|thought_leadership|engagement",
-      "angle": "specific angle/hook",
+      "angle": "ángulo/hook específico",
       "keywords": ["keyword1", "keyword2"]
     }
   ]
 }`;
 
-    const response = await callLLM(prompt);
-    return JSON.parse(response);
+    try {
+      const response = await callLLM(prompt, { maxTokens: 500 });
+      const content = typeof response === 'string' ? response : response.content;
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (jsonMatch) return JSON.parse(jsonMatch[0]);
+    } catch (e) {
+      console.error('[TwitterAgent] Strategy error:', e);
+    }
+    return { summary: 'Contenido general', topics: [{ type: 'educational', angle: 'valor', keywords: [] }] };
   }
 
-  async generateTweet(company, topic) {
-    const prompt = `Write a tweet for "${company.name}".
+  async generateTweet(company, topic, brandContext, brand) {
+    const platformRules = brandConfig.getPlatformRules(brand, 'twitter');
+    const prompt = `Escribe un tweet para "${company.name}".
+${brandContext}
 
-Company: ${company.description}
-Topic type: ${topic.type}
-Angle: ${topic.angle}
-Keywords: ${topic.keywords.join(', ')}
+Empresa: ${company.description}
+Tipo: ${topic.type}
+Ángulo: ${topic.angle}
+Keywords: ${(topic.keywords || []).join(', ')}
+Adaptación Twitter: ${platformRules.tone_shift || 'más directo y punchy'}
 
-Guidelines:
-- Max 280 characters
-- Engaging and authentic
-- Include relevant hashtags (1-2 max)
-- NO emoji spam
-- Clear value or call-to-action
+REGLAS:
+- Máx ${platformRules.max_chars || 280} caracteres
+- Engaging y auténtico
+- ${platformRules.hashtags || 2} hashtags máx
+- Sigue la guía de marca estrictamente
+- Valor claro o call-to-action
 
-Respond in JSON:
+Responde en JSON:
 {
-  "content": "the tweet text",
-  "mediaUrl": "optional image url or null"
+  "content": "texto del tweet",
+  "mediaUrl": null
 }`;
 
-    const response = await callLLM(prompt);
-    return JSON.parse(response);
+    try {
+      const response = await callLLM(prompt, { maxTokens: 400 });
+      const content = typeof response === 'string' ? response : response.content;
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (jsonMatch) return JSON.parse(jsonMatch[0]);
+    } catch (e) {
+      console.error('[TwitterAgent] Tweet generation error:', e);
+    }
+    return { content: '', mediaUrl: null };
   }
 
   async executeCustomTask(company, taskDescription) {
-    const prompt = `Custom Twitter task for "${company.name}": ${taskDescription}
+    const brand = await brandConfig.getConfig(company.id);
+    const brandContext = brandConfig.buildPromptContext(brand);
+    const platformRules = brandConfig.getPlatformRules(brand, 'twitter');
 
-Generate the tweet.`;
+    const prompt = `Tarea personalizada de Twitter para "${company.name}": ${taskDescription}
+${brandContext}
+
+Adaptación Twitter: ${platformRules.tone_shift || 'directo y punchy'}
+Máx ${platformRules.max_chars || 280} chars.
+
+Genera el tweet siguiendo la guía de marca. Responde en JSON: { "content": "...", "mediaUrl": null }`;
     
-    const response = await callLLM(prompt);
-    return JSON.parse(response);
+    try {
+      const response = await callLLM(prompt, { maxTokens: 400 });
+      const content = typeof response === 'string' ? response : response.content;
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (jsonMatch) return JSON.parse(jsonMatch[0]);
+    } catch (e) {
+      console.error('[TwitterAgent] Custom task error:', e);
+    }
+    return { content: '', mediaUrl: null };
   }
 }
 

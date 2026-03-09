@@ -11,6 +11,7 @@
 const { pool } = require('../backend/db');
 const { callLLM } = require('../backend/llm');
 const gamma = require('../backend/services/gamma-service');
+const brandConfig = require('../backend/services/brand-config');
 
 class MarketingAgent {
   async execute(company) {
@@ -25,19 +26,23 @@ class MarketingAgent {
 
       const results = [];
 
+      // 0. Load brand config (single source of truth for voice & style)
+      const brand = await brandConfig.getConfig(company.id);
+      const brandContext = brandConfig.buildPromptContext(brand);
+
       // 1. Analyze what content is needed
-      const strategy = await this.decideDailyStrategy(company);
+      const strategy = await this.decideDailyStrategy(company, brandContext);
       results.push(`Estrategia: ${strategy.focus}`);
 
       // 2. Generate social content (always)
-      const posts = await this.generateSocialContent(company, strategy);
+      const posts = await this.generateSocialContent(company, strategy, brandContext, brand);
       results.push(`${posts.length} posts generados`);
 
       // 3. If Gamma is available, generate visual content periodically
       if (gamma.enabled) {
         const gammaNeeded = await this.shouldGenerateGammaContent(company.id);
         if (gammaNeeded) {
-          const gammaContent = await this.generateGammaContent(company, strategy);
+          const gammaContent = await this.generateGammaContent(company, strategy, brandContext, brand);
           if (gammaContent) results.push(`Contenido visual generado con Gamma: ${gammaContent.type}`);
         }
       }
@@ -72,7 +77,7 @@ class MarketingAgent {
   // STRATEGY
   // ═══════════════════════════════════════
 
-  async decideDailyStrategy(company) {
+  async decideDailyStrategy(company, brandContext) {
     // Check what content already exists
     const existing = await pool.query(
       `SELECT type, COUNT(*) as cnt FROM content_pieces 
@@ -87,13 +92,15 @@ class MarketingAgent {
     }
 
     const prompt = `Eres el director de marketing de "${company.name}".
+${brandContext}
+
 Descripción: ${company.description || 'Sin descripción'}
 Industria: ${company.industry || 'General'}
 
 Contenido de los últimos 7 días: ${JSON.stringify(recentContent) || 'ninguno'}
 Gamma disponible: ${gamma.enabled ? 'SÍ (puedes crear presentaciones, carruseles visuales, documentos)' : 'NO'}
 
-Decide la estrategia de contenido para HOY:
+Decide la estrategia de contenido para HOY (siguiendo la guía de marca):
 - ¿Qué tipo de contenido necesitamos? (post social, carrusel, presentación, blog...)
 - ¿Sobre qué tema?
 - ¿Para qué canal?
@@ -125,19 +132,22 @@ Responde en JSON:
   // SOCIAL CONTENT
   // ═══════════════════════════════════════
 
-  async generateSocialContent(company, strategy) {
+  async generateSocialContent(company, strategy, brandContext, brand) {
     const posts = [];
 
     for (const channel of (strategy.channels || ['linkedin']).slice(0, 2)) {
+      const platformRules = brandConfig.getPlatformRules(brand, channel);
       const prompt = `Crea un post de ${channel} para "${company.name}".
+${brandContext}
+
 Industria: ${company.industry || 'General'}
 Tema: ${strategy.topic || strategy.focus}
-Tono: ${strategy.tone || 'profesional pero cercano'}
+Adaptación para ${channel}: ${platformRules.tone_shift || ''}
 
 REGLAS para ${channel}:
-${channel === 'linkedin' ? '- Máx 1300 chars (antes del "ver más"). Párrafos cortos. Hook potente en la primera línea.' : ''}
-${channel === 'twitter' ? '- Máx 280 chars. Directo y punchy. 1-2 hashtags máximo.' : ''}
-${channel === 'instagram' ? '- Caption atractivo. Emojis moderados. 3-5 hashtags al final.' : ''}
+${channel === 'linkedin' ? `- Máx ${platformRules.max_chars || 1300} chars (antes del "ver más"). Párrafos cortos. Hook potente en la primera línea. Máx ${platformRules.hashtags || 3} hashtags.` : ''}
+${channel === 'twitter' ? `- Máx ${platformRules.max_chars || 280} chars. Directo y punchy. Máx ${platformRules.hashtags || 2} hashtags.` : ''}
+${channel === 'instagram' ? `- Caption atractivo. Emojis ${brand?.voice?.emoji_level || 'moderados'}. ${platformRules.hashtags || 5} hashtags al final.` : ''}
 
 Responde en JSON:
 {
@@ -186,15 +196,21 @@ Responde en JSON:
     return parseInt(recent.rows[0].cnt) < 2;
   }
 
-  async generateGammaContent(company, strategy) {
+  async generateGammaContent(company, strategy, brandContext, brand) {
     const type = strategy.gammaContent || 'carousel';
     if (type === 'none') return null;
 
+    const gammaOpts = brandConfig.getGammaOptions(brand);
+
     // Generate content prompt with LLM first
     const prompt = `Genera el contenido detallado para un/a ${type} de "${company.name}".
+${brandContext}
+
 Tema: ${strategy.topic || strategy.focus}
 Industria: ${company.industry || 'General'}
 Descripción: ${company.description || ''}
+
+IMPORTANTE: Sigue estrictamente la guía de marca en tono, vocabulario y estilo.
 
 ${type === 'carousel' ? 'Escribe 6-8 slides de carrusel. Cada slide: título + 1-2 frases. Formato: un slide por línea separado con ---' : ''}
 ${type === 'presentation' ? 'Escribe el contenido de 8-10 slides para un pitch/presentación profesional.' : ''}
@@ -208,26 +224,24 @@ Responde SOLO con el texto del contenido, sin JSON. Usa --- para separar slides/
       const inputText = typeof response === 'string' ? response : response.content;
 
       let generation;
+      const sharedGammaOpts = {
+        audience: gammaOpts.audience || strategy.audience || `Público de ${company.industry || 'general'}`,
+        tone: gammaOpts.tone,
+        language: gammaOpts.language,
+        additionalInstructions: gammaOpts.additionalInstructions,
+      };
       switch (type) {
         case 'carousel':
-          generation = await gamma.generateCarousel(inputText, {
-            audience: strategy.audience || `Público de ${company.industry || 'general'}`,
-          });
+          generation = await gamma.generateCarousel(inputText, sharedGammaOpts);
           break;
         case 'presentation':
-          generation = await gamma.generatePresentation(inputText, {
-            audience: strategy.audience || 'clientes potenciales e inversores',
-          });
+          generation = await gamma.generatePresentation(inputText, sharedGammaOpts);
           break;
         case 'document':
-          generation = await gamma.generateDocument(inputText, {
-            audience: strategy.audience,
-          });
+          generation = await gamma.generateDocument(inputText, sharedGammaOpts);
           break;
         case 'webpage':
-          generation = await gamma.generateWebpage(inputText, {
-            audience: strategy.audience,
-          });
+          generation = await gamma.generateWebpage(inputText, sharedGammaOpts);
           break;
         default:
           return null;
@@ -310,6 +324,11 @@ Responde SOLO con el texto del contenido, sin JSON. Usa --- para separar slides/
   // ═══════════════════════════════════════
 
   async executeCustomTask(company, taskDescription) {
+    // Load brand config for ALL custom tasks
+    const brand = await brandConfig.getConfig(company.id);
+    const brandContext = brandConfig.buildPromptContext(brand);
+    const gammaOpts = brandConfig.getGammaOptions(brand);
+
     // Detect if the task is about Gamma content
     const isGammaTask = taskDescription.match(/presentaci[oó]n|pitch|carrusel|carousel|documento|propuesta|deck|landing/i);
     
@@ -325,18 +344,27 @@ Responde SOLO con el texto del contenido, sin JSON. Usa --- para separar slides/
         const prompt = `Genera el contenido para ${type === 'carousel' ? 'un carrusel' : type === 'presentation' ? 'una presentación' : type === 'document' ? 'un documento' : 'una landing'} sobre:
 ${taskDescription}
 
+${brandContext}
+
 Empresa: "${company.name}" — ${company.description || ''}
 
+IMPORTANTE: Sigue la guía de marca en tono, vocabulario y estilo.
 Escribe contenido profesional y detallado. Usa --- para separar secciones/slides.`;
 
         const response = await callLLM(prompt, { maxTokens: 2000 });
         const inputText = typeof response === 'string' ? response : response.content;
 
+        const sharedOpts = {
+          audience: gammaOpts.audience,
+          tone: gammaOpts.tone,
+          language: gammaOpts.language,
+          additionalInstructions: gammaOpts.additionalInstructions,
+        };
         let generation;
-        if (type === 'carousel') generation = await gamma.generateCarousel(inputText);
-        else if (type === 'document') generation = await gamma.generateDocument(inputText);
-        else if (type === 'webpage') generation = await gamma.generateWebpage(inputText);
-        else generation = await gamma.generatePresentation(inputText);
+        if (type === 'carousel') generation = await gamma.generateCarousel(inputText, sharedOpts);
+        else if (type === 'document') generation = await gamma.generateDocument(inputText, sharedOpts);
+        else if (type === 'webpage') generation = await gamma.generateWebpage(inputText, sharedOpts);
+        else generation = await gamma.generatePresentation(inputText, sharedOpts);
 
         // Save
         await pool.query(
@@ -364,8 +392,11 @@ Escribe contenido profesional y detallado. Usa --- para separar secciones/slides
     if (isAdsTask) {
       const prompt = `Eres experto en publicidad digital. Tarea: ${taskDescription}
 
+${brandContext}
+
 Empresa: "${company.name}" — ${company.description || ''} (${company.industry || 'General'})
 
+IMPORTANTE: Los copies de ads deben seguir la guía de marca.
 Genera una estrategia de ads completa con copies, audiencia y presupuesto.`;
 
       const response = await callLLM(prompt, { maxTokens: 1500 });
@@ -375,11 +406,13 @@ Genera una estrategia de ads completa con copies, audiencia y presupuesto.`;
 
     // Default: generic marketing task
     const prompt = `Eres el director de marketing de "${company.name}".
+${brandContext}
+
 ${company.description || ''}
 
 Tarea: ${taskDescription}
 
-Genera contenido/estrategia específica y accionable.`;
+Genera contenido/estrategia específica y accionable. Sigue la guía de marca.`;
 
     const response = await callLLM(prompt, { maxTokens: 1000 });
     const content = typeof response === 'string' ? response : response.content;
