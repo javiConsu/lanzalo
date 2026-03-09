@@ -120,17 +120,49 @@ async function getVercelCosts() {
     monthly: 20, 
     breakdown: [{ service: 'Pro Plan (estimado)', cost: 20 }], 
     note: 'No VERCEL_TOKEN configurado',
-    started_at: '2026-03-01T00:00:00Z' // Fecha aprox inicio
+    started_at: '2026-03-01T00:00:00Z'
   };
 
   try {
+    // Step 1: Check team plan to determine if free (Hobby) or paid
+    const teamsRes = await axios.get('https://api.vercel.com/v2/teams', {
+      headers: { 'Authorization': `Bearer ${token}` },
+      timeout: 10000
+    });
+
+    const teams = teamsRes.data?.teams || [];
+    const team = teams[0]; // Primary team
+    const teamId = team?.id;
+    const plan = team?.billing?.plan || 'unknown';
+    const teamName = team?.name || 'unknown';
+    const createdAt = team?.created || '2026-03-01T00:00:00Z';
+
+    // Hobby plan = $0/month
+    if (plan === 'hobby') {
+      const result = {
+        source: 'vercel_api',
+        monthly: 0,
+        plan: 'Hobby (Gratis)',
+        team: teamName,
+        breakdown: [{ service: 'Hobby Plan', cost: 0 }],
+        note: 'Plan Hobby — sin coste',
+        started_at: createdAt
+      };
+      setCache('vercel', result);
+      return result;
+    }
+
+    // Step 2: For paid plans (Pro/Enterprise), fetch actual billing charges
     const now = new Date();
     const from = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
     const to = now.toISOString();
 
-    const res = await axios.get('https://api.vercel.com/v1/billing/charges', {
+    const chargesUrl = teamId 
+      ? `https://api.vercel.com/v1/billing/charges?teamId=${teamId}&from=${from}&to=${to}`
+      : `https://api.vercel.com/v1/billing/charges?from=${from}&to=${to}`;
+
+    const res = await axios.get(chargesUrl, {
       headers: { 'Authorization': `Bearer ${token}` },
-      params: { from, to },
       timeout: 15000,
       responseType: 'text'
     });
@@ -147,27 +179,24 @@ async function getVercelCosts() {
       total += cost;
     }
 
-    if (total === 0 && charges.length === 0) {
-      const fallback = {
-        source: 'fallback',
-        monthly: 20,
-        breakdown: [{ service: 'Pro Plan (estimado)', cost: 20 }],
-        note: 'API vacía - configurar VERCEL_TOKEN con permisos de billing',
-        started_at: '2026-03-01T00:00:00Z'
-      };
-      setCache('vercel', fallback);
-      return fallback;
+    // Pro plan base cost if no charges found
+    if (total === 0 && charges.length === 0 && plan === 'pro') {
+      total = 20; // Pro plan base
     }
 
     const result = {
       source: 'vercel_api',
       monthly: Math.round(total * 100) / 100,
+      plan: plan.charAt(0).toUpperCase() + plan.slice(1),
+      team: teamName,
       period: { from, to },
-      breakdown: Object.entries(byService).map(([service, cost]) => ({
-        service,
-        cost: Math.round(cost * 100) / 100
-      })),
-      started_at: '2026-03-01T00:00:00Z'
+      breakdown: Object.keys(byService).length > 0 
+        ? Object.entries(byService).map(([service, cost]) => ({
+            service,
+            cost: Math.round(cost * 100) / 100
+          }))
+        : [{ service: `${plan} Plan`, cost: total }],
+      started_at: createdAt
     };
 
     setCache('vercel', result);
