@@ -5,6 +5,7 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { apiUrl } from '../api.js'
+import SupportWidget from '../components/SupportWidget.jsx'
 
 export default function Dashboard({ user, onLogout }) {
   const location = useLocation()
@@ -185,6 +186,9 @@ export default function Dashboard({ user, onLogout }) {
       <main className="flex-1 flex flex-col overflow-hidden">
         <Outlet />
       </main>
+
+      {/* Widget de soporte flotante */}
+      <SupportWidget token={localStorage.getItem('token')} />
     </div>
   )
 }

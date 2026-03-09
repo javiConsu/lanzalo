@@ -695,4 +695,94 @@ router.post('/agent/feedback', requireAuth, async (req, res) => {
   }
 });
 
+// ═══════════════════════════════════════════════════════
+// SOPORTE GENERAL — Botón de soporte en cualquier parte
+//    del dashboard (sin companyId requerido)
+// ═══════════════════════════════════════════════════════
+
+router.post('/support/ticket', requireAuth, async (req, res) => {
+  try {
+    const { message, type = 'bug', category, url } = req.body;
+
+    if (!message || message.trim().length < 10) {
+      return res.status(400).json({ error: 'Describe el problema con al menos 10 caracteres' });
+    }
+
+    const validTypes = ['bug', 'feedback', 'question', 'other'];
+    const ticketType = validTypes.includes(type) ? type : 'bug';
+
+    // Incluir contexto adicional en admin_notes
+    const adminNotes = [
+      category ? `[Categoría: ${category}]` : null,
+      url ? `[URL: ${url}]` : null,
+    ].filter(Boolean).join(' ') || null;
+
+    const result = await pool.query(
+      `INSERT INTO support_tickets (user_id, type, message, status, source, admin_notes)
+       VALUES ($1, $2, $3, 'pending', 'user', $4)
+       RETURNING id, created_at`,
+      [req.user.id, ticketType, message.trim(), adminNotes]
+    );
+
+    const ticket = result.rows[0];
+
+    // Notificar al admin por email (async, no bloquear respuesta)
+    notifyAdminSupport(ticket.id, {
+      userEmail: req.user.email,
+      userName: req.user.name,
+      type: ticketType,
+      message: message.trim(),
+      category: category || null,
+      url: url || null,
+    }).catch(e => console.error('[Support] Error notificando admin:', e.message));
+
+    console.log(`[Support] Ticket ${ticket.id} creado por ${req.user.email} (tipo: ${ticketType})`);
+
+    res.json({
+      success: true,
+      ticketId: ticket.id,
+      message: 'Tu incidencia ha sido registrada. Nuestro equipo la revisará pronto.'
+    });
+  } catch (error) {
+    console.error('[Support General] Error:', error.message);
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
+/**
+ * Notificar al admin de un nuevo ticket de soporte general
+ */
+async function notifyAdminSupport(ticketId, data) {
+  if (!resend) return;
+  const typeLabels = { bug: '🐛 Bug', feedback: '💡 Feedback', question: '❓ Pregunta', other: '📝 Otro' };
+  const typeLabel = typeLabels[data.type] || '📝 Ticket';
+  try {
+    await resend.emails.send({
+      from: FROM_EMAIL,
+      to: ADMIN_EMAIL,
+      subject: `${typeLabel} — ${data.userEmail} — Lánzalo Soporte`,
+      html: `
+        <div style="font-family: -apple-system, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
+          <h2 style="color: #10b981;">🎫 Nuevo Ticket de Soporte</h2>
+          <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
+            <tr style="background: #f9fafb;"><td style="padding: 10px; color: #6b7280; width: 120px;">Tipo</td><td style="padding: 10px; font-weight: bold;">${typeLabel}</td></tr>
+            <tr><td style="padding: 10px; color: #6b7280;">Usuario</td><td style="padding: 10px;">${data.userName || ''} &lt;${data.userEmail}&gt;</td></tr>
+            ${data.category ? `<tr style="background: #f9fafb;"><td style="padding: 10px; color: #6b7280;">Categoría</td><td style="padding: 10px;">${data.category}</td></tr>` : ''}
+            ${data.url ? `<tr><td style="padding: 10px; color: #6b7280;">URL</td><td style="padding: 10px;"><code>${data.url}</code></td></tr>` : ''}
+            <tr style="background: #f9fafb;"><td style="padding: 10px; color: #6b7280;">Ticket ID</td><td style="padding: 10px;"><code>${ticketId.slice(0, 8)}</code></td></tr>
+          </table>
+          <div style="background: #f3f4f6; border-left: 4px solid #10b981; padding: 16px; border-radius: 4px; margin: 16px 0;">
+            <p style="margin: 0; white-space: pre-wrap; font-size: 15px;">${data.message}</p>
+          </div>
+          <p style="color: #6b7280; font-size: 13px; margin-top: 24px;">
+            <a href="https://www.lanzalo.pro/admin?tab=feedback" style="color: #10b981;">Ver todos los tickets en el panel admin →</a>
+          </p>
+        </div>
+      `
+    });
+  } catch (e) {
+    console.error('[Support] Error enviando email de soporte:', e.message);
+  }
+}
+
 module.exports = router;
