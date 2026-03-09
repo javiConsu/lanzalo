@@ -110,7 +110,7 @@ router.post('/companies/:companyId/support/bug', requireCompanyAccess, async (re
       success: true,
       ticketId: ticket.id,
       credits: 0,
-      message: '¡Gracias por avisarnos! Lo resolveremos lo antes posible. 🔧'
+      message: 'Recibido. Nos ponemos con ello ya mismo. Gracias por avisar, eres un sol ☀️'
     });
   } catch (error) {
     console.error('[Support] Bug report error:', error.message);
@@ -160,7 +160,7 @@ router.post('/companies/:companyId/support/feedback', requireCompanyAccess, asyn
       success: true,
       ticketId: ticket.id,
       credits: 0, // Todavía no se dan, se dan al aprobar
-      message: `¡Gracias! Tu feedback es oro 🏆 Si lo aprobamos para desarrollo, te regalamos ${potentialCredits} crédito${potentialCredits > 1 ? 's' : ''} (${isInTrial ? '¡bonus trial!' : '1 tarea gratis'}).`,
+      message: `¡Feedback recibido! Lo vamos a revisar con cariño 👀 Si lo aprobamos para desarrollo, te caen ${potentialCredits} crédito${potentialCredits > 1 ? 's' : ''} gratis${isInTrial ? ' (¡bonus trial, atraço!)' : ''}. Buen trato, ¿no? 😏`,
       potentialCredits
     });
   } catch (error) {
@@ -261,21 +261,43 @@ router.post('/admin/support/tickets/:ticketId/resolve', requireAdmin, async (req
         const userResult = await pool.query('SELECT email, name FROM users WHERE id = $1', [ticket.user_id]);
         const user = userResult.rows[0];
         if (user && resend) {
+          const userName = user.name ? user.name.split(' ')[0] : 'crack';
           await resend.emails.send({
             from: FROM_EMAIL,
             to: user.email,
-            subject: `🏆 ¡${creditsAwarded} crédito${creditsAwarded > 1 ? 's' : ''} por tu feedback!`,
+            subject: `Oye ${userName}, que tu idea nos ha molado 🏆`,
             html: `
-              <div style="font-family: -apple-system, sans-serif; max-width: 500px; margin: 0 auto;">
-                <h2 style="color: #8b5cf6;">¡Tu feedback mola! 🎉</h2>
-                <p>Hemos revisado tu sugerencia y la vamos a desarrollar. Como agradecimiento:</p>
-                <div style="background: #1e1b4b; color: white; padding: 20px; border-radius: 12px; text-align: center; margin: 20px 0;">
-                  <div style="font-size: 32px; font-weight: bold;">+${creditsAwarded}</div>
-                  <div style="color: #a5b4fc;">crédito${creditsAwarded > 1 ? 's' : ''} añadido${creditsAwarded > 1 ? 's' : ''}</div>
-                  ${creditsAwarded === 2 ? '<div style="color: #fbbf24; font-size: 12px; margin-top: 8px;">✨ Bonus trial — aprovecha estos primeros días</div>' : ''}
+              <div style="font-family: -apple-system, sans-serif; max-width: 520px; margin: 0 auto; color: #e2e8f0;">
+                <div style="background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%); border-radius: 16px; padding: 32px; margin-bottom: 20px;">
+                  <h2 style="color: #a78bfa; margin: 0 0 16px 0; font-size: 22px;">¡Ey ${userName}! Tenemos buenas noticias 🎉</h2>
+                  <p style="color: #c4b5fd; margin: 0 0 12px 0; font-size: 15px; line-height: 1.6;">
+                    Hemos leído tu feedback y... nos ha encantado. Tanto que lo vamos a desarrollar de verdad.
+                    Sí, de verdad de la buena, no de las que dicen "lo tenemos en el roadmap" y nunca pasa.
+                  </p>
+                  <p style="color: #c4b5fd; margin: 0 0 20px 0; font-size: 15px; line-height: 1.6;">
+                    Como agradecimiento por tomarte el tiempo de escribirnos (que sabemos que podrías haber estado
+                    viendo memes), te hemos regalado:
+                  </p>
+                  <div style="background: rgba(255,255,255,0.08); padding: 24px; border-radius: 12px; text-align: center; margin: 0 0 20px 0;">
+                    <div style="font-size: 42px; font-weight: 800; color: #34d399;">+${creditsAwarded}</div>
+                    <div style="color: #a5b4fc; font-size: 14px; margin-top: 4px;">crédito${creditsAwarded > 1 ? 's' : ''} extra${creditsAwarded > 1 ? 's' : ''} en tu cuenta</div>
+                    ${creditsAwarded === 2 ? '<div style="color: #fbbf24; font-size: 12px; margin-top: 10px; padding: 6px 12px; background: rgba(251,191,36,0.1); border-radius: 8px; display: inline-block;">✨ Bonus por estar en trial — que luego no digas que no mimamos a los nuevos</div>' : ''}
+                  </div>
+                  <p style="color: #94a3b8; margin: 0 0 8px 0; font-size: 14px; line-height: 1.6;">
+                    Cada crédito = una tarea nueva que tu Co-Founder resuelve por ti.
+                    Vamos, que por escribir un párrafo te llevas trabajo gratis. <strong style="color: #c4b5fd;">Buen negocio, ¿eh?</strong> 😏
+                  </p>
+                  <p style="color: #94a3b8; margin: 0; font-size: 13px; line-height: 1.5;">
+                    Sigue mandando feedback. Es la forma más fácil de sacarle créditos al sistema
+                    (y encima nos ayudas a mejorar, win-win).
+                  </p>
                 </div>
-                <p>Cada crédito te permite resolver una tarea nueva con tu Co-Founder. Bastante generoso por un feedback, ¿no? 😏</p>
-                <p style="color: #6b7280; font-size: 13px;">Sigue enviando feedback — es la forma más fácil de conseguir créditos gratis.</p>
+                <div style="text-align: center; padding: 8px 0;">
+                  <a href="https://www.lanzalo.pro" style="display: inline-block; padding: 12px 28px; background: #7c3aed; color: white; text-decoration: none; border-radius: 10px; font-weight: 600; font-size: 14px;">Volver a Lánzalo</a>
+                </div>
+                <p style="text-align: center; color: #64748b; font-size: 11px; margin-top: 16px;">
+                  Lánzalo — Tu co-fundador AI que no pide equity
+                </p>
               </div>
             `
           });
