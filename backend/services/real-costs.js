@@ -139,52 +139,115 @@ async function getNeonCosts() {
 
   const apiKey = process.env.NEON_API_KEY;
   if (!apiKey) {
-    // Fallback: estimate from plan
     return { 
       source: 'fallback',
-      total: 19,
+      total: 0,
       note: 'Estimado - configurar NEON_API_KEY para datos reales',
-      breakdown: [{ item: 'Launch Plan (estimado)', cost: 19 }]
+      breakdown: [{ item: 'Free tier (estimado)', cost: 0 }]
     };
   }
 
   try {
-    // Neon consumption API
-    const res = await axios.get('https://console.neon.tech/api/v2/consumption/projects', {
+    // Step 1: List projects to get IDs
+    const projectsRes = await axios.get('https://console.neon.tech/api/v2/projects', {
       headers: { 'Authorization': `Bearer ${apiKey}`, 'Accept': 'application/json' },
-      params: { from: new Date(Date.now() - 30 * 86400000).toISOString(), to: new Date().toISOString() },
       timeout: 10000
     });
 
-    const projects = res.data?.projects || [];
-    let totalCompute = 0;
-    let totalStorage = 0;
+    const projects = projectsRes.data?.projects || [];
+    let totalComputeSeconds = 0;
+    let totalStorageBytesHour = 0;
+    let totalDataTransfer = 0;
+    let totalWrittenData = 0;
+    const projectBreakdown = [];
 
     for (const p of projects) {
-      totalCompute += p.compute_time_seconds || 0;
-      totalStorage += p.data_storage_bytes_hour || 0;
+      // Get fresh project details with usage metrics
+      try {
+        const detailRes = await axios.get(`https://console.neon.tech/api/v2/projects/${p.id}`, {
+          headers: { 'Authorization': `Bearer ${apiKey}`, 'Accept': 'application/json' },
+          timeout: 10000
+        });
+        const proj = detailRes.data?.project || p;
+        
+        const computeSec = proj.compute_time_seconds || 0;
+        const storageBH = proj.data_storage_bytes_hour || 0;
+        const dataTransfer = proj.data_transfer_bytes || 0;
+        const writtenData = proj.written_data_bytes || 0;
+        const activeTimeSec = proj.active_time_seconds || 0;
+
+        totalComputeSeconds += computeSec;
+        totalStorageBytesHour += storageBH;
+        totalDataTransfer += dataTransfer;
+        totalWrittenData += writtenData;
+
+        projectBreakdown.push({
+          name: proj.name,
+          id: proj.id,
+          compute_seconds: computeSec,
+          active_time_seconds: activeTimeSec,
+          storage_bytes_hour: storageBH,
+          data_transfer_bytes: dataTransfer,
+          written_data_bytes: writtenData,
+          created_at: proj.created_at,
+          subscription_type: proj.owner?.subscription_type || 'unknown'
+        });
+      } catch (detailErr) {
+        // Use data from list response
+        totalComputeSeconds += p.compute_time_seconds || 0;
+        totalStorageBytesHour += p.data_storage_bytes_hour || 0;
+      }
     }
 
-    // Launch plan pricing
-    const computeHours = totalCompute / 3600;
-    const computeCost = computeHours * 0.106; // $0.106/CU-hour
-    const storageGB = totalStorage / (1024 * 1024 * 1024 * 730); // GB-months approx
-    const storageCost = storageGB * 0.35;
+    // Calculate costs based on Neon Launch plan pricing
+    // Compute: $0.16/CU-hour (Launch plan)
+    const computeHours = totalComputeSeconds / 3600;
+    const computeCost = computeHours * 0.16;
+    // Storage: $0.000164/GiB-hour (~$0.12/GiB-month)
+    const storageGiB = totalStorageBytesHour / (1024 * 1024 * 1024);
+    const storageCost = storageGiB * 0.000164;
+    // Data transfer: $0.09/GiB  
+    const dataTransferGiB = totalDataTransfer / (1024 * 1024 * 1024);
+    const dataTransferCost = dataTransferGiB * 0.09;
+    // Written data: $0.096/GiB
+    const writtenGiB = totalWrittenData / (1024 * 1024 * 1024);
+    const writtenCost = writtenGiB * 0.096;
+
+    // Extrapolate to full month based on project age
+    const oldestProject = projects.reduce((min, p) => {
+      const created = new Date(p.created_at);
+      return created < min ? created : min;
+    }, new Date());
+    const daysSinceCreation = Math.max(1, (Date.now() - oldestProject.getTime()) / (1000 * 60 * 60 * 24));
+    const rawTotal = computeCost + storageCost + dataTransferCost + writtenCost;
+    const estimatedMonthly = (rawTotal / daysSinceCreation) * 30;
+
+    // Detect subscription type from project detail owner data
+    const subscriptionType = projectBreakdown[0]?.subscription_type || 'unknown';
+    const isFree = subscriptionType.includes('free');
 
     const result = {
       source: 'neon_api',
-      total: Math.round((computeCost + storageCost) * 100) / 100,
+      plan: subscriptionType,
+      total: Math.round(estimatedMonthly * 100) / 100,
+      current_period_total: Math.round(rawTotal * 1000) / 1000,
+      days_tracked: Math.round(daysSinceCreation * 10) / 10,
+      is_free_tier: isFree,
       breakdown: [
-        { item: 'Compute', hours: Math.round(computeHours * 10) / 10, cost: Math.round(computeCost * 100) / 100 },
-        { item: 'Storage', gb: Math.round(storageGB * 10) / 10, cost: Math.round(storageCost * 100) / 100 }
-      ]
+        { item: 'Compute', hours: Math.round(computeHours * 100) / 100, cost: Math.round(computeCost * 1000) / 1000 },
+        { item: 'Storage', gib_hours: Math.round(storageGiB * 100) / 100, cost: Math.round(storageCost * 1000) / 1000 },
+        { item: 'Data Transfer', gib: Math.round(dataTransferGiB * 1000) / 1000, cost: Math.round(dataTransferCost * 1000) / 1000 },
+        { item: 'Written Data', gib: Math.round(writtenGiB * 1000) / 1000, cost: Math.round(writtenCost * 1000) / 1000 }
+      ],
+      projects: projectBreakdown,
+      note: isFree ? 'Free tier - sin coste base' : `Plan: ${subscriptionType}`
     };
 
     setCache('neon', result);
     return result;
   } catch (e) {
     console.error('Neon costs error:', e.message);
-    return { source: 'fallback', total: 19, error: e.message, breakdown: [{ item: 'Launch Plan (estimado)', cost: 19 }] };
+    return { source: 'fallback', total: 0, error: e.message, breakdown: [{ item: 'Free tier (estimado)', cost: 0 }] };
   }
 }
 
@@ -204,16 +267,19 @@ async function getRailwayCosts() {
   }
 
   try {
-    // Railway GraphQL API - get current usage
+    // Railway GraphQL API - get workspace billing data
     const query = `
       query {
         me {
-          teams {
-            edges {
-              node {
-                name
-                usage(startDate: "${new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString()}")
-              }
+          workspaces {
+            id
+            name
+            plan
+            customer {
+              currentUsage
+              billingPeriod { start end }
+              state
+              creditBalance
             }
           }
         }
@@ -228,20 +294,48 @@ async function getRailwayCosts() {
       }
     );
 
-    const teams = res.data?.data?.me?.teams?.edges || [];
-    let total = 0;
+    const workspaces = res.data?.data?.me?.workspaces || [];
+    let totalCurrentUsage = 0;
+    let totalEstimatedMonthly = 0;
+    const breakdownItems = [];
 
-    for (const t of teams) {
-      const usage = t.node?.usage;
-      if (usage) {
-        total += parseFloat(usage.currentUsage || usage.estimatedCost || 0);
-      }
+    for (const ws of workspaces) {
+      const customer = ws.customer;
+      if (!customer) continue;
+
+      const currentUsage = customer.currentUsage || 0;
+      totalCurrentUsage += currentUsage;
+
+      // Extrapolate to monthly based on billing period progress
+      const periodStart = new Date(customer.billingPeriod?.start);
+      const periodEnd = new Date(customer.billingPeriod?.end);
+      const now = new Date();
+      const periodDays = (periodEnd - periodStart) / (1000 * 60 * 60 * 24);
+      const elapsedDays = Math.max(1, (now - periodStart) / (1000 * 60 * 60 * 24));
+      const estimatedMonthly = (currentUsage / elapsedDays) * 30;
+
+      totalEstimatedMonthly += estimatedMonthly;
+
+      breakdownItems.push({
+        workspace: ws.name,
+        plan: ws.plan,
+        current_period_usage: Math.round(currentUsage * 100) / 100,
+        estimated_monthly: Math.round(estimatedMonthly * 100) / 100,
+        credit_balance: customer.creditBalance || 0,
+        billing_period: {
+          start: customer.billingPeriod?.start,
+          end: customer.billingPeriod?.end,
+          days: Math.round(periodDays),
+          elapsed: Math.round(elapsedDays * 10) / 10
+        }
+      });
     }
 
     const result = {
       source: 'railway_api',
-      total: Math.round(total * 100) / 100,
-      raw: res.data
+      total: Math.round(totalEstimatedMonthly * 100) / 100,
+      current_period_usage: Math.round(totalCurrentUsage * 100) / 100,
+      breakdown: breakdownItems
     };
 
     setCache('railway', result);
