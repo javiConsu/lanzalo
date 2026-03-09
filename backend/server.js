@@ -77,8 +77,9 @@ app.post('/api/promote-admin', require('./middleware/auth').requireAuth, async (
   const ownerEmail = 'javi@saleshackers.es';
   if (req.user.email !== ownerEmail) return res.status(403).json({ error: 'No autorizado' });
   const { pool } = require('./db');
-  await pool.query("UPDATE users SET role = 'admin' WHERE email = $1", [ownerEmail]);
-  res.json({ success: true, message: 'Ahora eres admin. Recarga la página.' });
+  const targetEmail = req.body.email || ownerEmail;
+  await pool.query("UPDATE users SET role = 'admin' WHERE email = $1", [targetEmail]);
+  res.json({ success: true, message: `${targetEmail} ahora es admin.` });
 });
 
 // Servir frontend React (producción)
