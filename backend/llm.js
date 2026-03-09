@@ -52,8 +52,10 @@ async function callLLM(prompt, options = {}) {
     messages = null
   } = options;
 
-  // Verificar presupuesto
-  if (companyId) {
+  // Verificar presupuesto — EXCEPTO Co-Founder chat (siempre responde)
+  // Los créditos controlan la EJECUCIÓN de tareas, no la conversación
+  const isCeoChat = taskType === 'ceo' || taskType === 'ceo_chat';
+  if (companyId && !isCeoChat) {
     const costTracker = new LLMCostTracker(companyId);
     const withinBudget = await costTracker.isWithinBudget();
     if (!withinBudget) {

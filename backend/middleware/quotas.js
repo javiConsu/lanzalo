@@ -18,6 +18,17 @@ const PLANS = {
       deploymentsPerMonth: 3
     }
   },
+  trial: {
+    name: 'Trial',
+    price: 0,
+    quotas: {
+      tasksPerDay: 10,
+      llmTokensPerMonth: 500000,     // ~$7.50 — generous for trial users
+      emailsPerDay: 10,
+      tweetsPerDay: 5,
+      deploymentsPerMonth: 20
+    }
+  },
   pro: {
     name: 'Pro',
     price: 39,
