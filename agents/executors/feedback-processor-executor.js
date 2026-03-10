@@ -1,4 +1,4 @@
-const { taskExecutor } = require('../task-executor');
+const { pool } = require('../../backend/db');
 
 /**
  * feedback-processor-executor.js
@@ -34,7 +34,7 @@ const feedbackSources = {
  * Analiza feedback de un company y genera propuestas de mejora
  */
 const analyzeFeedback = async (companyId) => {
-  const db = taskExecutor.db;
+  const db = pool;
 
   // 1. Recolectar datos de todas las fuentes
   const data = {
@@ -309,6 +309,6 @@ const feedbackProcessor = {
 };
 
 // Register the executor
-taskExecutor.register(feedbackProcessor);
+// removed: register not needed
 
 module.exports = { feedbackProcessor };
