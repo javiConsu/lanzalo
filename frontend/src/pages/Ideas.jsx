@@ -174,12 +174,29 @@ export default function Ideas() {
         ) : ideas.length === 0 ? (
           <div className="flex items-center justify-center h-64">
             <div className="text-center">
-              <p className="text-gray-400 mb-4">No hay ideas con estos filtros</p>
+              <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg shadow-blue-500/25">
+                <span className="text-4xl">💡</span>
+              </div>
+              <h2 className="text-2xl font-bold text-white mb-3">Buscando oportunidades...</h2>
+              <p className="text-gray-400 mb-4">
+                Estamos analizando tendencias para encontrar ideas con demanda real.
+              </p>
               <button
                 onClick={() => setFilters({ category: '', difficulty: '', minScore: 0 })}
-                className="text-blue-400 hover:text-blue-300 text-sm"
+                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold py-3 px-8 rounded-xl transition-all shadow-lg shadow-blue-500/25"
               >
-                Limpiar filtros
+                Ver todas las ideas
+              </button>
+              <div className="mt-4 pt-4 border-t border-gray-700">
+                <a
+                  href="/onboarding/choose-path"
+                  className="text-sm text-blue-400 hover:text-blue-300"
+                >
+                  ¿No encuentras tu idea? Explora nuestros recursos →
+                </a>
+              </div>
+            </div>
+          </div>
               </button>
             </div>
           </div>
