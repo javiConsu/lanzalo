@@ -5,9 +5,23 @@
 const { createTask, updateTask, createEmail, logActivity } = require('../backend/db');
 const { callLLM } = require('../backend/llm');
 const { sendEmail } = require('../backend/email');
+const governanceHelper = require('../backend/services/governance-helper');
 
 class EmailAgent {
   async execute(company) {
+    // GOVERNANCE CHECKS
+    const budgetCheck = await governanceHelper.checkBudgetBeforeAction('Email');
+    if (!budgetCheck.allowed) {
+      return { error: budgetCheck.error, budget_exceeded: true, action: 'skipped' };
+    }
+
+    const governanceCheck = await governanceHelper.checkGovernanceStatus('Email');
+    if (!governanceCheck.allowed) {
+      return { error: 'Email Agent is paused or terminated', paused: governanceCheck.paused, terminated: governanceCheck.terminated };
+    }
+
+    await governanceHelper.recordHeartbeat('Email');
+
     const task = await createTask(company.id, 'email',
       'Outreach diario por email',
       'Encontrar prospectos y enviar emails fríos personalizados');
@@ -50,6 +64,9 @@ class EmailAgent {
 
       await logActivity(company.id, task.id, 'task_complete',
         `Agente de email envió ${sentCount} emails`);
+
+      // GOVERNANCE: Record budget usage
+      governanceHelper.recordBudgetUsage('Email', 1000, 0.02).catch(() => {});
 
       return {
         success: true,

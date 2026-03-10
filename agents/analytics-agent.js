@@ -4,9 +4,23 @@
 
 const { createTask, updateTask, recordMetric, logActivity } = require('../backend/db');
 const { callLLM } = require('../backend/llm');
+const governanceHelper = require('../backend/services/governance-helper');
 
 class AnalyticsAgent {
   async execute(company) {
+    // GOVERNANCE CHECKS
+    const budgetCheck = await governanceHelper.checkBudgetBeforeAction('Data');
+    if (!budgetCheck.allowed) {
+      return { error: budgetCheck.error, budget_exceeded: true, action: 'skipped' };
+    }
+
+    const governanceCheck = await governanceHelper.checkGovernanceStatus('Data');
+    if (!governanceCheck.allowed) {
+      return { error: 'Data Agent is paused or terminated', paused: governanceCheck.paused, terminated: governanceCheck.terminated };
+    }
+
+    await governanceHelper.recordHeartbeat('Data');
+
     const task = await createTask(company.id, 'analytics',
       'Análisis diario de métricas',
       'Recopilar y analizar datos de rendimiento');
@@ -37,6 +51,9 @@ class AnalyticsAgent {
 
       await logActivity(company.id, task.id, 'task_complete',
         `Analytics completado: ${metrics.length} métricas registradas`);
+
+      // GOVERNANCE: Record budget usage
+      governanceHelper.recordBudgetUsage('Data', 5000, 0.05).catch(() => {});
 
       return {
         success: true,

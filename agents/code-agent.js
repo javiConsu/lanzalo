@@ -5,9 +5,23 @@
 const { createTask, updateTask, createDeployment, logActivity } = require('../backend/db');
 const { deployToSubdomain } = require('../deployer/deploy');
 const { callLLM } = require('../backend/llm');
+const governanceHelper = require('../backend/services/governance-helper');
 
 class CodeAgent {
   async execute(company) {
+    // GOVERNANCE CHECKS
+    const budgetCheck = await governanceHelper.checkBudgetBeforeAction('Code');
+    if (!budgetCheck.allowed) {
+      return { error: budgetCheck.error, budget_exceeded: true, action: 'skipped' };
+    }
+
+    const governanceCheck = await governanceHelper.checkGovernanceStatus('Code');
+    if (!governanceCheck.allowed) {
+      return { error: 'Code Agent is paused or terminated', paused: governanceCheck.paused, terminated: governanceCheck.terminated };
+    }
+
+    await governanceHelper.recordHeartbeat('Code');
+
     const db = new TenantDB(company.id);
     const executor = new CodeExecutor(company.id);
     const deployer = new Deployer(company.id, company.subdomain);
@@ -48,10 +62,13 @@ class CodeAgent {
       await db.logActivity(task.id, 'task_complete',
         `Agente de código completado: ${decision.action}`);
 
-      return { 
-        success: true, 
+      // GOVERNANCE: Record budget usage
+      governanceHelper.recordBudgetUsage('Code', 5000, 0.1).catch(() => {});
+
+      return {
+        success: true,
         summary: decision.action,
-        deployed: decision.shouldDeploy 
+        deployed: decision.shouldDeploy
       };
 
     } catch (error) {

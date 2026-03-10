@@ -5,9 +5,23 @@
 const { createTask, updateTask, createTweet, logActivity } = require('../backend/db');
 const { callLLM } = require('../backend/llm');
 const { postTweet } = require('../backend/twitter');
+const governanceHelper = require('../backend/services/governance-helper');
 
 class TwitterAgent {
   async execute(company) {
+    // GOVERNANCE CHECKS
+    const budgetCheck = await governanceHelper.checkBudgetBeforeAction('Twitter');
+    if (!budgetCheck.allowed) {
+      return { error: budgetCheck.error, budget_exceeded: true, action: 'skipped' };
+    }
+
+    const governanceCheck = await governanceHelper.checkGovernanceStatus('Twitter');
+    if (!governanceCheck.allowed) {
+      return { error: 'Twitter Agent is paused or terminated', paused: governanceCheck.paused, terminated: governanceCheck.terminated };
+    }
+
+    await governanceHelper.recordHeartbeat('Twitter');
+
     const task = await createTask(company.id, 'twitter',
       'Publicación diaria en Twitter',
       'Generar y publicar contenido atractivo');
@@ -57,6 +71,9 @@ class TwitterAgent {
 
       await logActivity(company.id, task.id, 'task_complete',
         `Agente de Twitter publicó ${postedCount} tweets`);
+
+      // GOVERNANCE: Record budget usage
+      governanceHelper.recordBudgetUsage('Twitter', 500, 0.02).catch(() => {});
 
       return {
         success: true,
