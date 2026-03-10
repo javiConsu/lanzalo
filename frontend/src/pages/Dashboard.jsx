@@ -1,9 +1,7 @@
-/**
- * Dashboard layout — Barra superior compacta + contenido principal
- * Inspirado en Polsia (todo en un vistazo) + Clawport (navegación limpia)
- */
-import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom'
+import { Outlet, Link, useLocation } from 'react-router-dom'
 import { useState, useEffect } from 'react'
+import LiveFeed from '../components/LiveFeed.jsx'
+import GameState from '../components/GameState.jsx'
 import { apiUrl } from '../api.js'
 import TrialBadge from '../components/TrialBadge.jsx'
 import CreditsBadge from '../components/CreditsBadge.jsx'
@@ -11,42 +9,78 @@ import BusinessTicker from '../components/BusinessTicker.jsx'
 
 export default function Dashboard({ user, onLogout }) {
   const location = useLocation()
-  const navigate = useNavigate()
-  const [menuOpen, setMenuOpen] = useState(false)
+  const [activeCompanyId, setActiveCompanyId] = useState(null)
+  const [stats, setStats] = useState({
+    ideas: 0,
+    agents: 7,
+    validations: 0,
+    discoveries: 0
+  })
 
-  const scrollToCredits = () => {
-    if (location.pathname !== '/') {
-      navigate('/')
-      setTimeout(() => {
-        document.getElementById('credits-widget')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-      }, 300)
-    } else {
-      document.getElementById('credits-widget')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-    }
-  }
+  // Cargar primera empresa del usuario para el LiveFeed
+  useEffect(() => {
+    const token = localStorage.getItem('token')
+    if (!token) return
+
+    // Cargar stats de la empresa
+    fetch(apiUrl('/api/user/companies'), {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+      .then(r => r.json())
+      .then(d => {
+        if (d.companies?.[0]) {
+          setActiveCompanyId(d.companies[0].id)
+
+          // Cargar stats de la empresa
+          fetch(apiUrl(`/api/company/${d.companies[0].id}/stats`), {
+            headers: { 'Authorization': `Bearer ${token}` }
+          })
+            .then(r => r.json())
+            .then(statsData => {
+              setStats({
+                ideas: statsData.ideas_count || 0,
+                agents: statsData.active_agents || 7,
+                validations: statsData.validations_count || 0,
+                discoveries: statsData.discoveries_count || 0
+              })
+            })
+            .catch(() => {})
+        }
+      })
+      .catch(() => {})
+  }, [])
 
   const isActive = (path) => {
-    if (path === '/') return location.pathname === '/'
+    if (path === '/') return location.pathname === '/' || location.pathname === '/chat'
     return location.pathname.startsWith(path)
   }
 
-  const navItems = [
-    { path: '/', icon: '🏠', label: 'Dashboard' },
-    { path: '/backlog', icon: '📋', label: 'Tareas' },
-    { path: '/ideas', icon: '💡', label: 'Ideas' },
+  const menuItems = [
+    { path: '/chat', icon: '💬', label: 'Co-Founder Agent' },
+    { path: '/ideas', icon: '💡', label: 'Ideas Validadas' },
+    { path: '/backlog', icon: '📋', label: 'Backlog' },
+    { path: '/metrics', icon: '📊', label: 'Métricas' },
+    { path: '/company', icon: '🏢', label: 'Control Center' },
   ]
 
   return (
-    <div className="min-h-screen bg-gray-950 flex flex-col">
-      {/* Top Bar */}
-      <header className="h-14 bg-gray-900/95 border-b border-gray-800 flex items-center px-4 gap-4 flex-shrink-0 z-10">
-        {/* Logo */}
-        <Link to="/" className="flex items-center gap-2 mr-2">
-          <div className="w-8 h-8 bg-emerald-500/20 rounded-lg flex items-center justify-center">
-            <span className="text-base">🚀</span>
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex">
+      {/* Sidebar Panel */}
+      <div className="w-72 bg-gray-900/95 backdrop-blur-xl border-r border-gray-700/50 flex flex-col">
+        {/* Header con gradiente */}
+        <div className="p-6 bg-gradient-to-br from-blue-900/30 via-purple-900/30 to-pink-900/30 border-b border-gray-700/50">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/25">
+              <span className="text-2xl">🚀</span>
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                Lanzalo
+              </h1>
+              <p className="text-xs text-gray-400 mt-0.5">Co-Fundador IA</p>
+            </div>
           </div>
-          <span className="text-base font-bold text-white hidden sm:inline">Lánzalo</span>
-        </Link>
+        </div>
 
         {/* Trial + Créditos */}
         <div className="px-4 pt-3 flex flex-col gap-2">
@@ -75,141 +109,88 @@ export default function Dashboard({ user, onLogout }) {
             <Link
               key={item.path}
               to={item.path}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm transition-colors ${
+              className={`group flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 ${
                 isActive(item.path)
-                  ? 'bg-emerald-500/15 text-emerald-400 font-medium'
-                  : 'text-gray-400 hover:text-white hover:bg-gray-800/50'
+                  ? 'bg-gradient-to-r from-blue-600 to-purple-600 shadow-lg shadow-blue-500/25 text-white'
+                  : 'text-gray-400 hover:bg-gray-800/80 hover:text-white'
               }`}
             >
-              <span className="text-xs">{item.icon}</span>
-              <span>{item.label}</span>
+              <span className={`text-xl transition-transform duration-300 group-hover:scale-110 ${isActive(item.path) ? 'drop-shadow-md' : ''}`}>
+                {item.icon}
+              </span>
+              <span className={`font-medium transition-all ${isActive(item.path) ? 'tracking-wide' : ''}`}>
+                {item.label}
+              </span>
+              {isActive(item.path) && (
+                <div className="ml-auto w-1.5 h-1.5 bg-white rounded-full shadow-lg" />
+              )}
             </Link>
           ))}
         </nav>
 
-        {/* Mobile hamburger */}
-        <button
-          className="md:hidden ml-auto text-gray-400 hover:text-white p-1"
-          onClick={() => setMenuOpen(!menuOpen)}
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            {menuOpen ? (
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            ) : (
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-            )}
-          </svg>
-        </button>
-
-        {/* Right side */}
-        <div className="hidden md:flex items-center gap-2 ml-auto">
-          {/* Credits badge — clickable, scroll to CreditsWidget */}
-          {user?.credits && (
-            <button
-              onClick={scrollToCredits}
-              className={`text-xs px-2.5 py-1 rounded-full flex items-center gap-1.5 cursor-pointer hover:opacity-80 transition-opacity ${
-                user.credits.total <= 1
-                  ? 'bg-red-500/15 text-red-400 border border-red-500/20'
-                  : user.credits.total <= 3
-                    ? 'bg-orange-500/15 text-orange-400 border border-orange-500/20'
-                    : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-              }`}
-            >
-              <span>🎫</span>
-              <span>{user.credits.total} crédito{user.credits.total !== 1 ? 's' : ''}</span>
-            </button>
-          )}
-
-          {/* Trial badge */}
-          {user?.plan === 'trial' && user?.trialEndsAt && (
-            <span className="text-xs px-2.5 py-1 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/20">
-              Trial · {Math.max(0, Math.ceil((new Date(user.trialEndsAt) - new Date()) / 86400000))}d
-            </span>
-          )}
-
-          {/* Admin link */}
-          {user?.is_admin && (
-            <a
-              href="/admin"
-              className="text-xs px-2.5 py-1 rounded-full bg-purple-500/15 text-purple-400 border border-purple-500/20 hover:bg-purple-500/25 transition-colors"
-            >
-              👑 Admin
-            </a>
-          )}
-
-          {/* User menu */}
-          <div className="flex items-center gap-2 pl-2 border-l border-gray-800">
-            <button
-              onClick={() => navigate('/settings')}
-              className="w-7 h-7 bg-emerald-500/20 rounded-lg flex items-center justify-center text-emerald-400 text-xs font-bold hover:bg-emerald-500/30 transition-colors cursor-pointer"
-              title="Configuración"
-            >
-              {user?.email?.[0]?.toUpperCase() || 'U'}
-            </button>
-            <button
-              onClick={onLogout}
-              className="text-xs text-gray-500 hover:text-red-400 transition-colors"
-              title="Cerrar sesión"
-            >
-              Salir
-            </button>
+        {/* Área gamificación + Live Feed */}
+        {activeCompanyId && (
+          <div className="p-4 space-y-3">
+            <div className="bg-gradient-to-br from-gray-800/80 to-gray-900/80 rounded-xl p-3 border border-gray-700/50">
+              <div className="text-xs text-gray-400 mb-1 flex items-center gap-1">
+                <span>⚡</span> Agentes Activos
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="flex-1 h-2 bg-gray-700 rounded-full overflow-hidden">
+                  <div className="h-full bg-gradient-to-r from-green-400 to-emerald-500 rounded-full transition-all duration-500" 
+                       style={{ width: '100%' }}
+                  />
+                </div>
+                <span className="text-sm font-bold text-green-400">{stats.agents}/7</span>
+              </div>
+            </div>
+            <LiveFeed companyId={activeCompanyId} />
           </div>
-        </div>
-      </header>
+        )}
 
-      {/* Mobile menu overlay */}
-      {menuOpen && (
-        <div className="md:hidden bg-gray-900 border-b border-gray-800 px-4 py-3 space-y-1">
-          {navItems.map(item => (
-            <Link
-              key={item.path}
-              to={item.path}
-              onClick={() => setMenuOpen(false)}
-              className={`flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm ${
-                isActive(item.path)
-                  ? 'bg-emerald-500/15 text-emerald-400 font-medium'
-                  : 'text-gray-400 hover:bg-gray-800'
-              }`}
-            >
-              <span>{item.icon}</span>
-              <span>{item.label}</span>
-            </Link>
-          ))}
-          <div className="pt-2 mt-2 border-t border-gray-800">
-            {user?.credits && (
+        {/* Footer con usuario */}
+        <div className="p-4 bg-gradient-to-t from-gray-900 to-transparent border-t border-gray-700/50">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center text-white font-bold shadow-lg shadow-blue-500/25">
+                {user?.email?.[0]?.toUpperCase() || 'U'}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-white truncate">
+                  {user?.email || 'Usuario'}
+                </p>
+                <p className="text-xs text-gray-400 flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 bg-green-400 rounded-full inline-block"></span>
+                  {user?.is_admin ? 'Admin' : 'Pro Plan'}
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              {user?.is_admin && (
+                <a
+                  href="/admin"
+                  className="px-4 py-2 bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/30 text-purple-300 rounded-xl transition-all text-sm font-medium flex items-center gap-2"
+                >
+                  <span>👑</span>
+                  Admin Panel
+                </a>
+              )}
               <button
-                onClick={() => { setMenuOpen(false); scrollToCredits() }}
-                className="flex items-center gap-1.5 text-xs text-emerald-400 mb-2 hover:opacity-80 transition-opacity"
+                onClick={onLogout}
+                className="px-4 py-2 bg-gradient-to-r from-red-600/20 to-red-500/20 hover:from-red-600/30 hover:to-red-500/30 border border-red-500/30 text-red-300 rounded-xl transition-all text-sm font-medium flex items-center gap-2 hover:shadow-lg hover:shadow-red-500/15"
               >
-                <span>🎫</span>
-                <span>{user.credits.total} crédito{user.credits.total !== 1 ? 's' : ''}</span>
-              </button>
-            )}
-            <Link
-              to="/settings"
-              onClick={() => setMenuOpen(false)}
-              className="flex items-center gap-2 text-xs text-gray-400 hover:text-white mb-2"
-            >
-              <span>⚙️</span>
-              <span>Configuración</span>
-            </Link>
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-gray-500">{user?.email}</span>
-              <button onClick={onLogout} className="text-xs text-red-400 hover:text-red-300">
-                Cerrar sesión
+                <span>🚪</span>
+                Cerrar Sesión
               </button>
             </div>
           </div>
         </div>
-      )}
+      </div>
 
       {/* Main content */}
-      <main className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden">
         <Outlet />
-      </main>
-
-      {/* Widget de soporte flotante */}
-      <SupportWidget token={localStorage.getItem('token')} />
+      </div>
     </div>
   )
 }

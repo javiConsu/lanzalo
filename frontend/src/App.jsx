@@ -22,6 +22,8 @@ import BusinessHub from './pages/BusinessHub'
 import RecoverPassword from './pages/RecoverPassword'
 import RecoverPasswordConfirm from './pages/RecoverPasswordConfirm'
 import Settings from './pages/Settings'
+import Chat from './pages/Chat'
+import Metrics from './pages/Metrics'
 
 function App() {
   const [token, setToken] = useState(localStorage.getItem('token'))
@@ -174,10 +176,12 @@ function App() {
             : <Dashboard user={user} onLogout={handleLogout} />
         }>
           <Route index element={user?.isTrialExpired ? <Paywall user={user} /> : <DashboardHome />} />
+          <Route path="chat" element={user?.isTrialExpired ? <Paywall user={user} /> : <Chat />} />
           <Route path="agents" element={user?.isTrialExpired ? <Paywall user={user} /> : <AgentOffice />} />
           <Route path="ideas" element={<Ideas />} />
           <Route path="backlog" element={user?.isTrialExpired ? <Paywall user={user} /> : <Backlog />} />
           <Route path="marketing" element={user?.isTrialExpired ? <Paywall user={user} /> : <Marketing />} />
+          <Route path="metrics" element={<Metrics />} />
           <Route path="settings" element={<Settings />} />
         </Route>
 
