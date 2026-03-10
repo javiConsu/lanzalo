@@ -1,5 +1,4 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { LucideActivity, LucideAlertTriangle, LucideCheckCircle2, LucideClock, LucideInfo } from "lucide-react"
+import { LucideActivity, LucideAlertTriangle, LucideCheckCircle2, LucideClock, LucideInfo, LucideStopCircle } from "lucide-react"
 
 /**
  * Componente Timeline - Feed de eventos en tiempo real
@@ -82,14 +81,12 @@ export function Timeline({ events }) {
   }
 
   return (
-    <Card className="w-full">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <LucideClock className="w-6 h-6 text-blue-500" />
-          Live Timeline
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
+    <div className="w-full bg-white rounded-lg shadow-lg border border-gray-200">
+      <div className="p-4 border-b border-gray-200 flex items-center gap-2">
+        <LucideClock className="w-6 h-6 text-blue-500" />
+        <h3 className="text-lg font-semibold text-gray-900">Live Timeline</h3>
+      </div>
+      <div className="p-4">
         <div className="relative">
           {/* Timeline line */}
           <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-200" />
@@ -131,7 +128,7 @@ export function Timeline({ events }) {
             )}
           </div>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   )
 }

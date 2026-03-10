@@ -47,7 +47,7 @@ export function Governance({ agents, events, onAction }) {
               >
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center">
-                    <getAgentIcon(agent.role) className="w-4 h-4 text-white" />
+                    {getAgentIcon(agent.role)}
                   </div>
                   <div>
                     <div className="font-medium text-sm text-gray-800">{agent.name}</div>

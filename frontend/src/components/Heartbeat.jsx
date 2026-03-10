@@ -3,8 +3,7 @@ import {
   LucideActivity,
   LucideCircleAlert,
   LucideCheckCircle2,
-  LucideClock,
-  LucidePulse
+  LucideClock
 } from "lucide-react"
 
 export function Heartbeat({ agents }) {
@@ -29,7 +28,7 @@ export function Heartbeat({ agents }) {
   return (
     <div className="w-full bg-gradient-to-b from-gray-50 to-white rounded-xl border border-gray-200 p-6">
       <h2 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
-        <LucidePulse className="w-6 h-6 text-red-500" />
+        <LucideActivity className="w-6 h-6 text-red-500" />
         Agent Heartbeat Monitor
       </h2>
       <div className="space-y-3">
