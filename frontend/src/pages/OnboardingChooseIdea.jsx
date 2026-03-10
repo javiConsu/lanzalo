@@ -6,7 +6,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, TrendingUp, Users, DollarSign, Target, Loader2, ArrowRight } from 'lucide-react';
-import api from '../lib/api';
+import { apiUrl } from '../api.js';
 
 export default function OnboardingChooseIdea() {
   const navigate = useNavigate();
@@ -147,7 +147,29 @@ export default function OnboardingChooseIdea() {
         {/* Ideas Grid */}
         {filteredIdeas.length === 0 ? (
           <div className="text-center py-12">
-            <p className="text-gray-500">No se encontraron ideas</p>
+            <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg shadow-blue-500/25">
+              <span className="text-4xl">💡</span>
+            </div>
+            <h2 className="text-2xl font-bold text-white mb-3">Aún no hay ideas disponibles</h2>
+            <p className="text-gray-400 mb-6 max-w-md">
+              Estamos analizando tendencias para encontrar oportunidades con demanda real.
+              Mientras tanto, puedes explorar tus propias ideas o descubrir recursos.
+            </p>
+            <div className="flex gap-4 justify-center">
+              <button
+                onClick={() => navigate('/discovery')}
+                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold py-3 px-6 rounded-xl transition-all shadow-lg shadow-blue-500/25 flex items-center gap-2"
+              >
+                Strategic Discovery
+                <ArrowRight className="w-5 h-5" />
+              </button>
+              <button
+                onClick={() => navigate('/onboarding/choose-path')}
+                className="bg-gray-700 hover:bg-gray-600 text-white font-medium py-3 px-6 rounded-xl transition-colors flex items-center gap-2"
+              >
+                Explorar recursos
+              </button>
+            </div>
           </div>
         ) : (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">

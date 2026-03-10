@@ -593,26 +593,89 @@ export default function Ideas() {
         ) : displayIdeas.length === 0 ? (
           <div className="flex items-center justify-center h-64">
             <div className="text-center">
-              <div className="text-4xl mb-3 opacity-40">{TABS.find(t => t.id === activeTab)?.icon}</div>
-              <p className="text-gray-400 mb-1">No hay ideas en esta categoría</p>
-              <p className="text-gray-600 text-xs">Prueba otra pestaña o espera al próximo escaneo semanal</p>
+              <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg shadow-blue-500/25">
+                <span className="text-4xl">💡</span>
+              </div>
+              <h2 className="text-2xl font-bold text-white mb-3">Buscando oportunidades...</h2>
+              <p className="text-gray-400 mb-4">
+                Estamos analizando tendencias para encontrar ideas con demanda real.
+              </p>
+              <button
+                onClick={() => setFilters({ category: '', difficulty: '', minScore: 0 })}
+                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold py-3 px-8 rounded-xl transition-all shadow-lg shadow-blue-500/25"
+              >
+                Ver todas las ideas
+              </button>
+              <div className="mt-4 pt-4 border-t border-gray-700">
+                <a
+                  href="/onboarding/choose-path"
+                  className="text-sm text-blue-400 hover:text-blue-300"
+                >
+                  ¿No encuentras tu idea? Explora nuestros recursos →
+                </a>
+              </div>
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
-            {displayIdeas.map((idea) => (
-              idea.locked ? (
-                <LockedIdeaCard key={idea.id} idea={idea} />
-              ) : (
-                <IdeaCard
-                  key={idea.id}
-                  idea={idea}
-                  onLaunch={handleLaunch}
-                  onDismiss={handleDismiss}
-                  onAnalysis={setAnalysisId}
-                  launching={launching}
-                />
-              )
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {ideas.map((idea) => (
+              <div
+                key={idea.id}
+                className="bg-gray-800 border border-gray-700 rounded-lg p-6 hover:border-gray-600 transition-all hover:shadow-xl"
+              >
+                {/* Score Badge */}
+                <div className="flex items-start justify-between mb-4">
+                  <span className={`text-4xl font-bold ${getScoreColor(idea.score)}`}>
+                    {idea.score}
+                  </span>
+                  <span className="text-4xl">
+                    {getCategoryIcon(idea.category)}
+                  </span>
+                </div>
+
+                {/* Title */}
+                <h3 className="text-xl font-semibold text-white mb-3 min-h-[3rem]">
+                  {idea.title}
+                </h3>
+
+                {/* Problem */}
+                <p className="text-gray-400 text-sm mb-4 line-clamp-3">
+                  {idea.problem}
+                </p>
+
+                {/* Metadata */}
+                <div className="space-y-2 mb-4">
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="text-gray-500">Audiencia:</span>
+                    <span className="text-gray-300">{idea.target_audience}</span>
+                  </div>
+                </div>
+
+                {/* Evidence */}
+                <div className="mb-4 p-3 bg-gray-900/50 rounded border border-gray-700">
+                  <p className="text-xs text-gray-500 mb-1">Evidencia de demanda:</p>
+                  <p className="text-sm text-gray-300 line-clamp-2">{idea.evidence}</p>
+                </div>
+
+                {/* Source */}
+                <div className="flex items-center gap-2 text-xs text-gray-500 mb-4">
+                  <span>Fuente:</span>
+                  <span className="text-gray-400">{idea.source}</span>
+                  <span>•</span>
+                  <span>{new Date(idea.discovered_at).toLocaleDateString()}</span>
+                </div>
+
+                {/* Actions */}
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleLaunchIdea(idea.id)}
+                    disabled={launching === idea.id}
+                    className="flex-1 px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {launching === idea.id ? 'Lanzando...' : '🚀 Lanzar Idea'}
+                  </button>
+                </div>
+              </div>
             ))}
           </div>
         )}

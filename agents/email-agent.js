@@ -12,24 +12,27 @@
 
 const { pool } = require('../backend/db');
 const { callLLM } = require('../backend/llm');
-const instantly = require('../backend/services/instantly-service');
-const fs = require('fs');
-const path = require('path');
-
-// Load cold email playbook as reference for campaign creation
-const PLAYBOOK_PATH = path.join(__dirname, '..', 'docs', 'cold-email-playbook.md');
-let coldEmailPlaybook = '';
-try {
-  coldEmailPlaybook = fs.readFileSync(PLAYBOOK_PATH, 'utf8');
-} catch (e) {
-  console.warn('[EmailAgent] Cold email playbook not found at', PLAYBOOK_PATH);
-}
+const { sendEmail } = require('../backend/email');
+const governanceHelper = require('../backend/services/governance-helper');
 
 class EmailAgent {
   async execute(company) {
-    const task = await this.createTask(company.id,
-      'Outreach por email',
-      'Buscar prospectos ideales y crear campañas de cold email personalizadas');
+    // GOVERNANCE CHECKS
+    const budgetCheck = await governanceHelper.checkBudgetBeforeAction('Email');
+    if (!budgetCheck.allowed) {
+      return { error: budgetCheck.error, budget_exceeded: true, action: 'skipped' };
+    }
+
+    const governanceCheck = await governanceHelper.checkGovernanceStatus('Email');
+    if (!governanceCheck.allowed) {
+      return { error: 'Email Agent is paused or terminated', paused: governanceCheck.paused, terminated: governanceCheck.terminated };
+    }
+
+    await governanceHelper.recordHeartbeat('Email');
+
+    const task = await createTask(company.id, 'email',
+      'Outreach diario por email',
+      'Encontrar prospectos y enviar emails fríos personalizados');
 
     try {
       await this.updateTask(task.id, { status: 'running' });
@@ -90,6 +93,9 @@ class EmailAgent {
       });
 
       await this.logActivity(company.id, task.id, 'task_complete', output);
+
+      // GOVERNANCE: Record budget usage
+      governanceHelper.recordBudgetUsage('Email', 1000, 0.02).catch(() => {});
 
       return {
         success: true,

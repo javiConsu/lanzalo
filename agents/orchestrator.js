@@ -9,7 +9,9 @@ const CodeAgent = require('./code-agent');
 const MarketingAgent = require('./marketing-agent');
 const EmailAgent = require('./email-agent');
 const TwitterAgent = require('./twitter-agent');
+const MetaAdsAgent = require('./meta-ads-agent');
 const AnalyticsAgent = require('./analytics-agent');
+const { feedbackProcessor } = require('./executors/feedback-processor-executor');
 
 class AgentOrchestrator {
   constructor() {
@@ -18,9 +20,11 @@ class AgentOrchestrator {
       marketing: new MarketingAgent(),
       email: new EmailAgent(),
       twitter: new TwitterAgent(),
-      analytics: new AnalyticsAgent()
+      meta_ads: new MetaAdsAgent(),
+      analytics: new AnalyticsAgent(),
+      feedback_processor: feedbackProcessor
     };
-    
+
     this.isRunning = false;
   }
 
@@ -77,18 +81,24 @@ class AgentOrchestrator {
 
       // 1. Code Agent - build/improve the product
       await this.runAgent('code', company);
-      
+
       // 2. Marketing Agent - generate content/campaigns
       await this.runAgent('marketing', company);
-      
+
       // 3. Email Agent - cold outreach
       await this.runAgent('email', company);
-      
+
       // 4. Twitter Agent - social presence
       await this.runAgent('twitter', company);
-      
-      // 5. Analytics Agent - track metrics
+
+      // 5. Meta Ads Agent - Facebook/Instagram ads
+      await this.runAgent('meta_ads', company);
+
+      // 6. Analytics Agent - track metrics
       await this.runAgent('analytics', company);
+
+      // 7. Feedback Processor - analyze feedback and propose improvements
+      await this.runAgent('feedback_processor', company);
 
       await logActivity(company.id, null, 'cycle_complete',
         `Daily cycle completed for ${company.name}`);

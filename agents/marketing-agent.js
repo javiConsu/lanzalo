@@ -10,14 +10,26 @@
 
 const { pool } = require('../backend/db');
 const { callLLM } = require('../backend/llm');
-const gamma = require('../backend/services/gamma-service');
-const brandConfig = require('../backend/services/brand-config');
+const governanceHelper = require('../backend/services/governance-helper');
 
 class MarketingAgent {
   async execute(company) {
-    const task = await this.createTask(company.id,
-      'Marketing diario',
-      'Generar contenido y revisar estrategia de marketing');
+    // GOVERNANCE CHECKS
+    const budgetCheck = await governanceHelper.checkBudgetBeforeAction('Marketing');
+    if (!budgetCheck.allowed) {
+      return { error: budgetCheck.error, budget_exceeded: true, action: 'skipped' };
+    }
+
+    const governanceCheck = await governanceHelper.checkGovernanceStatus('Marketing');
+    if (!governanceCheck.allowed) {
+      return { error: 'Marketing Agent is paused or terminated', paused: governanceCheck.paused, terminated: governanceCheck.terminated };
+    }
+
+    await governanceHelper.recordHeartbeat('Marketing');
+
+    const task = await createTask(company.id, 'marketing',
+      'Campaña de marketing diaria',
+      'Generar estrategia y contenido de marketing');
 
     try {
       await this.updateTask(task.id, { status: 'running' });
@@ -61,7 +73,14 @@ class MarketingAgent {
 
       await this.logActivity(company.id, task.id, 'task_complete', output);
 
-      return { success: true, summary: output };
+      // GOVERNANCE: Record budget usage
+      governanceHelper.recordBudgetUsage('Marketing', 2000, 0.05).catch(() => {});
+
+      return {
+        success: true,
+        summary: `${content.length} piezas de contenido creadas`,
+        content
+      };
 
     } catch (error) {
       await this.updateTask(task.id, {

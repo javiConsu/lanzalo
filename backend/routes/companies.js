@@ -216,6 +216,32 @@ router.post('/:id/toggle', tenantContext, async (req, res) => {
 });
 
 /**
+ * Obtener última empresa del usuario actual (para Business Ticker)
+ */
+router.get('/last', tenantContext, async (req, res) => {
+  try {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    const result = await pool.query(
+      `SELECT id, name, subdomain, revenue_total, created_at
+       FROM companies
+       WHERE created_by = (SELECT id FROM users WHERE token = $1 OR email = $1)
+       ORDER BY created_at DESC
+       LIMIT 1`,
+      [token]
+    );
+
+    if (result.rows.length === 0) {
+      return res.json({ company: null });
+    }
+
+    res.json({ company: result.rows[0] });
+  } catch (error) {
+    console.error('Error obteniendo última empresa:', error);
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
+/**
  * Eliminar empresa
  */
 router.delete('/:id', tenantContext, async (req, res) => {

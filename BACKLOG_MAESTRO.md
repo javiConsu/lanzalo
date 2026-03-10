@@ -181,6 +181,174 @@
 - **Tag:** engineering | **Prioridad:** medium | **Complejidad:** 4
 - **Descripción:** 2 tweets/día. Dark humor, witty. Sin emojis ni hashtags. Cada tweet con link a web. Late.dev ya configurado.
 
+### T-029: Quitar visualización de "Revenue:" en Ideas.jsx ✅ COMPLETADA
+- **Tag:** engineering | **Prioridad:** low | **Complejidad:** 2
+- **Descripción:** Eliminar visualización de "Revenue:" mostrando potential_revenue en Ideas.jsx
+- **Resultado:** Cleanse de texto, menos confusión con el modelo monetario
+
+### T-030: Business Ticker ✅ COMPLETADA
+- **Tag:** engineering | **Prioridad:** medium | **Complejidad:** 5
+- **Descripción:** Añadir ticker estilo Twitter con última empresa creada
+- **Componente:** BusinessTicker.jsx + Backend endpoint /api/companies/last + Integración en Dashboard.jsx
+- **Resultado:** Showcase de social proof automático
+
+### T-031: Recuperación de contraseña ✅ COMPLETADA
+- **Tag:** engineering | **Prioridad:** medium | **Complejidad:** 7
+- **Descripción:** Flujo completo JWT 24h para recuperar contraseña
+- **Backend:** 2 endpoints POST + tabla password_reset_tokens
+- **Frontend:** 2 páginas + rutas + link en Login
+- **Resultado:** UX básica faltada con JWT 24h
+
+### T-032: Investigar modelos locales + cloud para optimizar costos
+- **Tag:** engineering | **Prioridad:** low | **Complejidad:** 6
+- **Descripción:** Evaluar si Lanzalo puede usar modelos locales (0.8B-7B) como fallback/budget-optimizer mientras mantiene calidad. Benchmark: Cuánto ahorras vs qué pierdes en calidad para casos típicos de Lanzalo (analysis, marketing, support).
+- **Contexto:** Ziwen Xu demostró 0.8B model 24/7 en Mac mini con OpenClaw eliminando costos de API.
+- **Opciones:** Solo cloud, solo local, híbrido (0.8B para tareas simples + 7B+ para complejas).
+- **Resultado esperado:** Data-driven recommendation para MVP (cost-benefit analysis).
+
+### T-033: Contexto visualizer en dashboard
+- **Tag:** engineering | **Prioridad:** medium | **Complejidad:** 5
+- **Descripción:** Integrar contexto visualizer (basado en context-doctor) en Dashboard de Lanzalo. Mostrar gráficos de uso de contexto, alertas cuando >80% y sugerencias de optimización.
+- **Feature listo en workspace:** context-doctor instalado y funcionando
+- **Features:**
+  - Gráfico de últimos 7 días de uso de contexto
+  - Alertas (WhatsApp/Telegram) cuando contexto excede threshold
+  - Auto-optimización: sugerir archivos para compress o eliminación
+  - Comparación con benchmarks (ej. "Tu contexto está en el 15% vs promedio 20% del sector")
+- **Output:** Dashboard con tab "Contexto" (stats + alerts)
+
+### T-034: Backend - cambiar "backlog" → "colas" en API
+- **Tag:** engineering | **Prioridad:** medium | **Complejidad:** 4
+- **Descripción:** Refactorizar endpoints y nombres en backend que usan "backlog" o "Cola"
+- **Cambios:**
+  - endpoints: cambiar "backlog" → "colas" o "work-queues" (GET/POST)
+  - middleware: messages "backlog" → "colas"
+  - rutas: /api/backlog/* → /api/colas/*
+  - base de datos: tabla si existe (a veces se llama backlog)
+- **Resultado:** API usando terminología correcta en español
+
+### T-035: Frontend - cambiar "Backlog" → "Cola de trabajo"
+- **Tag:** engineering | **Prioridad:** medium | **Complejidad:** 3
+- **Descripción:** Refactorizar todos los textos y nombres en frontend que usan "backlog"
+- **Cambios:**
+  - Tab: "Cola de trabajo" (Dashboard.jsx)
+  - Text: "Tareas en tu cola", "Tu cola tiene X tareas pendientes"
+  - Botones: "Ver cola", "Agregar a cola", "Cola completa"
+  - Emails: "En tu cola hay X tareas pendientes..."
+  - API responses: cambiar "backlog" → "colas" o "work_queues"
+- **Resultado:** Terminología 100% en español, consistente en todo el sistema
+
+### T-036: Sistema de notificaciones - actualizaciones en cola
+- **Tag:** engineering | **Prioridad:** medium | **Complejidad:** 4
+- **Descripción:** Cuando una tarea es completada, notificar al usuario sobre el progreso en la cola de trabajo
+- **Features:**
+  - Email: "Tarea X completada en tu cola"
+  - Notification toast: "¡Tarea completada! Tu cola tiene X tareas pendientes"
+  - Stream de actualizaciones: "X tareas completadas en la última hora"
+- **Resultado:** Usuario siempre alineado con qué hay en su cola
+
+### T-037: Base de datos - Feedback Processor (migración 018)
+- **Tag:** engineering | **Prioridad:** medium | **Complejidad:** 4
+- **Descripción:** Crear tabla feedback_daily_reports para guardar stats del agente de feedback diario
+- **Estructura:**
+  ```sql
+  CREATE TABLE feedback_daily_reports (
+    id UUID PRIMARY KEY,
+    company_id UUID,
+    date DATE,
+    feedback_count INTEGER,
+    bug_count INTEGER,
+    improvement_count INTEGER,
+    top_themes JSONB,
+    suggested_tasks JSONB,
+    created_at TIMESTAMP DEFAULT NOW()
+  );
+  ```
+- **Índices:** idx_feedback_daily_company, idx_feedback_daily_date
+- **Resultado:** Base de datos preparada para guardar reportes diarios
+
+### T-038: Backend - Crear feedback-processor-executor.js
+- **Tag:** engineering | **Prioridad:** medium | **Complejidad:** 8
+- **Descripción:** Crear el 8to executor del sistema que analiza feedback y propone mejoras
+- **Archivo:** /backend/agents/executors/feedback-processor-executor.js (400 líneas)
+- **Funcionalidad:**
+  - Recolectar datos de chat_messages, tasks, task_proposals, memory, activity_log
+  - Analizar con LLM (300k tokens, incluyendo reflections)
+  - Proponer 2-3 tareas (alta/med/baja prioridad)
+  - Guardar en task_proposals
+  - Crear reporte en feedback_daily_reports
+- **Output:** Consistente con otros executors (status, output, insights)
+- **Resultado:** Agente funcional que procesa feedback diariamente
+
+### T-039: Backend - Integrar en scheduler (9AM daily)
+- **Tag:** engineering | **Prioridad:** medium | **Complejidad:** 3
+- **Descripción:** Programar feedback-processor para ejecutarse cada día a las 9AM UTC
+- **Cambios:**
+  - integrar en orchestrator.js o scheduler.js
+  - cron: "0 9 * * *"
+  - Ejecutar para todas las empresas
+  - Opcional: ejecutar solo en empresas con actividad reciente
+- **Resultado:** Agente se ejecuta automáticamente diariamente
+
+### T-040: Frontend - UI para ver reporte diario de feedback
+- **Tag:** engineering | **Prioridad:** medium | **Complejidad:** 6
+- **Descripción:** Dashboard tab "Feedback" para ver reporte diario de feedback processor
+- **Features:**
+  - Gráficos: feedback count por día (últimos 7 días)
+  - Stats: bugs, improvements, complaints separados
+  - Top themes: gráfico de barras con temas más frecuentes
+  - Suggested tasks: lista de propuestas con prioridad badge
+  - Acción: aprobar/rechazar propuestas directamente
+- **Resultado:** Usuario ve feedback procesado y propuestas de mejora
+
+### T-041: Email template - reporte diario de feedback
+- **Tag:** engineering | **Prioridad:** high | **Complejidad:** 3
+- **Descripción:** Crear plantilla email para co-founder con reporte diario de feedback
+- **Variables:**
+  - fecha, feedback_count, bug_count, improvement_count
+  - top_themes (JSONB → list sorted)
+  - suggested_tasks (array de objetos con title, priority, description)
+- **Plantilla:** HTML + texto plano, tono profesional pero cercano
+- **Resultado:** Email completo y listo para enviar
+
+### T-042: Sistema de notificaciones - a co-founder
+- **Tag:** engineering | **Prioridad:** high | **Complejidad:** 3
+- **Descripción:** Sistema para notificar al co-founder cuando hay nuevas propuestas
+- **Canales:**
+  - Telegram: envío automático del resumen del reporte
+  - Email: envío automático del reporte completo
+- **Resultado:** Co-founder recibe reporte inmediatamente después de que el agente ejecuta
+
+### T-043: Telegram notification - resumen del reporte
+- **Tag:** engineering | **Prioridad:** medium | **Complejidad:** 2
+- **Descripción:** Enviar notificación breve al co-founder en Telegram
+- **Content:**
+  - "Reporte de Feedback: X feedback, Y bugs encontrados"
+  - "Z nuevas propuestas de mejora en tu dashboard"
+  - CTA: "Ver más"
+- **Resultado:** Co-founder ve aviso rápido en Telegram
+
+### T-044: Email template - nuevas mejoras implementadas
+- **Tag:** engineering | **Prioridad:** medium | **Complejidad:** 2
+- **Descripción:** Crear plantilla email para notificar al usuario cuando el co-founder aprueba mejoras
+- **Variables:**
+  - nombre_usuario, mejoras_aprobadas (array de objetos)
+  - fecha_implementación, fecha_aprobación
+- **Content:**
+  - "Tu feedback llevó a mejoras en [empresa]"
+  - Lista de mejoras implementadas
+  - Link al dashboard
+- **Resultado:** Usuario recibe email claro cuando mejora es implementada
+
+### T-045: Notificación del usuario - nuevas mejoras
+- **Tag:** engineering | **Prioridad:** medium | **Complejidad:** 2
+- **Descripción:** Notificar al usuario cuando hay mejoras disponibles o implementadas
+- **Canales:**
+  - Email (contenido como T-044)
+  - Notification toast en dashboard
+  - Slack/Telegram si configurado
+- **Resultado:** Usuario siempre alineado con estado de mejoras
+
 ---
 
 ## ORDEN DE EJECUCIÓN RECOMENDADO
@@ -197,10 +365,6 @@
 **Semana 7-8:** T-019, T-020, T-021, T-022
 → Resultado: agentes autónomos funcionando con memoria y ciclos nocturnos
 
-**Semana 9-10:** T-023, T-024, T-026, T-027, T-028
-→ Resultado: marketing y adquisición automatizados
+**Semana 9-10:** T-023, T-024, T-026, T-027, T-028, T-034, T-035, T-036, T-037, T-038, T-039, T-040, T-041, T-042, T-043, T-044, T-045
+→ Resultado: marketing y adquisición automatizados + terminología en español + feedback processor diario (reporte co-founder + notificación usuario)
 
----
-
-**Total: 28 tareas | 5 sprints | ~10 semanas**
-**Prioridad absoluta: Sprint 1 (desbloquear cobros)**

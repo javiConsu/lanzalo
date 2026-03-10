@@ -106,36 +106,20 @@ const quotas = {
 
 ---
 
-## Revenue Share Implementation
+## ✅ DECISIÓN RECENTE: SIN REVENUE SHARE PARA MVP
 
-### ¿Cómo cobrar 20% automáticamente?
+**Hora:** 2026-03-08 10:16 UTC
 
-**Stripe Connect (Recomendado):**
+**Impacto:**
+- ❌ NO revenue share con usuarios (MVP)
+- ✅ 100% del dinero va a Lanzalo
+- ⏳ Revenue share: para iteraciones futuras (SaaS mode)
+- ⏳ Stripe Connect: implementado si/cuando sea necesario
 
-```javascript
-// 1. Cliente conecta su Stripe
-const account = await stripe.accounts.create({
-  type: 'express',
-  country: 'US',
-  email: client.email
-});
-
-// 2. En cada pago, Lanzalo toma 20%
-const payment = await stripe.paymentIntents.create({
-  amount: 10000,                    // $100
-  application_fee_amount: 2000,     // $20 para Lanzalo
-  transfer_data: {
-    destination: client.stripe_account_id
-  }
-});
-```
-
-**Alternativa: Manual invoicing**
-- Cliente reporta ingresos mensualmente
-- Lanzalo factura 20%
-- Menos automático, más confianza requerida
-
-### ✅ Decisión: Stripe Connect para automatización completa
+**Por qué esta decisión:**
+- MVP primero, maximizar margen de profit
+- Simplificar el modelo de negocio
+- Revenue share para iteraciones futuras
 
 ---
 

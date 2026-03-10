@@ -9,6 +9,21 @@ export default function Metrics() {
 
   const token = localStorage.getItem('token')
 
+  // Cargar empresas
+  useEffect(() => {
+    fetch(apiUrl('/api/user/companies'), {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.companies?.length > 0) {
+          setCompanies(data.companies)
+          setSelectedCompany(data.companies[0].id)
+        }
+      })
+      .catch(console.error)
+  }, [token])
+
   // Cargar métricas cuando cambia empresa
   useEffect(() => {
     if (selectedCompany) {

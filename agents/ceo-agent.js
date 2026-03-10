@@ -10,6 +10,7 @@ const { callLLMWithTools } = require('../backend/llm');
 const { getSystemPrompt } = require('./system-prompts');
 const { getToolsForAgent, createToolHandlers } = require('./tools');
 const MemorySystem = require('./memory-system');
+const governanceHelper = require('../backend/services/governance-helper');
 
 class CEOAgent {
   constructor(companyId, userId) {
@@ -39,6 +40,37 @@ class CEOAgent {
    */
   async processMessage(userMessage) {
     if (!this.company) await this.initialize();
+
+    // Governance Check 1: Budget check (before processing message)
+    const budgetCheck = await governanceHelper.checkBudgetBeforeAction('CEO');
+    if (!budgetCheck.allowed) {
+      console.log('[CEO] Budget check failed:', budgetCheck.error);
+      return {
+        message: `⚠️ Tu agente CEO ha alcanzado el límite diario de presupuesto. Ya has gastado $${budgetCheck.current_cost} de $${budgetCheck.daily_budget}. Por favor espera al siguiente día o reduce tu actividad.`,
+        budget_exceeded: true
+      };
+    }
+
+    // Governance Check 2: Governance status check (paused/terminated)
+    const governanceCheck = await governanceHelper.checkGovernanceStatus('CEO');
+    if (!governanceCheck.allowed) {
+      console.log('[CEO] Governance check failed: agent is paused or terminated');
+      if (governanceCheck.paused) {
+        return {
+          message: `⚠️ El agente CEO está pausado. Resume el agente desde el panel de control para continuar con las tareas.`,
+          paused: true
+        };
+      }
+      if (governanceCheck.terminated) {
+        return {
+          message: `⚠️ El agente CEO ha sido terminado. Si necesitas reactivarlo, contáctame con el equipo de soporte.`,
+          terminated: true
+        };
+      }
+    }
+
+    // Record heartbeat before processing
+    await governanceHelper.recordHeartbeat('CEO');
 
     // Guardar mensaje del usuario
     await this.saveMessage('user', userMessage);
@@ -157,6 +189,10 @@ INGRESOS: $${this.company.revenue_total || 0}`;
 
     // Actualizar memoria Layer 1 con lo aprendido (async, no bloquea respuesta)
     this.updateMemoryFromConversation(userMessage, responseContent).catch(() => {});
+
+    // Governance Check 3: Record budget usage (estimated for the response)
+    // Este es un estimate; el agente puede reportar usage real después
+    governanceHelper.recordBudgetUsage('CEO', responseContent.length / 10).catch(() => {});
 
     return {
       message: responseContent,

@@ -196,14 +196,16 @@ async function register(email, password, name) {
     throw new Error('Email ya registrado');
   }
 
-  // Crear usuario
+  // Crear usuario con créditos iniciales (50) y trial (14 días)
   const passwordHash = await hashPassword(password);
-  
+  const trialEndsAt = new Date();
+  trialEndsAt.setDate(trialEndsAt.getDate() + 14);
+
   const result = await pool.query(
-    `INSERT INTO users (email, password_hash, name, role, plan)
-     VALUES ($1, $2, $3, 'user', 'free')
-     RETURNING id, email, name, role, plan`,
-    [email, passwordHash, name]
+    `INSERT INTO users (email, password_hash, name, role, plan, credits, trial_ends_at)
+     VALUES ($1, $2, $3, 'user', 'trial', 50, $4)
+     RETURNING id, email, name, role, plan, credits, trial_ends_at`,
+    [email, passwordHash, name, trialEndsAt]
   );
 
   const user = result.rows[0];

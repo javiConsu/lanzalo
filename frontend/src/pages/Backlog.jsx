@@ -56,10 +56,9 @@ export default function Backlog() {
 
   const token = localStorage.getItem('token')
 
-  // Fetch backlog data
-  const fetchBacklog = useCallback(() => {
-    if (!selectedCompany) return
-    return fetch(apiUrl(`/api/user/companies/${selectedCompany}/backlog`), {
+  // Cargar empresas
+  useEffect(() => {
+    fetch(apiUrl('/api/user/companies'), {
       headers: { 'Authorization': `Bearer ${token}` }
     })
       .then(res => res.json())

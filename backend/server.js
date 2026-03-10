@@ -8,6 +8,7 @@ const cors = require('cors');
 const { WebSocketServer } = require('ws');
 const orchestrator = require('../agents/orchestrator');
 const taskExecutor = require('../agents/task-executor').instance;
+const dailyReviewSystem = require('../agents/daily-review');
 const { scheduleDailySyncs } = require('../agents/daily-sync');
 const GrowthAgent = require('../agents/growth-agent');
 const { scheduleTrialChecks, scheduleTrialReminders } = require('../agents/trial-manager');
@@ -51,6 +52,7 @@ app.use('/', require('./routes/landing'));
 
 // API Routes
 app.use('/api/auth', require('./routes/auth'));
+app.use('/api/auth-reset-password', require('./routes/auth-reset-password'));
 app.use('/api/onboarding', require('./routes/onboarding'));
 app.use('/api/discovery', require('./routes/discovery'));
 app.use('/api/preview', require('./routes/preview'));
@@ -62,6 +64,9 @@ app.use('/api/tasks', require('./routes/tasks'));          // Deprecated - usar 
 app.use('/api', require('./routes/ideas'));              // Ideas marketplace (public + auth)
 app.use('/api/analytics', require('./routes/analytics'));
 app.use('/api/payments', require('./routes/payments'));
+app.use('/api/budgets', require('./routes/budgets'));
+app.use('/api/governance', require('./routes/governance'));
+app.use('/api/heartbeat', require('./routes/heartbeat'));
 app.use('/sites', require('./routes/sites'));
 app.use('/api/webhooks', require('./routes/webhooks'));
 app.use('/api/migrate', require('./routes/migrate')); // Migrations (before email-pro auth catch)
@@ -110,6 +115,10 @@ const server = app.listen(PORT, () => {
   // Start task executor (polls backlog every 10s)
   console.log('[Server] Starting Task Executor...');
   taskExecutor.start();
+  
+  // Start daily review system (T-MORNING 9:00 AM UTC, T-EVENING 6:00 PM UTC)
+  console.log('[Server] Starting Daily Review System...');
+  dailyReviewSystem.start();
   
   // Schedule daily syncs (runs hourly, checks which companies need sync)
   console.log('[Server] Scheduling Daily Syncs...');
@@ -173,6 +182,7 @@ process.on('SIGTERM', () => {
   console.log('SIGTERM received, shutting down gracefully...');
   orchestrator.stop();
   taskExecutor.stop();
+  dailyReviewSystem.stop();
   server.close(() => {
     console.log('Process terminated');
   });

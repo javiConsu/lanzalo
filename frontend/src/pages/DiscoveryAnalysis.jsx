@@ -9,7 +9,7 @@ import {
   TrendingUp, Target, AlertTriangle, Eye, DollarSign, 
   Clock, BarChart3, ArrowRight, CheckCircle2, XCircle, Loader2 
 } from 'lucide-react';
-import api from '../lib/api';
+import { apiUrl } from '../api.js';
 
 export default function DiscoveryAnalysis() {
   const navigate = useNavigate();

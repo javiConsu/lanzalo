@@ -5,7 +5,9 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { apiUrl } from '../api.js'
-import SupportWidget from '../components/SupportWidget.jsx'
+import TrialBadge from '../components/TrialBadge.jsx'
+import CreditsBadge from '../components/CreditsBadge.jsx'
+import BusinessTicker from '../components/BusinessTicker.jsx'
 
 export default function Dashboard({ user, onLogout }) {
   const location = useLocation()
@@ -46,9 +48,30 @@ export default function Dashboard({ user, onLogout }) {
           <span className="text-base font-bold text-white hidden sm:inline">Lánzalo</span>
         </Link>
 
-        {/* Nav (desktop) */}
-        <nav className="hidden md:flex items-center gap-1 flex-1">
-          {navItems.map(item => (
+        {/* Trial + Créditos */}
+        <div className="px-4 pt-3 flex flex-col gap-2">
+          <TrialBadge user={user} />
+          <CreditsBadge user={user} />
+          <BusinessTicker user={user} />
+        </div>
+
+        {/* Stats rápidas */}
+        <div className="p-4 grid grid-cols-2 gap-3">
+          <div className="bg-gray-800/50 rounded-xl p-3 border border-gray-700/50 hover:border-blue-500/50 transition-all">
+            <div className="text-2xl mb-1">💡</div>
+            <div className="text-lg font-bold text-white">{stats.ideas}</div>
+            <div className="text-xs text-gray-400">Ideas</div>
+          </div>
+          <div className="bg-gray-800/50 rounded-xl p-3 border border-gray-700/50 hover:border-purple-500/50 transition-all">
+            <div className="text-2xl mb-1">✅</div>
+            <div className="text-lg font-bold text-white">{stats.validations}</div>
+            <div className="text-xs text-gray-400">Validadas</div>
+          </div>
+        </div>
+
+        {/* Menu principal */}
+        <nav className="flex-1 p-4 space-y-2">
+          {menuItems.map((item) => (
             <Link
               key={item.path}
               to={item.path}
