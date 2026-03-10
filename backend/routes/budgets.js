@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const budgetManager = require('../services/budget-manager');
-const db = require('../database/prisma');
+const { pool } = require('../db');
 
 // Protect routes with middleware (TODO: implement proper auth middleware)
 const authMiddleware = (req, res, next) => {
@@ -50,17 +50,11 @@ router.get('/:agentType/usage', authMiddleware, async (req, res) => {
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - parseInt(days));
 
-    const usage = await db.agentUsage.findMany({
-      where: {
-        agent_type: agentType,
-        created_at: {
-          gte: startDate
-        }
-      },
-      orderBy: {
-        created_at: 'desc'
-      }
-    });
+    const result = await pool.query(
+        'SELECT * FROM agent_usage WHERE agent_type = $1 AND created_at >= $2 ORDER BY created_at DESC',
+        [agentType, startDate]
+      );
+      const usage = result.rows;
 
     res.json({
       agent_type: agentType,
