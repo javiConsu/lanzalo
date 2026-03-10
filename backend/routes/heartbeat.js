@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const heartbeat = require('../services/heartbeat');
-const db = require('../database/prisma');
+const { pool } = require('../db');
 
 // Protect routes with middleware (TODO: implement proper auth middleware)
 const authMiddleware = (req, res, next) => {
@@ -145,27 +145,15 @@ router.delete('/clear', authMiddleware, async (req, res) => {
  */
 router.get('/summary', authMiddleware, async (req, res) => {
   try {
-    const allAgents = await db.agent.findMany();
-    const summary = {
-      total_agents: allAgents.length,
-      total_heartbeats_last_24h: await db.heartbeatLog.count({
-        where: {
-          created_at: {
-            gte: new Date(Date.now() - 24 * 60 * 60 * 1000)
-          }
-        }
-      }),
-      average_heartbeat_interval_24h: await db.heartbeatLog.aggregate({
-        where: {
-          created_at: {
-            gte: new Date(Date.now() - 24 * 60 * 60 * 1000)
-          }
-        },
-        _avg: {
-          id: true
-        }
-      })
-    };
+const agentsResult = await pool.query('SELECT COUNT(*) as total FROM agents');
+      const heartbeatsResult = await pool.query(
+        'SELECT COUNT(*) as total FROM heartbeat_logs WHERE created_at >= NOW() - INTERVAL \'24 hours\''
+      );
+      const summary = {
+        total_agents: parseInt(agentsResult.rows[0]?.total || 0),
+        total_heartbeats_last_24h: parseInt(heartbeatsResult.rows[0]?.total || 0),
+        average_heartbeat_interval_24h: null
+      };
 
     res.json(summary);
   } catch (error) {
