@@ -13,7 +13,7 @@ const { pool } = require('../db');
 
 // Configuración de créditos por plan
 const CREDIT_CONFIG = {
-  trial: { initial: 5, monthly: 0 },
+  trial: { initial: 50, monthly: 0 },  // Changed from 5 to 50 (Opción 3)
   pro:   { initial: 0, monthly: 20 },
   free:  { initial: 0, monthly: 0 }
 };
