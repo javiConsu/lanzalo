@@ -11,7 +11,7 @@ export default function Metrics() {
 
   // Cargar empresas
   useEffect(() => {
-    fetch(apiUrl('/api/user/companies', {
+    fetch(apiUrl('/api/user/companies'), {
       headers: { 'Authorization': `Bearer ${token}` }
     })
       .then(res => res.json())

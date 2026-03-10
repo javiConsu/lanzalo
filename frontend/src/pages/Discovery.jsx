@@ -6,7 +6,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CheckCircle2, ArrowRight, ArrowLeft, Loader2, TrendingUp, Target, DollarSign } from 'lucide-react';
-import api from '../lib/api';
+import { apiUrl } from '../api.js';
 
 const CATEGORIES = [
   {

@@ -19,7 +19,7 @@ Lanzalo es una plataforma que permite a cualquier persona crear y lanzar empresa
 ## Modelo de Negocio
 
 - **Freemium**: $39/mes por autonomía completa
-- **Revenue Share**: 20% de las ganancias vía Stripe
+- **Revenue Share**: SIN revenue share (MVP) - Todos los ingresos van a Lanzalo
 - **Abierto a todos los verticales**: SaaS, ecommerce, contenido, servicios
 
 ## Características MVP

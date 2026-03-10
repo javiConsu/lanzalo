@@ -216,20 +216,6 @@ export default function Ideas() {
                     <span className="text-gray-500">Audiencia:</span>
                     <span className="text-gray-300">{idea.target_audience}</span>
                   </div>
-
-                  <div className="flex items-center gap-2 text-sm">
-                    <span className="text-gray-500">Revenue:</span>
-                    <span className="text-green-400 font-semibold">{idea.potential_revenue}</span>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <span className={`px-3 py-1 text-xs font-medium border rounded-full ${getDifficultyColor(idea.difficulty)}`}>
-                      {idea.difficulty}
-                    </span>
-                    <span className="px-3 py-1 text-xs font-medium bg-gray-700 text-gray-300 rounded-full">
-                      {idea.category}
-                    </span>
-                  </div>
                 </div>
 
                 {/* Evidence */}

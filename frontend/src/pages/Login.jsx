@@ -105,6 +105,15 @@ export default function Login({ onLogin }) {
             </p>
           )}
         </div>
+
+        <div className="mt-6 text-center">
+          <a
+            href="/recover-password"
+            className="text-sm text-blue-400 hover:text-blue-300 font-medium transition-colors"
+          >
+            ¿Olvidaste tu contraseña?
+          </a>
+        </div>
       </div>
     </div>
   )

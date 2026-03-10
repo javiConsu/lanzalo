@@ -5,6 +5,7 @@ import GameState from '../components/GameState.jsx'
 import { apiUrl } from '../api.js'
 import TrialBadge from '../components/TrialBadge.jsx'
 import CreditsBadge from '../components/CreditsBadge.jsx'
+import BusinessTicker from '../components/BusinessTicker.jsx'
 
 export default function Dashboard({ user, onLogout }) {
   const location = useLocation()
@@ -84,6 +85,7 @@ export default function Dashboard({ user, onLogout }) {
         <div className="px-4 pt-3 flex flex-col gap-2">
           <TrialBadge user={user} />
           <CreditsBadge user={user} />
+          <BusinessTicker user={user} />
         </div>
 
         {/* Stats rápidas */}

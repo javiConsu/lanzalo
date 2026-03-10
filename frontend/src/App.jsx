@@ -13,8 +13,11 @@ import OnboardingSurvey from './pages/OnboardingSurvey'
 import OnboardingChoosePath from './pages/OnboardingChoosePath'
 import OnboardingChooseIdea from './pages/OnboardingChooseIdea'
 import AdminDashboard from './pages/AdminDashboard'
+import CompanyDashboard from './pages/CompanyDashboard'
 import Paywall from './components/Paywall'
 import BusinessHub from './pages/BusinessHub'
+import RecoverPassword from './pages/RecoverPassword'
+import RecoverPasswordConfirm from './pages/RecoverPasswordConfirm'
 
 function App() {
   const [token, setToken] = useState(localStorage.getItem('token'))
@@ -63,6 +66,10 @@ function App() {
   return (
     <Router>
       <Routes>
+        {/* Recover Password Routes */}
+        <Route path="/recover-password" element={<RecoverPassword />} />
+        <Route path="/reset-password-confirm" element={<RecoverPasswordConfirm />} />
+
         <Route path="/onboarding/survey" element={<OnboardingSurvey />} />
         <Route path="/onboarding/choose-path" element={<OnboardingChoosePath />} />
         <Route path="/onboarding/choose-idea" element={<OnboardingChooseIdea />} />
@@ -78,6 +85,7 @@ function App() {
         </Route>
 
         <Route path="/admin" element={user?.is_admin ? <AdminDashboard /> : <Navigate to="/" replace />} />
+        <Route path="/company" element={<CompanyDashboard user={user} onLogout={handleLogout} />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>

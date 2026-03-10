@@ -6,7 +6,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, TrendingUp, Users, DollarSign, Target, Loader2, ArrowRight } from 'lucide-react';
-import api from '../lib/api';
+import { apiUrl } from '../api.js';
 
 export default function OnboardingChooseIdea() {
   const navigate = useNavigate();

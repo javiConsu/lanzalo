@@ -3,6 +3,7 @@
  * TODO: Implementar panel completo con métricas y gestión de empresas
  */
 import { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import { apiUrl } from '../api.js'
 
 export default function AdminDashboard() {
@@ -24,7 +25,13 @@ export default function AdminDashboard() {
         <div className="flex items-center gap-3 mb-8">
           <span className="text-3xl">👑</span>
           <h1 className="text-2xl font-bold text-white">Admin Panel</h1>
-          <a href="/" className="ml-auto text-sm text-gray-400 hover:text-white">← Volver al dashboard</a>
+          <Link to="/" className="ml-auto text-sm text-gray-400 hover:text-white">← Volver al dashboard</Link>
+          <Link
+            to="/company"
+            className="ml-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-xl transition-all flex items-center gap-2"
+          >
+            <span>📋</span> Company Dashboard
+          </Link>
         </div>
 
         {stats ? (
