@@ -21,6 +21,7 @@ import Paywall from './components/Paywall'
 import BusinessHub from './pages/BusinessHub'
 import RecoverPassword from './pages/RecoverPassword'
 import RecoverPasswordConfirm from './pages/RecoverPasswordConfirm'
+import Settings from './pages/Settings'
 
 function App() {
   const [token, setToken] = useState(localStorage.getItem('token'))
