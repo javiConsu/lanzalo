@@ -135,6 +135,113 @@ class BudgetManager {
     const budget = await this.getBudget(companyId, agentRole);
     return (budget.used + amount) <= budget.total;
   }
+
+  // Compatibility functions for governance-helper
+  async checkBudget(agentType, tokensUsed = 0, hoursUsed = 0) {
+    const budget = this.budgets[agentType];
+    if (!budget) {
+      throw new Error(`Unknown agent type: ${agentType}`);
+    }
+
+    const estimatedCost = (tokensUsed * 0.00015) + (hoursUsed * budget.total / 24);
+
+    if (estimatedCost >= budget.total) {
+      return {
+        allowed: false,
+        current_cost: estimatedCost.toFixed(4),
+        daily_budget: budget.total,
+        remaining_budget: (budget.total - estimatedCost).toFixed(4),
+        error: 'Budget exceeded'
+      };
+    }
+
+    return {
+      allowed: true,
+      current_cost: estimatedCost.toFixed(4),
+      daily_budget: budget.total,
+      remaining_budget: (budget.total - estimatedCost).toFixed(4)
+    };
+  }
+
+  async recordUsage(agentType, tokensUsed = 0, hoursUsed = 0) {
+    const budget = this.budgets[agentType];
+    if (!budget) {
+      throw new Error(`Unknown agent type: ${agentType}`);
+    }
+
+    try {
+      await pool.query(
+        `INSERT INTO agent_usage (agent_type, company_id, total_tokens, total_hours)
+         VALUES ($1, NULL, $2, $3)
+         ON CONFLICT (agent_type, company_id)
+         DO UPDATE SET total_tokens = agent_usage.total_tokens + $2,
+                      total_hours = agent_usage.total_hours + $3`,
+        [agentType, tokensUsed, hoursUsed]
+      );
+    } catch (error) {
+      console.error('[BudgetManager] Error recording usage:', error);
+    }
+  }
+
+  async getBudgetStatus(agentType) {
+    const budget = this.budgets[agentType];
+    if (!budget) {
+      throw new Error(`Unknown agent type: ${agentType}`);
+    }
+
+    try {
+      const result = await pool.query(
+        'SELECT total_tokens, total_hours FROM agent_usage WHERE agent_type = $1 ORDER BY created_at DESC LIMIT 1',
+        [agentType]
+      );
+
+      const usage = result.rows[0] || { total_tokens: 0, total_hours: 0 };
+
+      const estimatedCost = (usage.total_tokens * 0.00015) + (usage.total_hours * budget.total / 24);
+
+      return {
+        agent_type: agentType,
+        name: agentType,
+        daily_budget: budget.total,
+        hourly_cost: budget.total / 24,
+        token_cost: 0.00015,
+        current_cost: estimatedCost.toFixed(4),
+        remaining_budget: (budget.total - estimatedCost).toFixed(4),
+        status: parseFloat((budget.total - estimatedCost)) < 1 ? 'warning' : 'ok'
+      };
+    } catch (error) {
+      console.error('[BudgetManager] Error getting budget status:', error);
+      return {
+        agent_type: agentType,
+        name: agentType,
+        daily_budget: budget.total,
+        hourly_cost: budget.total / 24,
+        token_cost: 0.00015,
+        current_cost: '0.0000',
+        remaining_budget: budget.total.toFixed(4),
+        status: 'ok'
+      };
+    }
+  }
+
+  async getAllBudgets() {
+    const budgets = await Promise.all(
+      Object.keys(this.budgets).map(agentType => this.getBudgetStatus(agentType))
+    );
+
+    return {
+      budgets,
+      summary: {
+        total_agents: budgets.length,
+        total_daily_budget: budgets.reduce((sum, b) => sum + b.daily_budget, 0),
+        total_current_cost: budgets.reduce((sum, b) => sum + parseFloat(b.current_cost), 0),
+        total_remaining: budgets.reduce((sum, b) => sum + parseFloat(b.remaining_budget), 0)
+      }
+    };
+  }
 }
 
-module.exports = new BudgetManager();
+const instance = new BudgetManager();
+
+module.exports = instance;
+module.exports.BUDGETS = instance.budgets;

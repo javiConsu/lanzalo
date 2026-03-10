@@ -3,9 +3,9 @@
  * Para ser usado por todos los agentes de Lanzalo
  */
 
-const budgetManager = require('./services/budget-manager');
-const governance = require('./services/governance');
-const heartbeat = require('./services/heartbeat');
+const budgetManager = require('./budget-manager');
+const governance = require('./governance');
+const heartbeat = require('./heartbeat');
 const { pool } = require('../db');
 
 /**
