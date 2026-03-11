@@ -147,7 +147,7 @@ function requireAdmin(req, res, next) {
  */
 async function requireCompanyAccess(req, res, next) {
   try {
-    const companyId = req.params.companyId || req.body.company_id || req.headers['x-company-id'];
+    const companyId = req.params.companyId || req.params.id || req.body.company_id || req.headers['x-company-id'];
     
     if (!companyId) {
       return res.status(400).json({ 
