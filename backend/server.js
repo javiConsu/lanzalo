@@ -63,6 +63,7 @@ app.use('/api/companies', require('./routes/companies'));  // Deprecated - usar 
 app.use('/api/tasks', require('./routes/tasks'));          // Deprecated - usar /api/user/companies/:id/tasks
 app.use('/api', require('./routes/ideas'));              // Ideas marketplace (public + auth)
 app.use('/api/analytics', require('./routes/analytics'));
+app.use('/api/activity', require('./routes/activity')); // Live activity feed
 app.use('/api/payments', require('./routes/payments'));
 app.use('/api/budgets', require('./routes/budgets'));
 app.use('/api/governance', require('./routes/governance'));

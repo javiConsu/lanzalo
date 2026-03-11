@@ -24,6 +24,7 @@ import RecoverPasswordConfirm from './pages/RecoverPasswordConfirm'
 import Settings from './pages/Settings'
 import Chat from './pages/Chat'
 import Metrics from './pages/Metrics'
+import LiveFeedPage from './pages/LiveFeedPage'
 
 function App() {
   const [token, setToken] = useState(localStorage.getItem('token'))
@@ -187,6 +188,7 @@ function App() {
 
         <Route path="/admin" element={user?.is_admin ? <AdminDashboard /> : <Navigate to="/" replace />} />
         <Route path="/company" element={<CompanyDashboard user={user} onLogout={handleLogout} />} />
+        <Route path="/live" element={user ? <LiveFeedPage /> : <Navigate to="/" replace />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>

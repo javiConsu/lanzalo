@@ -61,6 +61,7 @@ export default function Dashboard({ user, onLogout }) {
     { path: '/backlog', icon: '📋', label: 'Backlog' },
     { path: '/metrics', icon: '📊', label: 'Métricas' },
     { path: '/company', icon: '🏢', label: 'Control Center' },
+    { path: '/live', icon: '⚡', label: 'Live Feed' },
   ]
 
   return (
