@@ -3,9 +3,10 @@
 -- Purpose: Enable Paperclip integration for agent management
 
 -- Budget History Table
+-- Fix: company_id es UUID (companies.id es UUID, no INTEGER)
 CREATE TABLE IF NOT EXISTS budget_history (
   id SERIAL PRIMARY KEY,
-  company_id INTEGER NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+  company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
   agent_role VARCHAR(50) NOT NULL,
   used_amount DECIMAL(10, 2) NOT NULL,
   total_amount DECIMAL(10, 2) NOT NULL,
@@ -14,15 +15,15 @@ CREATE TABLE IF NOT EXISTS budget_history (
   created_at TIMESTAMP DEFAULT NOW()
 );
 
-CREATE INDEX idx_budget_history_company ON budget_history(company_id);
-CREATE INDEX idx_budget_history_agent ON budget_history(agent_role);
-CREATE INDEX idx_budget_history_date ON budget_history(recorded_at);
+CREATE INDEX IF NOT EXISTS idx_budget_history_company ON budget_history(company_id);
+CREATE INDEX IF NOT EXISTS idx_budget_history_agent ON budget_history(agent_role);
+CREATE INDEX IF NOT EXISTS idx_budget_history_date ON budget_history(recorded_at);
 
 -- Governance Events Table
 CREATE TABLE IF NOT EXISTS governance_events (
   id SERIAL PRIMARY KEY,
-  company_id INTEGER NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
-  agent_id INTEGER NOT NULL,
+  company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+  agent_id TEXT NOT NULL,
   agent_name VARCHAR(100) NOT NULL,
   agent_role VARCHAR(50) NOT NULL,
   action VARCHAR(50) NOT NULL, -- pause, resume, terminate
@@ -31,15 +32,15 @@ CREATE TABLE IF NOT EXISTS governance_events (
   created_at TIMESTAMP DEFAULT NOW()
 );
 
-CREATE INDEX idx_governance_events_company ON governance_events(company_id);
-CREATE INDEX idx_governance_events_agent ON governance_events(agent_id);
-CREATE INDEX idx_governance_events_action ON governance_events(action);
-CREATE INDEX idx_governance_events_date ON governance_events(created_at);
+CREATE INDEX IF NOT EXISTS idx_governance_events_company ON governance_events(company_id);
+CREATE INDEX IF NOT EXISTS idx_governance_events_agent ON governance_events(agent_id);
+CREATE INDEX IF NOT EXISTS idx_governance_events_action ON governance_events(action);
+CREATE INDEX IF NOT EXISTS idx_governance_events_date ON governance_events(created_at);
 
 -- Heartbeat Logs Table
 CREATE TABLE IF NOT EXISTS heartbeat_logs (
   id SERIAL PRIMARY KEY,
-  company_id INTEGER NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+  company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
   agent_role VARCHAR(50) NOT NULL,
   timestamp TIMESTAMP NOT NULL,
   status VARCHAR(20) DEFAULT 'healthy', -- healthy, warning, unhealthy, timeout
@@ -152,23 +153,23 @@ WHERE NOT EXISTS (
 ON CONFLICT DO NOTHING;
 
 -- Helper function to update agent status
-CREATE OR REPLACE FUNCTION update_agent_status(company_id INTEGER, agent_id INTEGER, status VARCHAR)
+CREATE OR REPLACE FUNCTION update_agent_status(p_company_id UUID, p_agent_id TEXT, p_status VARCHAR)
 RETURNS VOID AS $$
 BEGIN
   UPDATE tasks
-  SET status = status
-  WHERE company_id = company_id AND id = agent_id;
+  SET status = p_status
+  WHERE company_id = p_company_id AND id::TEXT = p_agent_id;
 END;
 $$ LANGUAGE plpgsql;
 
 -- Helper function to record heartbeat
-CREATE OR REPLACE FUNCTION record_heartbeat(company_id INTEGER, agent_role VARCHAR, status VARCHAR)
+CREATE OR REPLACE FUNCTION record_heartbeat(p_company_id UUID, p_agent_role VARCHAR, p_status VARCHAR)
 RETURNS INTEGER AS $$
 DECLARE
   heartbeat_id INTEGER;
 BEGIN
   INSERT INTO heartbeat_logs (company_id, agent_role, status, timestamp, recorded_at)
-  VALUES (company_id, agent_role, status, NOW(), NOW())
+  VALUES (p_company_id, p_agent_role, p_status, NOW(), NOW())
   RETURNING id INTO heartbeat_id;
 
   RETURN heartbeat_id;

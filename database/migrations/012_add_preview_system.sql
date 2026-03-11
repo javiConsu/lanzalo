@@ -72,6 +72,19 @@ CREATE TABLE IF NOT EXISTS preview_versions (
   UNIQUE(preview_id, version_number)
 );
 
+-- Añadir columnas que pueden faltar si la tabla ya existía (idempotente)
+ALTER TABLE build_previews ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES users(id) ON DELETE CASCADE;
+ALTER TABLE build_previews ADD COLUMN IF NOT EXISTS description TEXT;
+ALTER TABLE build_previews ADD COLUMN IF NOT EXISTS industry TEXT;
+ALTER TABLE build_previews ADD COLUMN IF NOT EXISTS template_id TEXT;
+ALTER TABLE build_previews ADD COLUMN IF NOT EXISTS preview_html TEXT;
+ALTER TABLE build_previews ADD COLUMN IF NOT EXISTS preview_images TEXT;
+ALTER TABLE build_previews ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'pending';
+ALTER TABLE build_previews ADD COLUMN IF NOT EXISTS approved_at TIMESTAMP;
+ALTER TABLE build_previews ADD COLUMN IF NOT EXISTS rejected_at TIMESTAMP;
+ALTER TABLE build_previews ADD COLUMN IF NOT EXISTS rejection_reason TEXT;
+ALTER TABLE build_previews ADD COLUMN IF NOT EXISTS expires_at TIMESTAMP;
+
 -- Indexes
 CREATE INDEX IF NOT EXISTS idx_build_previews_company ON build_previews(company_id);
 CREATE INDEX IF NOT EXISTS idx_build_previews_user ON build_previews(user_id);
