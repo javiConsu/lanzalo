@@ -37,6 +37,7 @@ const migrationFiles = [
   { name: '025_add_feedback_daily_reports.sql', file: path.join(__dirname, '..', 'database', 'migrations', '025_add_feedback_daily_reports.sql') },
   { name: '026_budgets_governance_heartbeat.sql', file: path.join(__dirname, '..', 'database', 'migrations', '026_budgets_governance_heartbeat.sql') },
   { name: '027_add_password_reset_tokens_v1.sql', file: path.join(__dirname, '..', 'database', 'migrations', '027_add_password_reset_tokens_v1.sql') },
+  { name: '028_add_users_credits_column.sql', file: path.join(__dirname, '..', 'database', 'migrations', '028_add_users_credits_column.sql') },
 ];
 
 async function runMigrations() {
