@@ -15,6 +15,11 @@ import OnboardingSurvey from './pages/OnboardingSurvey'
 import OnboardingChoosePath from './pages/OnboardingChoosePath'
 import OnboardingChooseIdea from './pages/OnboardingChooseIdea'
 import OnboardingDescribeIdea from './pages/OnboardingDescribeIdea'
+import OnboardingFounderProfile from './pages/OnboardingFounderProfile'
+import OnboardingIdeaSource from './pages/OnboardingIdeaSource'
+import ViabilityAnalysis from './pages/ViabilityAnalysis'
+import Plan14Days from './pages/Plan14Days'
+import CofundadorDashboard from './pages/CofundadorDashboard'
 import AdminDashboard from './pages/AdminDashboard'
 import CompanyDashboard from './pages/CompanyDashboard'
 import Paywall from './components/Paywall'
@@ -164,16 +169,26 @@ function App() {
         <Route path="/recover-password" element={<RecoverPassword />} />
         <Route path="/reset-password-confirm" element={<RecoverPasswordConfirm />} />
 
+        {/* Onboarding MVP — nuevo flujo */}
+        <Route path="/onboarding/perfil" element={<OnboardingFounderProfile />} />
+        <Route path="/onboarding/idea-source" element={<OnboardingIdeaSource />} />
+        <Route path="/onboarding/viabilidad" element={<ViabilityAnalysis />} />
+        <Route path="/onboarding/plan-14-dias" element={<Plan14Days />} />
+
+        {/* Onboarding legacy — compatibilidad */}
         <Route path="/onboarding/survey" element={<OnboardingSurvey />} />
         <Route path="/onboarding/choose-path" element={<OnboardingChoosePath />} />
         <Route path="/onboarding/choose-idea" element={<OnboardingChooseIdea />} />
         <Route path="/onboarding/describe-idea" element={<OnboardingDescribeIdea />} />
         <Route path="/discovery" element={<Discovery />} />
         <Route path="/discovery/analysis" element={<DiscoveryAnalysis />} />
-        
+
+        {/* Co-Fundador Dashboard */}
+        <Route path="/co-fundador" element={<CofundadorDashboard />} />
+
         <Route path="/" element={
-          needsOnboarding 
-            ? <Navigate to="/onboarding/survey" replace /> 
+          needsOnboarding
+            ? <Navigate to="/onboarding/perfil" replace />
             : <Dashboard user={user} onLogout={handleLogout} />
         }>
           <Route index element={user?.isTrialExpired ? <Paywall user={user} /> : <DashboardHome />} />

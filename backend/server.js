@@ -80,6 +80,8 @@ app.get('/api/verify-magic', require('./routes/verify-magic'));
 
 app.use('/api', require('./routes/ceo-chat')); // Co-Founder Agent chat
 app.use('/api/credits', require('./routes/credits')); // Sistema de créditos
+app.use('/api/analysis', require('./routes/analysis')); // Análisis de viabilidad MVP
+app.use('/api/plans', require('./routes/plans')); // Planes de 14 días MVP
 app.use('/api/changes', require('./routes/change-requests')); // Cambios en assets (gratis)
 app.use('/api', require('./routes/feedback')); // User feedback (thumbs up/down)
 

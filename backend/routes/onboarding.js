@@ -186,12 +186,56 @@ router.post('/survey', authenticate, async (req, res) => {
 });
 
 /**
+ * POST /api/onboarding/founder-profile
+ * Guardar perfil del founder en users.survey_data
+ */
+router.post('/founder-profile', authenticate, async (req, res) => {
+  try {
+    const { motivation, timeAvailable, experience } = req.body;
+
+    if (!motivation || !timeAvailable || !experience) {
+      return res.status(400).json({ error: 'motivation, timeAvailable y experience son requeridos' });
+    }
+
+    // Inferir riskTolerance y recommendedPath
+    let riskTolerance = 'medium';
+    if (motivation === 'startup' || experience === 'experienced') riskTolerance = 'high';
+    if (motivation === 'extra_income' && experience === 'first_time') riskTolerance = 'low';
+
+    let recommendedPath = 'quick_idea';
+    if (experience === 'first_time' || motivation === 'learning') recommendedPath = 'idea_browser';
+
+    const founderProfile = { motivation, timeAvailable, experience, riskTolerance, recommendedPath };
+
+    // Merge con survey_data existente
+    const existing = await pool.query('SELECT survey_data FROM users WHERE id = $1', [req.user.id]);
+    const existingData = existing.rows[0]?.survey_data || {};
+    const merged = { ...existingData, founderProfile };
+
+    await pool.query(
+      'UPDATE users SET survey_data = $1 WHERE id = $2',
+      [JSON.stringify(merged), req.user.id]
+    );
+
+    res.json({
+      success: true,
+      founderProfile,
+      redirect: '/onboarding/idea-source'
+    });
+
+  } catch (error) {
+    console.error('[Onboarding] founder-profile error:', error);
+    res.status(500).json({ error: 'Failed to save founder profile' });
+  }
+});
+
+/**
  * POST /api/onboarding/create-company
  * Create company from user's idea OR from validated idea
  */
 router.post('/create-company', authenticate, async (req, res) => {
   try {
-    const { source, ideaId, name, description, audience } = req.body;
+    const { source, ideaId, name, description, audience, targetCustomer, problem, unfairAdvantage } = req.body;
 
     // ─── Check business slots ───
     const slotCheck = await pool.query(
@@ -261,12 +305,15 @@ router.post('/create-company', authenticate, async (req, res) => {
       companyData = {
         name: placeholderName,
         description,
-        audience: audience || 'General',
+        audience: audience || targetCustomer || 'General',
         source: 'user_idea',
-        sourceId: null
+        sourceId: null,
+        targetCustomer: targetCustomer || null,
+        problem: problem || null,
+        unfairAdvantage: unfairAdvantage || null
       };
     }
-    
+
     // Create company
     const companyId = crypto.randomUUID();
     const subdomain = companyData.name
@@ -274,13 +321,24 @@ router.post('/create-company', authenticate, async (req, res) => {
       .replace(/[^a-z0-9]/g, '-')
       .replace(/-+/g, '-')
       .substring(0, 30);
-    
+
+    // Guardar ideaData en metadata para análisis de viabilidad
+    const ideaMetadata = {
+      ideaData: {
+        description: companyData.description,
+        targetCustomer: companyData.targetCustomer,
+        problem: companyData.problem,
+        unfairAdvantage: companyData.unfairAdvantage
+      },
+      viabilityStatus: 'pending'
+    };
+
     await pool.query(
-      `INSERT INTO companies 
-       (id, user_id, name, description, subdomain, industry, status, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6, 'planning', NOW())`,
+      `INSERT INTO companies
+       (id, user_id, name, description, subdomain, industry, status, metadata, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, 'planning', $7, NOW())`,
       [companyId, req.user.id, companyData.name, companyData.description,
-       subdomain, companyData.audience]
+       subdomain, companyData.audience, JSON.stringify(ideaMetadata)]
     );
     
     console.log(`[Onboarding] Company created: ${companyData.name} (${companyId})`);
@@ -403,8 +461,8 @@ IMPORTANTE:
         status: 'planning'
       },
       validationTaskId: taskId,
-      message: 'Empresa creada. Research Agent validando tu idea...',
-      redirect: `/chat/${companyId}`
+      message: 'Empresa creada. Iniciando análisis de viabilidad...',
+      redirect: `/onboarding/viabilidad`
     });
     
   } catch (error) {
