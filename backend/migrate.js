@@ -5,7 +5,7 @@ const path = require('path');
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.DATABASE_URL && process.env.DATABASE_URL.includes('railway') ? { rejectUnauthorized: false } : false
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 
 // Solo las migraciones numeradas (schema base se aplica inline en la ruta)
@@ -35,6 +35,7 @@ const migrationFiles = [
   { name: '024_add_support_feedback.sql', file: path.join(__dirname, '..', 'database', 'migrations', '024_add_support_feedback.sql') },
   { name: '025_add_feedback_daily_reports.sql', file: path.join(__dirname, '..', 'database', 'migrations', '025_add_feedback_daily_reports.sql') },
   { name: '026_budgets_governance_heartbeat.sql', file: path.join(__dirname, '..', 'database', 'migrations', '026_budgets_governance_heartbeat.sql') },
+  { name: '027_add_password_reset_tokens_v1.sql', file: path.join(__dirname, '..', 'database', 'migrations', '027_add_password_reset_tokens_v1.sql') },
 ];
 
 async function runMigrations() {
