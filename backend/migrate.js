@@ -21,6 +21,7 @@ const migrationFiles = [
   { name: '009_add_daily_syncs.sql', file: path.join(__dirname, '..', 'database', 'migrations', '009_add_daily_syncs.sql') },
   { name: '010_add_onboarding_fields.sql', file: path.join(__dirname, '..', 'database', 'migrations', '010_add_onboarding_fields.sql') },
   { name: '011_add_discovery_fields.sql', file: path.join(__dirname, '..', 'database', 'migrations', '011_add_discovery_fields.sql') },
+  { name: '012_add_preview_system.sql', file: path.join(__dirname, '..', 'database', 'migrations', '012_add_preview_system.sql') },
   { name: '013_fix_missing_columns.sql', file: path.join(__dirname, '..', 'database', 'migrations', '013_fix_missing_columns.sql') },
   { name: '014_add_gamification.sql', file: path.join(__dirname, '..', 'database', 'migrations', '014_add_gamification.sql') },
   { name: '015_add_credits.sql', file: path.join(__dirname, '..', 'database', 'migrations', '015_add_credits.sql') },
