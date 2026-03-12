@@ -53,7 +53,7 @@ router.get('/', async (req, res) => {
 
     if (agentType) {
       paramCount++;
-      whereExtra += ` AND t.agent_type = $${paramCount}`;
+      whereExtra += ` AND t.tag = $${paramCount}`;
       params.push(agentType);
     }
 
@@ -77,7 +77,7 @@ router.get('/', async (req, res) => {
         a.created_at,
         c.name AS company_name,
         t.title AS task_title,
-        t.agent_type
+        t.tag AS agent_type
        FROM activity_log a
        JOIN companies c ON a.company_id = c.id
        LEFT JOIN tasks t ON a.task_id = t.id
