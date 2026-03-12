@@ -32,35 +32,36 @@ import Chat from './pages/Chat'
 import Metrics from './pages/Metrics'
 import LiveFeedPage from './pages/LiveFeedPage'
 
-// Error Boundary — si algo crashea, limpia token y muestra landing
 class ErrorBoundary extends Component {
   constructor(props) {
     super(props)
-    this.state = { hasError: false }
+    this.state = { hasError: false, error: null, errorInfo: null }
   }
 
-  static getDerivedStateFromError() {
-    return { hasError: true }
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error }
   }
 
   componentDidCatch(error, errorInfo) {
-    console.error('App crash detectado:', error, errorInfo)
-    // Limpiar token corrupto para evitar loops
-    localStorage.removeItem('token')
-    localStorage.removeItem('user')
+    console.error('App crash:', error, errorInfo)
+    this.setState({ errorInfo })
   }
 
   render() {
     if (this.state.hasError) {
       return (
-        <div style={{ minHeight: '100vh', background: '#0d1117', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#c9d1d9', fontFamily: 'Inter, sans-serif' }}>
-          <h2 style={{ color: '#00ff87', marginBottom: '16px' }}>Algo salió mal</h2>
-          <p style={{ marginBottom: '24px', color: '#8b949e' }}>Se ha limpiado la sesión. Recarga la página.</p>
+        <div style={{ minHeight: '100vh', background: '#0d1117', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#c9d1d9', fontFamily: 'monospace', padding: '20px' }}>
+          <h2 style={{ color: '#f85149', marginBottom: '16px' }}>Error en el dashboard</h2>
+          <pre style={{ background: '#161b22', border: '1px solid #30363d', borderRadius: '8px', padding: '16px', maxWidth: '90vw', width: '600px', overflow: 'auto', fontSize: '11px', color: '#f0883e', marginBottom: '16px', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+            {this.state.error?.toString()}
+            {'\n\n'}
+            {this.state.errorInfo?.componentStack?.slice(0, 800)}
+          </pre>
           <button
             onClick={() => { localStorage.clear(); window.location.href = '/' }}
             style={{ padding: '12px 32px', background: '#00ff87', color: '#0d1117', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, fontSize: '16px' }}
           >
-            Recargar
+            Limpiar sesion y recargar
           </button>
         </div>
       )
@@ -78,13 +79,12 @@ function App() {
 
   useEffect(() => {
     if (token) {
-      // Verificar token válido
       setLoading(true)
       fetch(apiUrl('/api/user/profile'), {
         headers: { 'Authorization': `Bearer ${token}` }
       })
         .then(res => {
-          if (!res.ok) throw new Error('Token inválido')
+          if (!res.ok) throw new Error('Token invalido')
           return res.json()
         })
         .then(data => {
@@ -124,10 +124,8 @@ function App() {
     setShowLogin(true)
   }
 
-  // Check if we're on /admin path (before Router mounts)
   const isAdminPath = window.location.pathname === '/admin'
 
-  // /admin has its own self-contained auth — always render it
   if (isAdminPath) {
     return (
       <ErrorBoundary>
@@ -140,7 +138,6 @@ function App() {
     )
   }
 
-  // Loading user profile
   if (loading) {
     return (
       <div style={{ minHeight: '100vh', background: '#0d1117', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#c9d1d9', fontFamily: 'Inter, sans-serif' }}>
@@ -152,15 +149,12 @@ function App() {
     )
   }
 
-  // Not authenticated: show landing or login
   if (!token) {
-    // Preserve referral code through login flow
     const urlParams = new URLSearchParams(window.location.search)
     if (urlParams.get('ref')) {
       localStorage.setItem('pendingRef', urlParams.get('ref'))
     }
 
-    // Detect password reset token in URL
     const resetToken = urlParams.get('reset_token')
     if (resetToken) {
       return (
@@ -174,13 +168,11 @@ function App() {
       )
     }
 
-    // Preserve feedback deep-link params through login flow
     if (urlParams.get('feedback') && urlParams.get('company')) {
       localStorage.setItem('pendingFeedback', JSON.stringify({
         feedback: urlParams.get('feedback'),
         company: urlParams.get('company')
       }))
-      // Auto-show login for feedback deep-links
       if (!showLogin) {
         setLoginMode('login')
         setShowLogin(true)
@@ -200,36 +192,26 @@ function App() {
     return <LandingPage onNavigateToLogin={handleNavigateToLogin} />
   }
 
-  // Determine if user needs onboarding
   const needsOnboarding = user && user.onboardingCompleted === false
 
-  // Authenticated: show app
   return (
     <ErrorBoundary>
       <Router>
         <Routes>
-          {/* Recover Password Routes */}
           <Route path="/recover-password" element={<RecoverPassword />} />
           <Route path="/recover-password/confirm" element={<RecoverPasswordConfirm />} />
-
-          {/* Onboarding MVP — nuevo flujo */}
           <Route path="/onboarding" element={<OnboardingSurvey user={user} token={token} />} />
           <Route path="/onboarding/choose-path" element={<OnboardingChoosePath user={user} token={token} />} />
           <Route path="/onboarding/choose-idea" element={<OnboardingChooseIdea user={user} token={token} />} />
           <Route path="/onboarding/describe-idea" element={<OnboardingDescribeIdea user={user} token={token} />} />
           <Route path="/onboarding/founder-profile" element={<OnboardingFounderProfile user={user} token={token} />} />
-
-          {/* Onboarding legacy — compatibilidad */}
           <Route path="/onboarding/idea-source" element={<OnboardingIdeaSource user={user} token={token} />} />
           <Route path="/onboarding/idea-browser" element={<OnboardingIdeaBrowser user={user} token={token} />} />
           <Route path="/onboarding/viability" element={<ViabilityAnalysis user={user} token={token} />} />
           <Route path="/onboarding/plan" element={<Plan14Days user={user} token={token} />} />
           <Route path="/cofundador" element={<CofundadorDashboard user={user} token={token} />} />
           <Route path="/company/:companyId" element={<CompanyDashboard user={user} token={token} />} />
-
-          {/* Co-Fundador Dashboard */}
           <Route path="/paywall" element={<Paywall user={user} token={token} />} />
-
           <Route path="/dashboard" element={needsOnboarding ? <Navigate to="/onboarding" /> : <Dashboard user={user} token={token} onLogout={handleLogout} />}>
             <Route index element={needsOnboarding ? <Navigate to="/onboarding" /> : <DashboardHome user={user} token={token} />} />
             <Route path="agents" element={needsOnboarding ? <Navigate to="/onboarding" /> : <AgentOffice user={user} token={token} />} />
@@ -241,7 +223,6 @@ function App() {
             <Route path="hub" element={<BusinessHub user={user} token={token} />} />
             <Route path="settings" element={<Settings user={user} token={token} />} />
           </Route>
-
           <Route path="/chat" element={needsOnboarding ? <Navigate to="/onboarding" /> : <Chat user={user} token={token} onLogout={handleLogout} />} />
           <Route path="/metrics" element={<Metrics user={user} token={token} />} />
           <Route path="/live" element={needsOnboarding ? <Navigate to="/onboarding" /> : <LiveFeedPage user={user} token={token} onLogout={handleLogout} />} />
