@@ -398,9 +398,11 @@ function createToolHandlers(companyId, userId) {
         return { error: 'El nombre debe tener entre 1 y 100 caracteres' };
       }
       const newSubdomain = newName
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
         .toLowerCase()
         .replace(/[^a-z0-9]/g, '-')
         .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '')
         .substring(0, 30);
       
       const result = await pool.query(

@@ -318,6 +318,7 @@ router.post('/create-company', authenticate, async (req, res) => {
     const companyId = crypto.randomUUID();
     // Sufijo random de 5 chars hex para evitar colisiones de UNIQUE constraint
     const subdomainBase = companyData.name
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
       .toLowerCase()
       .replace(/[^a-z0-9]/g, '-')
       .replace(/-+/g, '-')

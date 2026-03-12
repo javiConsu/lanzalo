@@ -23,7 +23,13 @@ async function getCompanyById(id) {
 }
 
 async function createCompany(userId, name, description, industry) {
-  const subdomain = name.toLowerCase().replace(/[^a-z0-9]/g, '-');
+  const subdomain = name
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+    .substring(0, 30);
   const result = await pool.query(
     `INSERT INTO companies (user_id, name, description, industry, subdomain)
      VALUES ($1, $2, $3, $4, $5) RETURNING *`,

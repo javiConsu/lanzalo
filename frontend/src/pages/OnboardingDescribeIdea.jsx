@@ -31,6 +31,7 @@ export default function OnboardingDescribeIdea() {
     catch { return {}; }
   })();
 
+  const [projectName, setProjectName] = useState(prefill.title || '');
   const [description, setDescription] = useState(prefill.description || '');
   const [targetCustomer, setTargetCustomer] = useState(prefill.targetCustomer || '');
   const [problem, setProblem] = useState(prefill.problem || '');
@@ -50,6 +51,7 @@ export default function OnboardingDescribeIdea() {
     try {
       const result = await api.post('/api/onboarding/create-company', {
         source: 'user_idea',
+        name: projectName.trim() || null,
         description: description.trim(),
         targetCustomer: targetCustomer.trim(),
         problem: problem.trim(),
@@ -126,6 +128,27 @@ export default function OnboardingDescribeIdea() {
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-6">
+
+          {/* Nombre preliminar */}
+          <div>
+            <label className="block text-xs font-mono text-[#8b949e] uppercase tracking-wider mb-2">
+              ¿Cómo quieres llamar a tu proyecto?
+              <span className="text-[#484f58] ml-2">(opcional — tu co-founder te propondrá nombres)</span>
+            </label>
+            <input
+              type="text"
+              value={projectName}
+              onChange={(e) => setProjectName(e.target.value)}
+              placeholder="Ej: RestauFlow, InventaFácil, GestiBar..."
+              className="w-full bg-[#0d1117] border border-[#21262d] hover:border-[#30363d] rounded-lg px-4 py-3
+                       text-white placeholder-[#484f58] focus:border-[#00ff87]
+                       focus:ring-1 focus:ring-[#00ff87]/20 outline-none text-sm transition-colors"
+              maxLength={60}
+            />
+            <p className="text-[10px] font-mono text-[#484f58] mt-1">
+              No te preocupes si no tienes nombre — tu co-founder IA te propondrá 3 opciones al principio.
+            </p>
+          </div>
 
           {/* Descripción */}
           <div>
