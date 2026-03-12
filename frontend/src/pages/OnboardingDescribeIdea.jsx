@@ -24,9 +24,16 @@ function ProgressBar({ step, total }) {
 
 export default function OnboardingDescribeIdea() {
   const navigate = useNavigate();
-  const [description, setDescription] = useState('');
-  const [targetCustomer, setTargetCustomer] = useState('');
-  const [problem, setProblem] = useState('');
+
+  // Pre-rellenar si viene del IdeaBrowser
+  const prefill = (() => {
+    try { return JSON.parse(localStorage.getItem('lanzalo_prefill_idea') || '{}'); }
+    catch { return {}; }
+  })();
+
+  const [description, setDescription] = useState(prefill.description || '');
+  const [targetCustomer, setTargetCustomer] = useState(prefill.targetCustomer || '');
+  const [problem, setProblem] = useState(prefill.problem || '');
   const [unfairAdvantage, setUnfairAdvantage] = useState('');
   const [launching, setLaunching] = useState(false);
   const [error, setError] = useState(null);
@@ -53,6 +60,8 @@ export default function OnboardingDescribeIdea() {
         // Guardar companyId para el análisis de viabilidad
         localStorage.setItem('lanzalo_selected_company', result.company.id);
         localStorage.setItem('lanzalo_pending_analysis', result.company.id);
+        // Limpiar prefill del IdeaBrowser
+        localStorage.removeItem('lanzalo_prefill_idea');
         // Ir a la pantalla de análisis
         window.location.href = '/onboarding/viabilidad';
       } else if (result.code === 'NO_SLOTS') {

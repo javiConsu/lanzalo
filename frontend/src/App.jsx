@@ -17,6 +17,7 @@ import OnboardingChooseIdea from './pages/OnboardingChooseIdea'
 import OnboardingDescribeIdea from './pages/OnboardingDescribeIdea'
 import OnboardingFounderProfile from './pages/OnboardingFounderProfile'
 import OnboardingIdeaSource from './pages/OnboardingIdeaSource'
+import OnboardingIdeaBrowser from './pages/OnboardingIdeaBrowser'
 import ViabilityAnalysis from './pages/ViabilityAnalysis'
 import Plan14Days from './pages/Plan14Days'
 import CofundadorDashboard from './pages/CofundadorDashboard'
@@ -172,6 +173,7 @@ function App() {
         {/* Onboarding MVP — nuevo flujo */}
         <Route path="/onboarding/perfil" element={<OnboardingFounderProfile />} />
         <Route path="/onboarding/idea-source" element={<OnboardingIdeaSource />} />
+        <Route path="/onboarding/idea-browser" element={<OnboardingIdeaBrowser />} />
         <Route path="/onboarding/viabilidad" element={<ViabilityAnalysis />} />
         <Route path="/onboarding/plan-14-dias" element={<Plan14Days />} />
 

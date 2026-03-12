@@ -1,211 +1,115 @@
 /**
- * Onboarding Choose Path
- * User can: describe own idea (quick), deep discovery, or browse validated ideas
+ * Onboarding — Paso 1 de 3: Elige tu camino
+ * Minimalismo tecnico. IBM Plex Mono. Sin emoji.
  */
 
 import { useNavigate } from 'react-router-dom';
-import { Rocket, Lightbulb, TrendingUp, ArrowRight } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
+
+function ProgressBar({ step, total }) {
+  return (
+    <div className="flex items-center gap-2 mb-10">
+      {Array.from({ length: total }).map((_, i) => (
+        <div key={i} className="flex items-center gap-2">
+          <div className={`h-1 rounded-full transition-all duration-300 ${i < step ? 'bg-[#00ff87] w-8' : 'bg-[#21262d] w-6'}`} />
+          {i < total - 1 && <div className="w-1.5 h-1.5 rounded-full bg-[#21262d]" />}
+        </div>
+      ))}
+      <span className="text-xs font-mono text-[#484f58] ml-2">{step}/{total}</span>
+    </div>
+  )
+}
 
 export default function OnboardingChoosePath() {
   const navigate = useNavigate();
 
+  const paths = [
+    {
+      key: 'describe',
+      label: '01',
+      title: 'Tengo una idea',
+      desc: 'Describela en 2 frases. El Co-Fundador IA la valida y arranca el build.',
+      detail: '30 segundos. El camino mas rapido.',
+      color: '#00ff87',
+      recommended: true,
+      onClick: () => navigate('/onboarding/describe-idea'),
+    },
+    {
+      key: 'discovery',
+      label: '02',
+      title: 'Quiero explorar',
+      desc: 'Strategic Discovery completo: 28 preguntas, unfair advantages, 3-5 paths con plan de 90 dias.',
+      detail: '15-20 minutos. Muy profundo.',
+      color: '#3b82f6',
+      recommended: false,
+      onClick: () => navigate('/discovery'),
+    },
+    {
+      key: 'ideas',
+      label: '03',
+      title: 'Sin idea aun',
+      desc: 'Explora 50+ ideas ya validadas con datos de demanda y competencia. 1-click launch.',
+      detail: 'Ideas con evidencia de mercado.',
+      color: '#f59e0b',
+      recommended: false,
+      onClick: () => navigate('/onboarding/choose-idea'),
+    },
+  ]
+
   return (
-    <div className="min-h-screen bg-gray-900 flex items-center justify-center px-4 py-12">
-      <div className="max-w-5xl w-full">
-        
+    <div className="min-h-screen bg-[#0a0e14] flex items-center justify-center px-4 py-12">
+      <div className="max-w-4xl w-full">
+
+        <ProgressBar step={1} total={3} />
+
         {/* Header */}
-        <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-white mb-4">
-            ¿Cómo quieres empezar?
+        <div className="mb-10">
+          <div className="text-xs font-mono text-[#484f58] uppercase tracking-widest mb-3">paso 1 de 3</div>
+          <h1 className="text-3xl sm:text-4xl font-bold text-white mb-3">
+            Como quieres empezar?
           </h1>
-          <p className="text-gray-400 text-lg">
-            Elige tu camino. Puedes cambiar después.
+          <p className="text-[#8b949e] text-sm max-w-md">
+            Elige tu camino. Puedes cambiar despues.
           </p>
         </div>
 
-        {/* Three Paths */}
-        <div className="grid md:grid-cols-3 gap-6">
-          
-          {/* Path 1: Quick - Describe Idea (RECOMMENDED) */}
-          <button
-            onClick={() => navigate('/onboarding/describe-idea')}
-            className="bg-gray-800 hover:bg-gray-750 border-2 border-emerald-500/50 
-                     hover:border-emerald-500 rounded-lg p-6 text-left transition-all
-                     group relative"
-          >
-            {/* Recommended badge */}
-            <div className="absolute -top-3 left-6">
-              <span className="px-3 py-1 bg-emerald-600 text-white text-xs font-bold rounded-full">
-                RECOMENDADO
-              </span>
-            </div>
+        {/* Paths */}
+        <div className="grid md:grid-cols-3 gap-4">
+          {paths.map((path) => (
+            <button
+              key={path.key}
+              onClick={path.onClick}
+              className="relative bg-[#0d1117] border border-[#21262d] hover:border-white/20 rounded-xl p-6 text-left transition-all group"
+            >
+              {path.recommended && (
+                <div className="absolute -top-2.5 left-5">
+                  <span className="bg-[#00ff87] text-black text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full">
+                    RECOMENDADO
+                  </span>
+                </div>
+              )}
 
-            <div className="flex items-start gap-3 mb-4 mt-2">
-              <div className="w-12 h-12 rounded-full bg-emerald-500/10 flex items-center 
-                            justify-center flex-shrink-0 group-hover:bg-emerald-500/20 transition-colors">
-                <Rocket className="w-6 h-6 text-emerald-500" />
+              <div className="font-mono text-3xl font-bold mb-4 tabular-nums" style={{ color: `${path.color}18` }}>
+                {path.label}
               </div>
-              <div>
-                <h2 className="text-xl font-bold text-white mb-1">
-                  Tengo mi idea clara
-                </h2>
-                <p className="text-gray-400 text-sm">
-                  Descríbela en 2 frases y lanza
-                </p>
-              </div>
-            </div>
 
-            <div className="space-y-2 mb-4">
-              <div className="flex items-start gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-2 flex-shrink-0" />
-                <p className="text-gray-300 text-sm">
-                  30 segundos y estás dentro
-                </p>
-              </div>
-              <div className="flex items-start gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-2 flex-shrink-0" />
-                <p className="text-gray-300 text-sm">
-                  Tu Co-Fundador IA valida al instante
-                </p>
-              </div>
-              <div className="flex items-start gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-2 flex-shrink-0" />
-                <p className="text-gray-300 text-sm">
-                  Empiezas a construir hoy
-                </p>
-              </div>
-            </div>
+              <h2 className="text-base font-semibold text-white mb-2">{path.title}</h2>
+              <p className="text-sm text-[#8b949e] leading-relaxed mb-4">{path.desc}</p>
 
-            <div className="flex items-center justify-between text-emerald-500 font-medium 
-                          group-hover:text-emerald-400">
-              <span>Describir idea</span>
-              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-            </div>
-
-            <div className="mt-3 pt-3 border-t border-gray-700">
-              <p className="text-gray-500 text-xs">
-                ⚡ El camino más rápido
-              </p>
-            </div>
-          </button>
-
-          {/* Path 2: Deep Discovery */}
-          <button
-            onClick={() => navigate('/discovery')}
-            className="bg-gray-800 hover:bg-gray-750 border-2 border-gray-700 
-                     hover:border-blue-500 rounded-lg p-6 text-left transition-all
-                     group"
-          >
-            <div className="flex items-start gap-3 mb-4">
-              <div className="w-12 h-12 rounded-full bg-blue-500/10 flex items-center 
-                            justify-center flex-shrink-0 group-hover:bg-blue-500/20 transition-colors">
-                <Lightbulb className="w-6 h-6 text-blue-500" />
+              <div className="pt-4 border-t border-[#21262d] flex items-center justify-between">
+                <span className="text-[10px] font-mono text-[#484f58]">{path.detail}</span>
+                <ArrowRight
+                  className="w-4 h-4 group-hover:translate-x-1 transition-transform flex-shrink-0"
+                  style={{ color: path.color }}
+                />
               </div>
-              <div>
-                <h2 className="text-xl font-bold text-white mb-1">
-                  Quiero explorar bien
-                </h2>
-                <p className="text-gray-400 text-sm">
-                  Strategic Discovery completo
-                </p>
-              </div>
-            </div>
-
-            <div className="space-y-2 mb-4">
-              <div className="flex items-start gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-2 flex-shrink-0" />
-                <p className="text-gray-300 text-sm">
-                  28 preguntas sobre TU situación
-                </p>
-              </div>
-              <div className="flex items-start gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-2 flex-shrink-0" />
-                <p className="text-gray-300 text-sm">
-                  Unfair Advantages detectadas
-                </p>
-              </div>
-              <div className="flex items-start gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-2 flex-shrink-0" />
-                <p className="text-gray-300 text-sm">
-                  3-5 paths + plan de 90 días
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between text-blue-500 font-medium 
-                          group-hover:text-blue-400">
-              <span>Empezar Discovery</span>
-              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-            </div>
-
-            <div className="mt-3 pt-3 border-t border-gray-700">
-              <p className="text-gray-500 text-xs">
-                ⏱️ 15-20 minutos. Muy potente.
-              </p>
-            </div>
-          </button>
-
-          {/* Path 3: Browse Validated Ideas */}
-          <button
-            onClick={() => navigate('/onboarding/choose-idea')}
-            className="bg-gray-800 hover:bg-gray-750 border-2 border-gray-700 
-                     hover:border-amber-500 rounded-lg p-6 text-left transition-all
-                     group"
-          >
-            <div className="flex items-start gap-3 mb-4">
-              <div className="w-12 h-12 rounded-full bg-amber-500/10 flex items-center 
-                            justify-center flex-shrink-0 group-hover:bg-amber-500/20 transition-colors">
-                <TrendingUp className="w-6 h-6 text-amber-500" />
-              </div>
-              <div>
-                <h2 className="text-xl font-bold text-white mb-1">
-                  Sin idea aún
-                </h2>
-                <p className="text-gray-400 text-sm">
-                  Ideas ya validadas para lanzar
-                </p>
-              </div>
-            </div>
-
-            <div className="space-y-2 mb-4">
-              <div className="flex items-start gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-amber-500 mt-2 flex-shrink-0" />
-                <p className="text-gray-300 text-sm">
-                  50+ ideas con datos reales
-                </p>
-              </div>
-              <div className="flex items-start gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-amber-500 mt-2 flex-shrink-0" />
-                <p className="text-gray-300 text-sm">
-                  Score de demanda y competencia
-                </p>
-              </div>
-              <div className="flex items-start gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-amber-500 mt-2 flex-shrink-0" />
-                <p className="text-gray-300 text-sm">
-                  1-Click Launch
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between text-amber-500 font-medium 
-                          group-hover:text-amber-400">
-              <span>Ver ideas validadas</span>
-              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-            </div>
-
-            <div className="mt-3 pt-3 border-t border-gray-700">
-              <p className="text-gray-500 text-xs">
-                🎯 Ideas con evidencia de demanda
-              </p>
-            </div>
-          </button>
+            </button>
+          ))}
         </div>
 
-        {/* Help Text */}
-        <div className="mt-10 text-center">
-          <p className="text-gray-600 text-xs">
-            Todos los caminos te dan acceso completo a Lánzalo
+        <div className="mt-8 text-center">
+          <p className="text-[#484f58] text-xs font-mono">
+            Todos los caminos dan acceso completo a Lanzalo
           </p>
         </div>
       </div>

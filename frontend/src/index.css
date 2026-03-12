@@ -2,35 +2,49 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ─── Base typography ──────────────────────────────────────── */
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background-color: #0a0e14;
+  color: #e2e8f0;
 }
 
-code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
-    monospace;
+code, .font-mono, .metric-value {
+  font-family: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
 }
 
-/* Custom scrollbar */
+/* ─── Custom scrollbar — técnico, discreto ─────────────────── */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 4px;
+  height: 4px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #1f2937;
+  background: #0d1117;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #4b5563;
-  border-radius: 4px;
+  background: #30363d;
+  border-radius: 2px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #6b7280;
+  background: #484f58;
+}
+
+/* ─── Utility: IBM Plex Mono para números / métricas ───────── */
+.tabular-nums {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ─── Terminal-style text ───────────────────────────────────── */
+.terminal-text {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: #00ff87;
 }
