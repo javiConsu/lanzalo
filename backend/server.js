@@ -100,13 +100,23 @@ app.post('/api/promote-admin', require('./middleware/auth').requireAuth, async (
 // Servir frontend React (producción)
 const path = require('path');
 const frontendDist = path.join(__dirname, '..', 'frontend', 'dist');
+
+// Redirects legacy: rutas que existían antes de la SPA
+app.get('/panel.html', (req, res) => res.redirect(301, '/admin'));
+
 app.use(express.static(frontendDist));
 // SPA fallback: todas las rutas no-API devuelven index.html
+// Incluye archivos .html inexistentes (ej: /panel.html si no fue redirigido arriba)
 app.get('*', (req, res, next) => {
   if (req.path.startsWith('/api/') || req.path.startsWith('/sites/') || req.path === '/health') {
     return next();
   }
-  res.sendFile(path.join(frontendDist, 'index.html'));
+  const indexPath = path.join(frontendDist, 'index.html');
+  res.sendFile(indexPath, (err) => {
+    if (err) {
+      res.status(404).json({ error: 'Not found' });
+    }
+  });
 });
 
 // Auto-run pending migrations at startup (safe: _migrations table tracks applied ones)
