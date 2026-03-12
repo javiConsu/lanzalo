@@ -74,10 +74,10 @@ function TerminalLog({ companyId }) {
 // ─── Stats Bar (horizontal, compacta) ───
 function StatsBar({ company, credits }) {
   const isLive = company?.status === 'live'
-  const revenue = company?.revenue_total || 0
-  const balance = company?.balance || 0
-  const visits = company?.visits_total || 0
-  const investment = (company?.cost_lanzalo || 0) + (company?.cost_cold_email || 0) + (company?.cost_ads || 0)
+    const revenue = Number(company?.revenue_total) || 0
+  const balance = Number(company?.balance) || 0
+  const visits = Number(company?.visits_total) || 0
+  const investment = (Number(company?.cost_lanzalo) || 0) + (Number(company?.cost_cold_email) || 0) + (Number(company?.cost_ads) || 0)
   return (
     <div className="flex items-center gap-4 px-4 py-1.5 bg-[#0d1117] border-b border-[#21262d] text-[10px] font-mono overflow-x-auto flex-shrink-0">
       <div className="flex items-center gap-1.5">
