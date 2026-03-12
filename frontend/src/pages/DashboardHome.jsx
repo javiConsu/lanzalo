@@ -464,11 +464,11 @@ export default function DashboardHome() {
   // Load credits
   useEffect(() => {
     if (!token) return
-    fetch(apiUrl('/api/user/credits'), {
+    fetch(apiUrl('/api/credits'), {
       headers: { 'Authorization': `Bearer ${token}` }
     })
       .then(r => r.json())
-      .then(d => setCredits(d.total ?? d.credits ?? null))
+            .then(d => setCredits(d.credits?.total ?? null))
       .catch(() => {})
   }, [token])
 
