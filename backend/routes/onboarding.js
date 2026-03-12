@@ -316,11 +316,15 @@ router.post('/create-company', authenticate, async (req, res) => {
 
     // Create company
     const companyId = crypto.randomUUID();
-    const subdomain = companyData.name
+    // Sufijo random de 5 chars hex para evitar colisiones de UNIQUE constraint
+    const subdomainBase = companyData.name
       .toLowerCase()
       .replace(/[^a-z0-9]/g, '-')
       .replace(/-+/g, '-')
-      .substring(0, 30);
+      .replace(/^-|-$/g, '')
+      .substring(0, 24);
+    const subdomainSuffix = crypto.randomBytes(3).toString('hex'); // 6 chars hex
+    const subdomain = `${subdomainBase || 'proyecto'}-${subdomainSuffix}`.substring(0, 30);
 
     // Guardar ideaData en metadata para análisis de viabilidad
     const ideaMetadata = {
@@ -333,24 +337,42 @@ router.post('/create-company', authenticate, async (req, res) => {
       viabilityStatus: 'pending'
     };
 
-    await pool.query(
-      `INSERT INTO companies
-       (id, user_id, name, description, subdomain, industry, status, metadata, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6, 'planning', $7, NOW())`,
-      [companyId, req.user.id, companyData.name, companyData.description,
-       subdomain, companyData.audience, JSON.stringify(ideaMetadata)]
-    );
-    
+    // Intentar INSERT con metadata; si la columna no existe (migration pendiente), reintentar sin ella
+    try {
+      await pool.query(
+        `INSERT INTO companies
+         (id, user_id, name, description, subdomain, industry, status, metadata, created_at)
+         VALUES ($1, $2, $3, $4, $5, $6, 'planning', $7, NOW())`,
+        [companyId, req.user.id, companyData.name, companyData.description,
+         subdomain, companyData.audience, JSON.stringify(ideaMetadata)]
+      );
+    } catch (insertErr) {
+      if (insertErr.message && insertErr.message.includes('column "metadata"')) {
+        // Migración 029 pendiente — insertar sin metadata y parchear después
+        console.warn('[Onboarding] metadata column missing, inserting without it');
+        await pool.query(
+          `INSERT INTO companies
+           (id, user_id, name, description, subdomain, industry, status, created_at)
+           VALUES ($1, $2, $3, $4, $5, $6, 'planning', NOW())`,
+          [companyId, req.user.id, companyData.name, companyData.description,
+           subdomain, companyData.audience]
+        );
+      } else {
+        throw insertErr;
+      }
+    }
+
     console.log(`[Onboarding] Company created: ${companyData.name} (${companyId})`);
-    
+
     // Get user intake data for richer analysis
     let intakeContext = '';
+    let surveyData = {};
     try {
       const userData = await pool.query(
         'SELECT survey_data, name FROM users WHERE id = $1',
         [req.user.id]
       );
-      const surveyData = userData.rows[0]?.survey_data || {};
+      surveyData = userData.rows[0]?.survey_data || {};
       if (surveyData.aboutMe) intakeContext += `\nSOBRE EL FUNDADOR: ${surveyData.aboutMe}`;
       if (surveyData.lookingFor) intakeContext += `\nQUÉ BUSCA: ${surveyData.lookingFor}`;
       if (surveyData.surveyAnswers) {
@@ -361,6 +383,39 @@ router.post('/create-company', authenticate, async (req, res) => {
         if (a.biggest_challenge) intakeContext += `\nMAYOR RETO: ${a.biggest_challenge}`;
       }
     } catch(e) {}
+
+    // Crear registro unificado en tabla projects (MVP Cofundador — LAN-37)
+    let projectId = null;
+    try {
+      const fp = surveyData.founderProfile || {};
+      const canalesCliente = Array.isArray(req.body.canales_cliente) ? req.body.canales_cliente : [];
+      const projectResult = await pool.query(
+        `INSERT INTO projects
+           (id, user_id, motivacion, experiencia, tiempo_semanal,
+            idea_titulo, idea_descripcion, cliente_potencial,
+            canales_cliente, objetivo_14_dias, status, company_id, created_at, updated_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'analyzing',$11,NOW(),NOW())
+         RETURNING id`,
+        [
+          crypto.randomUUID(),
+          req.user.id,
+          fp.motivation || req.body.motivacion || null,
+          fp.experience || req.body.experiencia || null,
+          fp.timeAvailable || req.body.tiempo_semanal || null,
+          companyData.name,
+          companyData.description,
+          companyData.targetCustomer || companyData.audience || null,
+          JSON.stringify(canalesCliente),
+          req.body.objetivo_14_dias || null,
+          companyId,
+        ]
+      );
+      projectId = projectResult.rows[0].id;
+      console.log(`[Onboarding] Project record created: ${projectId}`);
+    } catch (projErr) {
+      // No bloquear si la tabla aún no existe (antes de correr migración)
+      console.warn('[Onboarding] No se pudo crear project record:', projErr.message);
+    }
 
     // Create initial task: Full market analysis + business plan + idea rating
     // Status 'todo' so TaskExecutor picks it up automatically
@@ -460,14 +515,18 @@ IMPORTANTE:
         subdomain,
         status: 'planning'
       },
+      projectId,
       validationTaskId: taskId,
       message: 'Empresa creada. Iniciando análisis de viabilidad...',
       redirect: `/onboarding/viabilidad`
     });
     
   } catch (error) {
-    console.error('[Onboarding] Company creation error:', error);
-    res.status(500).json({ error: 'Failed to create company' });
+    console.error('[Onboarding] Company creation error:', error.message, error.code || '');
+    const userMsg = error.code === '23505'
+      ? 'Subdomain collision — reintentando (error interno)'
+      : 'Failed to create company';
+    res.status(500).json({ error: userMsg, debug: error.message });
   }
 });
 
@@ -509,5 +568,176 @@ router.get('/status', authenticate, async (req, res) => {
     res.status(500).json({ error: 'Failed to get onboarding status' });
   }
 });
+
+/**
+ * GET /api/onboarding/idea-suggestions
+ * Devuelve ideas curadas ordenadas por fit con el perfil del founder.
+ * Para MVP: ideas hardcodeadas. Semana 2: agente de trends dinámico.
+ */
+const CURATED_IDEAS = [
+  {
+    id: 'idea_newsletter_finanzas',
+    title: 'Newsletter de análisis financiero para LATAM',
+    description: 'Análisis semanal de finanzas personales e inversiones adaptado al mercado hispanohablante.',
+    targetCustomer: 'Profesionales de 25-45 años en LATAM interesados en finanzas personales',
+    problem: 'No hay contenido financiero de calidad en español adaptado a los mercados locales',
+    trend: '+340% búsquedas YoY',
+    marketSize: '€180K/año potencial',
+    timeToRevenue: '30 días',
+    technicalDifficulty: 'low',
+    competition: 'medium',
+    fitProfiles: ['extra_income', 'learning'],
+    fitTime: ['5_15', '15_30', 'lt5'],
+    fitExperience: ['first_time', 'tried', 'some_revenue']
+  },
+  {
+    id: 'idea_saas_restaurantes',
+    title: 'SaaS de gestión para restaurantes pequeños',
+    description: 'App sencilla de inventario y pedidos para restaurantes de 1-3 locales en España y México.',
+    targetCustomer: 'Dueños de restaurantes familiares sin equipo técnico',
+    problem: 'Llevan el inventario en Excel y pierden €500/mes en mermas y pedidos fallidos',
+    trend: '+28% crecimiento SaaS hostelería',
+    marketSize: '180K restaurantes solo en España',
+    timeToRevenue: '60 días',
+    technicalDifficulty: 'medium',
+    competition: 'low',
+    fitProfiles: ['replace_job', 'impact', 'startup'],
+    fitTime: ['15_30', 'gt30'],
+    fitExperience: ['tried', 'some_revenue', 'experienced']
+  },
+  {
+    id: 'idea_agencia_ia_pymes',
+    title: 'Agencia IA para pymes: automatización sin código',
+    description: 'Servicio done-for-you de automatización con IA para pequeñas empresas que no tienen equipo tech.',
+    targetCustomer: 'Dueños de pymes de 5-50 empleados en España que pierden tiempo en tareas repetitivas',
+    problem: 'Saben que la IA puede ayudarles pero no saben por dónde empezar ni tienen tiempo',
+    trend: '+520% demanda automatización IA para pymes',
+    marketSize: '3.4M pymes en España',
+    timeToRevenue: '14 días',
+    technicalDifficulty: 'low',
+    competition: 'low',
+    fitProfiles: ['extra_income', 'replace_job', 'startup'],
+    fitTime: ['5_15', '15_30', 'gt30'],
+    fitExperience: ['first_time', 'tried', 'some_revenue', 'experienced']
+  },
+  {
+    id: 'idea_comunidad_founders',
+    title: 'Comunidad de founders hispanos en bootstrapping',
+    description: 'Comunidad privada de pago para founders hispanohablantes construyendo negocios sin inversión externa.',
+    targetCustomer: 'Founders en fase early de LATAM y España, sin capital semilla, buscando apoyo y red',
+    problem: 'Las comunidades de founders son en inglés y no entienden la realidad del mercado hispano',
+    trend: '+180% búsquedas "bootstrapping en español"',
+    marketSize: '€120K/año con 500 miembros a €20/mes',
+    timeToRevenue: '21 días',
+    technicalDifficulty: 'low',
+    competition: 'low',
+    fitProfiles: ['impact', 'learning', 'startup'],
+    fitTime: ['lt5', '5_15', '15_30'],
+    fitExperience: ['first_time', 'tried', 'some_revenue']
+  },
+  {
+    id: 'idea_cv_ia_latam',
+    title: 'CV y entrevistas con IA para el mercado LATAM',
+    description: 'Herramienta que optimiza CVs y prepara entrevistas con IA adaptada a formatos y expectativas LATAM.',
+    targetCustomer: 'Profesionales de 22-35 años en LATAM buscando trabajo en empresas internacionales',
+    problem: 'Los CVs en LATAM no pasan los filtros ATS de empresas globales por diferencias de formato',
+    trend: '+290% búsquedas "CV para empresa internacional" en LATAM',
+    marketSize: '€80K/año con 400 usuarios a €17/mes',
+    timeToRevenue: '21 días',
+    technicalDifficulty: 'low',
+    competition: 'medium',
+    fitProfiles: ['extra_income', 'learning', 'impact'],
+    fitTime: ['lt5', '5_15', '15_30'],
+    fitExperience: ['first_time', 'tried']
+  }
+];
+
+router.get('/idea-suggestions', async (req, res) => {
+  try {
+    // Obtener perfil del founder del JWT (opcional — nunca bloquear si falla)
+    let founderProfile = {};
+    try {
+      const authHeader = req.headers.authorization;
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        const jwtLib = require('jsonwebtoken');
+        const token = authHeader.split(' ')[1];
+        const decoded = jwtLib.verify(token, process.env.JWT_SECRET || 'change-this-in-production');
+        const userData = await pool.query('SELECT survey_data FROM users WHERE id = $1', [decoded.id]);
+        founderProfile = userData.rows[0]?.survey_data?.founderProfile || {};
+      }
+    } catch (e) {
+      // Token inválido o DB error — continuar sin personalizar
+    }
+
+    // Calcular fit score y devolver ideas
+    const { motivation, timeAvailable, experience } = founderProfile;
+    const scored = CURATED_IDEAS.map(idea => {
+      let score = 50;
+      if (motivation && idea.fitProfiles?.includes(motivation)) score += 20;
+      if (timeAvailable && idea.fitTime?.includes(timeAvailable)) score += 20;
+      if (experience && idea.fitExperience?.includes(experience)) score += 10;
+      return {
+        id: idea.id,
+        title: idea.title,
+        description: idea.description,
+        targetCustomer: idea.targetCustomer,
+        problem: idea.problem,
+        trend: idea.trend,
+        marketSize: idea.marketSize,
+        timeToRevenue: idea.timeToRevenue,
+        technicalDifficulty: idea.technicalDifficulty,
+        competition: idea.competition,
+        fitScore: Math.min(score, 97),
+        fitReason: buildFitReason(idea, motivation, timeAvailable, experience),
+        prefillData: {
+          description: idea.description,
+          targetCustomer: idea.targetCustomer,
+          problem: idea.problem
+        }
+      };
+    });
+    scored.sort((a, b) => b.fitScore - a.fitScore);
+    res.json({ success: true, ideas: scored });
+  } catch (e) {
+    console.error('[Onboarding] idea-suggestions error:', e);
+    // Fallback: devolver las primeras 3 ideas con score base para no bloquear el usuario
+    const fallback = CURATED_IDEAS.slice(0, 3).map(idea => ({
+      id: idea.id,
+      title: idea.title,
+      description: idea.description,
+      targetCustomer: idea.targetCustomer,
+      problem: idea.problem,
+      trend: idea.trend,
+      marketSize: idea.marketSize,
+      timeToRevenue: idea.timeToRevenue,
+      technicalDifficulty: idea.technicalDifficulty,
+      competition: idea.competition,
+      fitScore: 70,
+      fitReason: 'Alineado con el mercado hispano',
+      prefillData: {
+        description: idea.description,
+        targetCustomer: idea.targetCustomer,
+        problem: idea.problem
+      }
+    }));
+    res.json({ success: true, ideas: fallback });
+  }
+});
+
+function buildFitReason(idea, motivation, timeAvailable, experience) {
+  const timeLabels = { lt5: 'menos de 5h/sem', '5_15': '5-15h/sem', '15_30': '15-30h/sem', gt30: '30+h/sem' };
+  const parts = [];
+
+  if (idea.technicalDifficulty === 'low') parts.push('Sin requisitos técnicos complejos');
+  if (timeAvailable && idea.fitTime?.includes(timeAvailable)) {
+    parts.push(`Viable con ${timeLabels[timeAvailable] || timeAvailable}`);
+  }
+  if (motivation === 'extra_income' && idea.timeToRevenue) {
+    parts.push(`Revenue en ${idea.timeToRevenue}`);
+  }
+  if (!parts.length) parts.push('Alineado con tu perfil de founder');
+
+  return parts.join(' · ');
+}
 
 module.exports = router;

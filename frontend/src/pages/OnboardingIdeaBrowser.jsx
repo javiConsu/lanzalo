@@ -26,6 +26,54 @@ function ProgressBar({ step, total }) {
 const DIFFICULTY_LABEL = { low: 'Baja', medium: 'Media', high: 'Alta' };
 const COMPETITION_LABEL = { low: 'Baja', medium: 'Media', high: 'Alta' };
 
+const FALLBACK_IDEAS = [
+  {
+    id: 'fallback_agencia_ia',
+    title: 'Agencia IA para pymes: automatización sin código',
+    trend: '+520% demanda',
+    timeToRevenue: '14 días',
+    technicalDifficulty: 'low',
+    fitScore: 75,
+    fitReason: 'Sin requisitos técnicos complejos · Revenue en 14 días',
+    marketSize: '3.4M pymes en España',
+    prefillData: {
+      description: 'Servicio done-for-you de automatización con IA para pequeñas empresas que no tienen equipo tech.',
+      targetCustomer: 'Dueños de pymes de 5-50 empleados en España que pierden tiempo en tareas repetitivas',
+      problem: 'Saben que la IA puede ayudarles pero no saben por dónde empezar ni tienen tiempo'
+    }
+  },
+  {
+    id: 'fallback_newsletter_finanzas',
+    title: 'Newsletter de análisis financiero para LATAM',
+    trend: '+340% búsquedas YoY',
+    timeToRevenue: '30 días',
+    technicalDifficulty: 'low',
+    fitScore: 70,
+    fitReason: 'Sin requisitos técnicos · Mercado desatendido en español',
+    marketSize: '€180K/año potencial',
+    prefillData: {
+      description: 'Análisis semanal de finanzas personales e inversiones adaptado al mercado hispanohablante.',
+      targetCustomer: 'Profesionales de 25-45 años en LATAM interesados en finanzas personales',
+      problem: 'No hay contenido financiero de calidad en español adaptado a los mercados locales'
+    }
+  },
+  {
+    id: 'fallback_comunidad_founders',
+    title: 'Comunidad de founders hispanos en bootstrapping',
+    trend: '+180% búsquedas',
+    timeToRevenue: '21 días',
+    technicalDifficulty: 'low',
+    fitScore: 65,
+    fitReason: 'Mercado claro · Modelo de membresía probado',
+    marketSize: '€120K/año con 500 miembros',
+    prefillData: {
+      description: 'Comunidad privada de pago para founders hispanohablantes construyendo negocios sin inversión externa.',
+      targetCustomer: 'Founders en fase early de LATAM y España, sin capital semilla, buscando apoyo y red',
+      problem: 'Las comunidades de founders son en inglés y no entienden la realidad del mercado hispano'
+    }
+  }
+];
+
 function IdeaCard({ idea, selected, onSelect }) {
   return (
     <button
@@ -100,7 +148,6 @@ export default function OnboardingIdeaBrowser() {
   const [ideas, setIdeas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(null);
-  const [error, setError] = useState(null);
 
   useEffect(() => {
     loadIdeas();
@@ -109,10 +156,13 @@ export default function OnboardingIdeaBrowser() {
   async function loadIdeas() {
     try {
       const data = await api.get('/api/onboarding/idea-suggestions');
-      setIdeas(data.ideas || []);
+      const ideas = data.ideas || [];
+      // Si el API no devuelve ideas, usar las de fallback para no bloquear al usuario
+      setIdeas(ideas.length > 0 ? ideas : FALLBACK_IDEAS);
     } catch (err) {
       console.error('Error loading ideas:', err);
-      setError('Error cargando ideas. Intenta de nuevo.');
+      // No bloquear con error — mostrar ideas de fallback
+      setIdeas(FALLBACK_IDEAS);
     } finally {
       setLoading(false);
     }
@@ -163,21 +213,8 @@ export default function OnboardingIdeaBrowser() {
           </div>
         )}
 
-        {/* Error */}
-        {error && !loading && (
-          <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 mb-6">
-            <p className="text-red-400 text-sm font-mono">{error}</p>
-            <button
-              onClick={loadIdeas}
-              className="mt-2 text-[10px] font-mono text-red-400 underline"
-            >
-              Reintentar
-            </button>
-          </div>
-        )}
-
         {/* Ideas list */}
-        {!loading && !error && (
+        {!loading && (
           <div className="space-y-4">
             {ideas.map(idea => (
               <IdeaCard

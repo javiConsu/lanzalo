@@ -59,6 +59,7 @@ app.use('/api/preview', require('./routes/preview'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/user', require('./routes/user'));
 app.use('/api/user', require('./routes/daily-syncs')); // Daily syncs routes
+app.use('/api/projects', require('./routes/projects'));    // MVP Cofundador — modelo unificado Project/Idea
 app.use('/api/companies', require('./routes/companies'));  // Deprecated - usar /api/user/companies
 app.use('/api/tasks', require('./routes/tasks'));          // Deprecated - usar /api/user/companies/:id/tasks
 app.use('/api', require('./routes/ideas'));              // Ideas marketplace (public + auth)
@@ -108,10 +109,28 @@ app.get('*', (req, res, next) => {
   res.sendFile(path.join(frontendDist, 'index.html'));
 });
 
+// Auto-run pending migrations at startup (safe: _migrations table tracks applied ones)
+async function autoMigrate() {
+  try {
+    const { runMigrations } = require('./migrate');
+    const results = await runMigrations();
+    const applied = results.filter(r => r.status === 'success');
+    const errors = results.filter(r => r.status.startsWith('error'));
+    if (applied.length > 0) console.log(`[Migrate] Applied ${applied.length} migration(s):`, applied.map(r => r.migration).join(', '));
+    if (errors.length > 0) console.error('[Migrate] Errors:', errors);
+    else console.log('[Migrate] All migrations up to date');
+  } catch (err) {
+    console.error('[Migrate] Auto-migration failed (non-fatal):', err.message);
+  }
+}
+
 // Start HTTP server
-const server = app.listen(PORT, () => {
+const server = app.listen(PORT, async () => {
   console.log(`🚀 Lanzalo API running on port ${PORT}`);
-  
+
+  // Run pending DB migrations before starting services
+  await autoMigrate();
+
   // Start agent orchestrator
   console.log('[Server] Starting Agent Orchestrator...');
   orchestrator.start();
