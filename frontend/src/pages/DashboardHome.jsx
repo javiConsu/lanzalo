@@ -357,7 +357,7 @@ function Chat({ companyId, initialMessage }) {
       <div className="flex items-center justify-between px-3 py-2 border-b border-[#21262d] flex-shrink-0">
         <span className="text-[11px] font-mono font-semibold text-[#c9d1d9]">bender</span>
         <span className="flex items-center gap-1 text-[9px] font-mono text-[#00ff87]">
-          <span className="w-1.5 h-1.5 rounded-full bg-[#00ff87]" /> online
+          <span className="w-1.5 h-1.5 rounded-full bg-[#00ff87]" /> en línea
         </span>
       </div>
       {/* Messages - scroll limitado */}
