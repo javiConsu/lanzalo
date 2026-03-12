@@ -211,7 +211,7 @@ export default function Chat() {
                   <div className="w-2 h-2 bg-purple-500 rounded-full animate-bounce delay-100"></div>
                   <div className="w-2 h-2 bg-pink-500 rounded-full animate-bounce delay-200"></div>
                 </div>
-                <span className="text-gray-400 font-medium">Co-Founder Agent está analizando tu solicitud...</span>
+                <span className="text-gray-400 font-medium">Bender Agent está analizando tu solicitud...</span>
               </div>
             </div>
           </div>
@@ -227,7 +227,7 @@ export default function Chat() {
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Describe lo que necesitas... (ej: 'Añade analytics a mi web')"
+            placeholder="Escribe a Bender... (ej: 'Añade analytics a mi web')"
             className="flex-1 px-5 py-3 bg-gray-800/80 border border-gray-700 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 hover:border-gray-600 transition-all"
             disabled={loading}
           />
