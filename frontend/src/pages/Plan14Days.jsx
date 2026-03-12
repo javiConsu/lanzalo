@@ -227,7 +227,7 @@ export default function Plan14Days() {
 
         {/* CTA */}
         <button
-          onClick={() => window.location.href = '/co-fundador'}
+          onClick={() => navigate('/co-fundador')}
           className="w-full flex items-center justify-center gap-2 px-6 py-4
                    bg-[#00ff87] hover:bg-[#00e67a] text-black font-bold rounded-lg
                    transition-colors font-mono text-sm"

@@ -63,7 +63,7 @@ export default function OnboardingDescribeIdea() {
         // Limpiar prefill del IdeaBrowser
         localStorage.removeItem('lanzalo_prefill_idea');
         // Ir a la pantalla de análisis
-        window.location.href = '/onboarding/viabilidad';
+        navigate('/onboarding/viabilidad');
       } else if (result.code === 'NO_SLOTS') {
         setError(`Has alcanzado el límite de negocios (${result.used}/${result.slots}). Compra un hueco extra desde tu panel.`);
         setLaunching(false);
