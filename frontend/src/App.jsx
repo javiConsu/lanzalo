@@ -1,5 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Component } from 'react'
 import { apiUrl } from './api.js'
 import LandingPage from './pages/LandingPage'
 import Login from './pages/Login'
@@ -32,6 +32,43 @@ import Chat from './pages/Chat'
 import Metrics from './pages/Metrics'
 import LiveFeedPage from './pages/LiveFeedPage'
 
+// Error Boundary — si algo crashea, limpia token y muestra landing
+class ErrorBoundary extends Component {
+  constructor(props) {
+    super(props)
+    this.state = { hasError: false }
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true }
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error('App crash detectado:', error, errorInfo)
+    // Limpiar token corrupto para evitar loops
+    localStorage.removeItem('token')
+    localStorage.removeItem('user')
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ minHeight: '100vh', background: '#0d1117', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#c9d1d9', fontFamily: 'Inter, sans-serif' }}>
+          <h2 style={{ color: '#00ff87', marginBottom: '16px' }}>Algo salió mal</h2>
+          <p style={{ marginBottom: '24px', color: '#8b949e' }}>Se ha limpiado la sesión. Recarga la página.</p>
+          <button
+            onClick={() => { localStorage.clear(); window.location.href = '/' }}
+            style={{ padding: '12px 32px', background: '#00ff87', color: '#0d1117', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, fontSize: '16px' }}
+          >
+            Recargar
+          </button>
+        </div>
+      )
+    }
+    return this.props.children
+  }
+}
+
 function App() {
   const [token, setToken] = useState(localStorage.getItem('token'))
   const [user, setUser] = useState(null)
@@ -46,7 +83,10 @@ function App() {
       fetch(apiUrl('/api/user/profile'), {
         headers: { 'Authorization': `Bearer ${token}` }
       })
-        .then(res => res.json())
+        .then(res => {
+          if (!res.ok) throw new Error('Token inválido')
+          return res.json()
+        })
         .then(data => {
           if (data.user) {
             setUser(data.user)
@@ -90,20 +130,22 @@ function App() {
   // /admin has its own self-contained auth — always render it
   if (isAdminPath) {
     return (
-      <Router>
-        <Routes>
-          <Route path="/admin" element={<AdminDashboard />} />
-        </Routes>
-      </Router>
+      <ErrorBoundary>
+        <Router>
+          <Routes>
+            <Route path="/admin" element={<AdminDashboard />} />
+          </Routes>
+        </Router>
+      </ErrorBoundary>
     )
   }
 
   // Loading user profile
   if (loading) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#0a0a0a', color: '#888' }}>
+      <div style={{ minHeight: '100vh', background: '#0d1117', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#c9d1d9', fontFamily: 'Inter, sans-serif' }}>
         <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>⚡</div>
+          <div style={{ fontSize: '48px', marginBottom: '16px' }}>⚡</div>
           <div>Cargando...</div>
         </div>
       </div>
@@ -122,11 +164,9 @@ function App() {
     const resetToken = urlParams.get('reset_token')
     if (resetToken) {
       return (
-        <Login
-          onLogin={handleLogin}
-          initialMode="login"
-          resetToken={resetToken}
-          onBack={() => {
+        <RecoverPasswordConfirm
+          token={resetToken}
+          onClose={() => {
             window.history.replaceState({}, '', window.location.pathname)
             setShowLogin(false)
           }}
@@ -151,11 +191,12 @@ function App() {
       return (
         <Login
           onLogin={handleLogin}
-          initialMode={loginMode}
-          onBack={() => setShowLogin(false)}
+          mode={loginMode}
+          onClose={() => setShowLogin(false)}
         />
       )
     }
+
     return <LandingPage onNavigateToLogin={handleNavigateToLogin} />
   }
 
@@ -164,51 +205,50 @@ function App() {
 
   // Authenticated: show app
   return (
-    <Router>
-      <Routes>
-        {/* Recover Password Routes */}
-        <Route path="/recover-password" element={<RecoverPassword />} />
-        <Route path="/reset-password-confirm" element={<RecoverPasswordConfirm />} />
+    <ErrorBoundary>
+      <Router>
+        <Routes>
+          {/* Recover Password Routes */}
+          <Route path="/recover-password" element={<RecoverPassword />} />
+          <Route path="/recover-password/confirm" element={<RecoverPasswordConfirm />} />
 
-        {/* Onboarding MVP — nuevo flujo */}
-        <Route path="/onboarding/perfil" element={<OnboardingFounderProfile />} />
-        <Route path="/onboarding/idea-source" element={<OnboardingIdeaSource />} />
-        <Route path="/onboarding/idea-browser" element={<OnboardingIdeaBrowser />} />
-        <Route path="/onboarding/viabilidad" element={<ViabilityAnalysis />} />
-        <Route path="/onboarding/plan-14-dias" element={<Plan14Days />} />
+          {/* Onboarding MVP — nuevo flujo */}
+          <Route path="/onboarding" element={<OnboardingSurvey user={user} token={token} />} />
+          <Route path="/onboarding/choose-path" element={<OnboardingChoosePath user={user} token={token} />} />
+          <Route path="/onboarding/choose-idea" element={<OnboardingChooseIdea user={user} token={token} />} />
+          <Route path="/onboarding/describe-idea" element={<OnboardingDescribeIdea user={user} token={token} />} />
+          <Route path="/onboarding/founder-profile" element={<OnboardingFounderProfile user={user} token={token} />} />
 
-        {/* Onboarding legacy — compatibilidad */}
-        <Route path="/onboarding/survey" element={<OnboardingSurvey />} />
-        <Route path="/onboarding/choose-path" element={<OnboardingChoosePath />} />
-        <Route path="/onboarding/choose-idea" element={<OnboardingChooseIdea />} />
-        <Route path="/onboarding/describe-idea" element={<OnboardingDescribeIdea />} />
-        <Route path="/discovery" element={<Discovery />} />
-        <Route path="/discovery/analysis" element={<DiscoveryAnalysis />} />
+          {/* Onboarding legacy — compatibilidad */}
+          <Route path="/onboarding/idea-source" element={<OnboardingIdeaSource user={user} token={token} />} />
+          <Route path="/onboarding/idea-browser" element={<OnboardingIdeaBrowser user={user} token={token} />} />
+          <Route path="/onboarding/viability" element={<ViabilityAnalysis user={user} token={token} />} />
+          <Route path="/onboarding/plan" element={<Plan14Days user={user} token={token} />} />
+          <Route path="/cofundador" element={<CofundadorDashboard user={user} token={token} />} />
+          <Route path="/company/:companyId" element={<CompanyDashboard user={user} token={token} />} />
 
-        {/* Co-Fundador Dashboard */}
-        <Route path="/co-fundador" element={<CofundadorDashboard />} />
+          {/* Co-Fundador Dashboard */}
+          <Route path="/paywall" element={<Paywall user={user} token={token} />} />
 
-        <Route path="/" element={
-          needsOnboarding
-            ? <Navigate to="/onboarding/perfil" replace />
-            : <Dashboard user={user} onLogout={handleLogout} />
-        }>
-          <Route index element={user?.isTrialExpired ? <Paywall user={user} /> : <DashboardHome />} />
-          <Route path="chat" element={user?.isTrialExpired ? <Paywall user={user} /> : <Chat />} />
-          <Route path="agents" element={user?.isTrialExpired ? <Paywall user={user} /> : <AgentOffice />} />
-          <Route path="ideas" element={<Ideas />} />
-          <Route path="backlog" element={user?.isTrialExpired ? <Paywall user={user} /> : <Backlog />} />
-          <Route path="marketing" element={user?.isTrialExpired ? <Paywall user={user} /> : <Marketing />} />
-          <Route path="metrics" element={<Metrics />} />
-          <Route path="settings" element={<Settings />} />
-        </Route>
+          <Route path="/dashboard" element={needsOnboarding ? <Navigate to="/onboarding" /> : <Dashboard user={user} token={token} onLogout={handleLogout} />}>
+            <Route index element={needsOnboarding ? <Navigate to="/onboarding" /> : <DashboardHome user={user} token={token} />} />
+            <Route path="agents" element={needsOnboarding ? <Navigate to="/onboarding" /> : <AgentOffice user={user} token={token} />} />
+            <Route path="ideas" element={<Ideas user={user} token={token} />} />
+            <Route path="backlog" element={needsOnboarding ? <Navigate to="/onboarding" /> : <Backlog user={user} token={token} />} />
+            <Route path="marketing" element={needsOnboarding ? <Navigate to="/onboarding" /> : <Marketing user={user} token={token} />} />
+            <Route path="discovery" element={<Discovery user={user} token={token} />} />
+            <Route path="discovery/:analysisId" element={<DiscoveryAnalysis user={user} token={token} />} />
+            <Route path="hub" element={<BusinessHub user={user} token={token} />} />
+            <Route path="settings" element={<Settings user={user} token={token} />} />
+          </Route>
 
-        <Route path="/admin" element={user?.is_admin ? <AdminDashboard /> : <Navigate to="/" replace />} />
-        <Route path="/company" element={<CompanyDashboard user={user} onLogout={handleLogout} />} />
-        <Route path="/live" element={user ? <LiveFeedPage /> : <Navigate to="/" replace />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </Router>
+          <Route path="/chat" element={needsOnboarding ? <Navigate to="/onboarding" /> : <Chat user={user} token={token} onLogout={handleLogout} />} />
+          <Route path="/metrics" element={<Metrics user={user} token={token} />} />
+          <Route path="/live" element={needsOnboarding ? <Navigate to="/onboarding" /> : <LiveFeedPage user={user} token={token} onLogout={handleLogout} />} />
+          <Route path="*" element={<Navigate to="/dashboard" />} />
+        </Routes>
+      </Router>
+    </ErrorBoundary>
   )
 }
 
