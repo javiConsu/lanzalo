@@ -131,7 +131,7 @@ function StatCard({ label, value, color }) {
 
 // ─── Agent Status ────────────────────────────────────────────────
 const AGENTS = [
-  { key: 'ceo', name: 'co-founder', tags: ['ceo', 'strategy'] },
+  { key: 'ceo', name: 'bender', tags: ['ceo', 'strategy'] },
   { key: 'marketing', name: 'marketing', tags: ['marketing', 'copy', 'ads'] },
   { key: 'code', name: 'codigo', tags: ['code', 'deploy', 'web'] },
   { key: 'email', name: 'email', tags: ['email', 'drip'] },
@@ -358,7 +358,7 @@ function Chat({ companyId, initialMessage }) {
     if (!companyId) return
     const load = async () => {
       try {
-        const res = await fetch(apiUrl(`/api/user/companies/${companyId}/chat/history?limit=50`), {
+        const res = await fetch(apiUrl(`/api/user/companies/${companyId}/chat/history?limit=20`), {
           headers: { 'Authorization': `Bearer ${token}` }
         })
         const data = await res.json()
@@ -426,7 +426,7 @@ function Chat({ companyId, initialMessage }) {
     <div className="flex-1 flex flex-col bg-[#0d1117] border border-[#21262d] overflow-hidden min-h-0">
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-[#21262d] flex-shrink-0">
-        <span className="text-[10px] font-mono text-[#484f58] uppercase tracking-wider">co-founder</span>
+        <span className="text-[10px] font-mono text-[#484f58] uppercase tracking-wider">bender</span>
         <span className="flex items-center gap-1.5">
           <span className="w-1.5 h-1.5 bg-[#00ff87] rounded-full animate-pulse" />
           <span className="text-[9px] font-mono text-[#00ff87]">online</span>
@@ -437,7 +437,7 @@ function Chat({ companyId, initialMessage }) {
       <div className="flex-1 overflow-y-auto p-3 space-y-2.5 min-h-0">
         {messages.length === 0 && !loading && (
           <div className="py-8 text-center">
-            <span className="text-[10px] font-mono text-[#484f58]">{'> listo. que necesitas?'}</span>
+            <span className="text-[10px] font-mono text-[#484f58]">{'> Hola, soy Bender, tu Co-Fundador IA. Vamos a construir algo grande.'}</span>
           </div>
         )}
         {messages.map(msg => (
@@ -470,7 +470,7 @@ function Chat({ companyId, initialMessage }) {
           type="text"
           value={input}
           onChange={e => setInput(e.target.value)}
-          placeholder="Escribe a tu Co-Founder..."
+          placeholder="Escribe a tu bender..."
           className="flex-1 px-3 py-1.5 bg-[#0a0e14] border border-[#30363d] text-xs text-[#c9d1d9] placeholder-[#484f58] focus:outline-none focus:border-[#484f58] transition-colors"
           disabled={loading}
         />
@@ -584,7 +584,7 @@ export default function DashboardHome() {
         <div className="text-center max-w-xs">
           <p className="font-mono text-[10px] text-[#484f58] mb-6">{'> lanzalo init'}</p>
           <h2 className="text-base font-semibold text-white mb-2">Lanza tu primer negocio</h2>
-          <p className="text-[#8b949e] text-xs mb-6 font-mono">describe la idea — el co-founder hace el resto.</p>
+          <p className="text-[#8b949e] text-xs mb-6 font-mono">describe la idea — el bender hace el resto.</p>
           <button
             onClick={() => navigate('/onboarding/choose-path')}
             className="bg-[#21262d] hover:bg-[#30363d] text-[#c9d1d9] font-mono text-xs py-2 px-5 border border-[#30363d] transition-colors"
