@@ -4,12 +4,12 @@ import { apiUrl } from '../api.js'
 import TrialBadge from '../components/TrialBadge.jsx'
 
 const NAV_ITEMS = [
-  { path: '/chat', label: 'Co-Founder' },
-  { path: '/ideas', label: 'Ideas' },
-  { path: '/backlog', label: 'Backlog' },
-  { path: '/metrics', label: 'Métricas' },
-  { path: '/company', label: 'Control' },
-  { path: '/live', label: 'Live Feed' },
+  { path: '/chat', label: 'Bender' },
+  // { path: '/ideas', label: 'Ideas' },
+  // { path: '/backlog', label: 'Backlog' },
+  // { path: '/metrics', label: 'Métricas' },
+  // { path: '/company', label: 'Control' },
+  // { path: '/live', label: 'Live Feed' },
 ]
 
 export default function Dashboard({ user, onLogout }) {
