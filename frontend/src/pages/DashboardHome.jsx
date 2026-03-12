@@ -528,7 +528,7 @@ export default function DashboardHome() {
 
       {/* Sub-header: nombre + selector */}
       <div className="flex items-center gap-3 px-4 py-2 border-b border-[#21262d] flex-shrink-0">
-        <span className="text-[12px] font-semibold text-[#c9d1d9]">{company.name}</span>
+        <span className="text-[12px] font-semibold text-[#c9d1d9]">Negocios</span>
         {companies.length > 0 && (
           <CompanySelector
             companies={companies} selected={company}
