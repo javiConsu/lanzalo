@@ -539,20 +539,24 @@ export default function DashboardHome() {
         )}
       </div>
 
-      {/* 2 columnas: info izquierda | chat derecha */}
-      <div className="flex-1 flex gap-3 p-3 overflow-hidden min-h-0">
-        {/* Col izquierda (30%) - agentes, tareas, docs */}
-        <div className="w-[30%] flex flex-col gap-3 overflow-y-auto min-h-0 flex-shrink-0">
-          <AgentStatus companyId={company.id} />
-          <Tasks companyId={company.id} />
-          <DocsLinks company={company} companyId={company.id} />
-        </div>
+            {/* 3 columnas: agentes+tareas | docs | chat */}
+        <div className="flex-1 flex gap-3 p-3 overflow-hidden min-h-0">
+          {/* Col 1 — agentes + tareas */}
+          <div className="w-[25%] flex flex-col gap-3 overflow-y-auto min-h-0 flex-shrink-0">
+            <AgentStatus companyId={company.id} />
+            <Tasks companyId={company.id} />
+          </div>
 
-        {/* Col derecha (70%) - chat Bender */}
-        <div className="flex-1 min-h-0">
-          <Chat companyId={company.id} initialMessage={feedbackMessage} />
+          {/* Col 2 — web / documentos */}
+          <div className="w-[25%] flex flex-col gap-3 overflow-y-auto min-h-0 flex-shrink-0">
+            <DocsLinks company={company} companyId={company.id} />
+          </div>
+
+          {/* Col 3 — chat Bender (altura fija = col 1) */}
+          <div className="flex-1 min-h-0 max-h-[calc(100vh-220px)] flex flex-col">
+            <Chat companyId={company.id} initialMessage={feedbackMessage} />
+          </div>
         </div>
-      </div>
     </div>
   )
 }
