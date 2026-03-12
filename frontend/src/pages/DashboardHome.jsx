@@ -1,19 +1,357 @@
 /**
- * DashboardHome — Minimalista estilo Polsia
- * Layout: Stats bar arriba, Tareas+Links izq (30%), Chat der (70%)
+ * DashboardHome — Rediseño Polsia-style
+ * Layout: TerminalLog | 3 columnas (stats+agents | tasks+docs | chat)
+ * Tipografía: IBM Plex Mono para datos, sans-serif limpia para texto
+ * Sin emojis, sin iconos de colores, sin badges
  */
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { apiUrl, API_URL } from '../api.js'
 import useCompanySelection from '../hooks/useCompanySelection.js'
 
-// ─── Inline Chat (altura limitada, no infinito) ──────────────────
-function InlineChat({ companyId, initialMessage }) {
+// ─── Terminal Log ────────────────────────────────────────────────
+// Barra estrecha arriba, fondo negro, texto verde, eventos en tiempo real
+function TerminalLog({ companyId }) {
+  const [events, setEvents] = useState([])
+  const [connected, setConnected] = useState(false)
+  const scrollRef = useRef(null)
+  const token = localStorage.getItem('token')
+
+  // Cargar historial reciente
+  useEffect(() => {
+    if (!companyId || !token) return
+    const params = new URLSearchParams({ companyId, limit: '10' })
+    fetch(apiUrl(`/api/activity?${params}`), {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+      .then(r => r.json())
+      .then(d => {
+        if (d.events?.length) {
+          setEvents(d.events.slice(0, 10).reverse())
+        }
+      })
+      .catch(() => {})
+  }, [companyId, token])
+
+  // WebSocket en tiempo real
+  useEffect(() => {
+    if (!companyId) return
+    const wsUrl = API_URL
+      ? `${API_URL.replace('https://', 'wss://').replace('http://', 'ws://')}/ws`
+      : `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws`
+    const ws = new WebSocket(wsUrl)
+    ws.onopen = () => setConnected(true)
+    ws.onclose = () => setConnected(false)
+    ws.onmessage = (e) => {
+      try {
+        const raw = JSON.parse(e.data)
+        if (raw.companyId && raw.companyId !== companyId) return
+        const msg = raw.message || raw.type || 'actividad'
+        const agent = raw.agentType || raw.agent_type || 'sys'
+        const time = new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+        setEvents(prev => [...prev, { id: Date.now(), agent, msg, time }].slice(-20))
+      } catch(e) {}
+    }
+    return () => ws.close()
+  }, [companyId])
+
+  // Auto-scroll al último evento
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollLeft = scrollRef.current.scrollWidth
+    }
+  }, [events])
+
+  const latest = events[events.length - 1]
+
+  return (
+    <div className="h-8 bg-black border-b border-[#21262d] flex items-center px-3 gap-3 flex-shrink-0 overflow-hidden">
+      <span className="text-[10px] font-mono text-[#00ff87] flex-shrink-0 flex items-center gap-1.5">
+        <span className={`w-1.5 h-1.5 rounded-full ${connected ? 'bg-[#00ff87] animate-pulse' : 'bg-[#484f58]'}`} />
+        {connected ? 'live' : 'off'}
+      </span>
+      <span className="text-[10px] font-mono text-[#30363d] flex-shrink-0">|</span>
+      <div ref={scrollRef} className="flex-1 overflow-hidden">
+        {latest ? (
+          <span className="text-[10px] font-mono text-[#00ff87] whitespace-nowrap">
+            <span className="text-[#484f58]">{latest.time}</span>
+            <span className="text-[#8b949e] mx-1">{latest.agent}</span>
+            <span className="text-[#6b737b]">{'>'}</span>
+            <span className="ml-1">{latest.msg}</span>
+          </span>
+        ) : (
+          <span className="text-[10px] font-mono text-[#484f58] whitespace-nowrap">
+            {'> esperando actividad...'}
+          </span>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ─── Business Stats ──────────────────────────────────────────────
+function BusinessStats({ company }) {
+  const isLive = company?.status === 'live'
+  const revenue = company?.revenue_total || 0
+  const balance = company?.balance || 0
+  const visits = company?.visits_total || 0
+  const investment = (company?.cost_lanzalo || 0) + (company?.cost_cold_email || 0) + (company?.cost_ads || 0)
+
+  return (
+    <div className="space-y-2">
+      {/* Estado negocio */}
+      <div className="flex items-center justify-between py-1">
+        <span className="text-[10px] font-mono text-[#484f58] uppercase tracking-wider">estado</span>
+        <span className={`text-[10px] font-mono px-1.5 py-0.5 border ${
+          isLive
+            ? 'text-[#00ff87] border-[#00ff87]/20 bg-[#00ff87]/5'
+            : 'text-[#d29922] border-[#d29922]/20 bg-[#d29922]/5'
+        }`}>{isLive ? 'live' : 'building'}</span>
+      </div>
+
+      {/* Stats grid 2x2 */}
+      <div className="grid grid-cols-2 gap-1.5">
+        <StatCard label="ingresos" value={`$${revenue}`} color="text-[#00ff87]" />
+        <StatCard label="balance" value={`$${balance}`} color="text-[#c9d1d9]" />
+        <StatCard label="visitas" value={visits} color="text-[#58a6ff]" />
+        <StatCard label="inversión" value={`$${investment}`} color="text-[#d29922]" />
+      </div>
+    </div>
+  )
+}
+
+function StatCard({ label, value, color }) {
+  return (
+    <div className="bg-[#0d1117] border border-[#21262d] px-2.5 py-2">
+      <div className="text-[9px] font-mono text-[#484f58] uppercase tracking-wider mb-1">{label}</div>
+      <div className={`text-sm font-mono font-semibold tabular-nums ${color}`}>{value}</div>
+    </div>
+  )
+}
+
+// ─── Agent Status ────────────────────────────────────────────────
+const AGENTS = [
+  { key: 'ceo', name: 'co-founder', tags: ['ceo', 'strategy'] },
+  { key: 'marketing', name: 'marketing', tags: ['marketing', 'copy', 'ads'] },
+  { key: 'code', name: 'codigo', tags: ['code', 'deploy', 'web'] },
+  { key: 'email', name: 'email', tags: ['email', 'drip'] },
+  { key: 'analytics', name: 'analytics', tags: ['analytics', 'data'] },
+  { key: 'finance', name: 'finanzas', tags: ['finance', 'financial'] },
+]
+
+function AgentStatus({ companyId }) {
+  const [states, setStates] = useState({})
+  const token = localStorage.getItem('token')
+
+  useEffect(() => {
+    if (!companyId) return
+    fetch(apiUrl(`/api/user/companies/${companyId}/backlog`), {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+      .then(r => r.json())
+      .then(d => {
+        const tasks = d.backlog || []
+        const s = {}
+        AGENTS.forEach(a => {
+          const rel = tasks.filter(t =>
+            a.tags.some(tag => (t.tag || '').toLowerCase().includes(tag) || (t.title || '').toLowerCase().includes(tag))
+          )
+          const active = rel.find(t => t.status === 'in_progress')
+          const done = rel.filter(t => t.status === 'completed').length
+          s[a.key] = active
+            ? { status: 'working', task: active.title }
+            : done > 0
+              ? { status: 'idle', task: `${done} completada${done > 1 ? 's' : ''}` }
+              : { status: 'standby', task: null }
+        })
+        setStates(s)
+      })
+      .catch(() => {})
+  }, [companyId, token])
+
+  return (
+    <div className="bg-[#0d1117] border border-[#21262d]">
+      <div className="px-3 py-2 border-b border-[#21262d]">
+        <span className="text-[9px] font-mono text-[#484f58] uppercase tracking-wider">agentes</span>
+      </div>
+      <div className="divide-y divide-[#21262d]">
+        {AGENTS.map(a => {
+          const st = states[a.key] || { status: 'standby', task: null }
+          const dotClass = st.status === 'working'
+            ? 'bg-[#00ff87] animate-pulse'
+            : st.status === 'idle'
+              ? 'bg-[#8b949e]'
+              : 'bg-[#21262d]'
+          const textClass = st.status === 'working'
+            ? 'text-[#00ff87]'
+            : st.status === 'idle'
+              ? 'text-[#8b949e]'
+              : 'text-[#484f58]'
+          return (
+            <div key={a.key} className="flex items-center gap-2 px-3 py-1.5">
+              <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${dotClass}`} />
+              <span className="text-[10px] font-mono text-[#8b949e] flex-shrink-0 w-20">{a.name}</span>
+              <span className={`text-[9px] font-mono flex-1 truncate ${textClass}`}>
+                {st.task || st.status}
+              </span>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+// ─── Tasks Widget ────────────────────────────────────────────────
+function Tasks({ companyId }) {
+  const [tasks, setTasks] = useState([])
+  const navigate = useNavigate()
+  const token = localStorage.getItem('token')
+
+  useEffect(() => {
+    if (!companyId) return
+    fetch(apiUrl(`/api/user/companies/${companyId}/backlog`), {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+      .then(r => r.json())
+      .then(d => setTasks((d.backlog || []).slice(0, 6)))
+      .catch(() => {})
+  }, [companyId, token])
+
+  const done = tasks.filter(t => t.status === 'completed').length
+  const inProgress = tasks.filter(t => t.status === 'in_progress').length
+  const pct = tasks.length > 0 ? Math.round((done / tasks.length) * 100) : 0
+
+  const dotColor = {
+    todo: 'bg-[#484f58]',
+    in_progress: 'bg-[#d29922]',
+    completed: 'bg-[#00ff87]',
+    failed: 'bg-[#f85149]'
+  }
+
+  return (
+    <div className="bg-[#0d1117] border border-[#21262d]">
+      <div className="flex items-center justify-between px-3 py-2 border-b border-[#21262d]">
+        <span className="text-[9px] font-mono text-[#484f58] uppercase tracking-wider">tareas</span>
+        <button onClick={() => navigate('/backlog')} className="text-[9px] font-mono text-[#484f58] hover:text-[#58a6ff] transition-colors">
+          ver todo
+        </button>
+      </div>
+      {tasks.length > 0 && (
+        <div className="px-3 py-2 border-b border-[#21262d] flex items-center gap-3">
+          <div className="flex-1 h-0.5 bg-[#21262d]">
+            <div className="h-full bg-[#00ff87] transition-all duration-500" style={{ width: `${pct}%` }} />
+          </div>
+          <span className="text-[9px] font-mono text-[#00ff87] tabular-nums flex-shrink-0">{pct}%</span>
+          {inProgress > 0 && <span className="text-[9px] font-mono text-[#d29922] flex-shrink-0">{inProgress} activa{inProgress > 1 ? 's' : ''}</span>}
+        </div>
+      )}
+      <div className="divide-y divide-[#21262d]">
+        {tasks.length === 0 ? (
+          <div className="px-3 py-4 text-center">
+            <span className="text-[10px] font-mono text-[#484f58]">sin tareas activas</span>
+          </div>
+        ) : tasks.map(t => (
+          <div key={t.id} className="flex items-center gap-2 px-3 py-2">
+            <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${dotColor[t.status] || 'bg-[#484f58]'}`} />
+            <span className="text-[11px] text-[#c9d1d9] flex-1 truncate">{t.title}</span>
+            {t.tag && <span className="text-[9px] font-mono text-[#484f58] flex-shrink-0">{t.tag}</span>}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ─── Documents & Links ───────────────────────────────────────────
+function DocsLinks({ company, companyId }) {
+  const [documents, setDocuments] = useState([])
+  const [expandedDoc, setExpandedDoc] = useState(null)
+  const [landing, setLanding] = useState(null)
+  const token = localStorage.getItem('token')
+
+  useEffect(() => {
+    if (!companyId) return
+    fetch(apiUrl(`/api/user/companies/${companyId}/documents`), {
+      headers: { 'Authorization': `Bearer ${token}` }
+    }).then(r => r.json()).then(d => setDocuments(d.documents || [])).catch(() => {})
+
+    fetch(apiUrl(`/api/user/companies/${companyId}/landing`), {
+      headers: { 'Authorization': `Bearer ${token}` }
+    }).then(r => r.json()).then(d => setLanding(d)).catch(() => {})
+  }, [companyId, token])
+
+  const subdomain = company?.subdomain
+
+  return (
+    <div className="bg-[#0d1117] border border-[#21262d]">
+      <div className="px-3 py-2 border-b border-[#21262d]">
+        <span className="text-[9px] font-mono text-[#484f58] uppercase tracking-wider">web / docs</span>
+      </div>
+      <div className="divide-y divide-[#21262d]">
+        {subdomain && (landing?.deployed ? (
+          <a
+            href={landing.url || company?.website_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 px-3 py-2 hover:bg-[#161b22] transition-colors group"
+          >
+            <span className="text-[10px] font-mono text-[#00ff87] flex-shrink-0">↗</span>
+            <span className="text-[10px] font-mono text-[#00ff87] group-hover:text-[#00ff87]/80 flex-1 truncate">
+              {subdomain}.lanzalo.pro
+            </span>
+            {landing.waitlistCount > 0 && (
+              <span className="text-[9px] font-mono text-[#484f58] flex-shrink-0">{landing.waitlistCount} leads</span>
+            )}
+          </a>
+        ) : (
+          <div className="flex items-center gap-2 px-3 py-2">
+            <span className="text-[10px] font-mono text-[#484f58] flex-shrink-0">○</span>
+            <span className="text-[10px] font-mono text-[#8b949e] flex-1 truncate">{subdomain}.lanzalo.pro</span>
+            <span className="text-[9px] font-mono text-[#d29922]/70 flex-shrink-0">pendiente</span>
+          </div>
+        ))}
+
+        {documents.map(doc => (
+          <div key={doc.id}>
+            <button
+              onClick={() => setExpandedDoc(expandedDoc === doc.id ? null : doc.id)}
+              className="w-full flex items-center gap-2 px-3 py-2 hover:bg-[#161b22] transition-colors text-left"
+            >
+              <span className="text-[10px] font-mono text-[#484f58] flex-shrink-0">◈</span>
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] text-[#c9d1d9] truncate">{doc.title}</p>
+                <p className="text-[9px] font-mono text-[#484f58]">
+                  {doc.tag || 'doc'} · {new Date(doc.completed_at || doc.created_at).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}
+                </p>
+              </div>
+              <span className={`text-[9px] text-[#484f58] transition-transform flex-shrink-0 ${expandedDoc === doc.id ? 'rotate-180' : ''}`}>▾</span>
+            </button>
+            {expandedDoc === doc.id && doc.output && (
+              <div className="mx-2 mb-2 p-2.5 bg-[#0a0e14] border border-[#21262d] max-h-48 overflow-y-auto">
+                <pre className="whitespace-pre-wrap text-[10px] text-[#8b949e] leading-relaxed font-mono">{doc.output}</pre>
+              </div>
+            )}
+          </div>
+        ))}
+
+        {!subdomain && documents.length === 0 && (
+          <div className="px-3 py-4 text-center">
+            <span className="text-[10px] font-mono text-[#484f58]">sin documentos</span>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ─── Inline Chat ─────────────────────────────────────────────────
+function Chat({ companyId, initialMessage }) {
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [initialSent, setInitialSent] = useState(false)
-  const messagesEndRef = useRef(null)
+  const bottomRef = useRef(null)
   const token = localStorage.getItem('token')
 
   useEffect(() => {
@@ -47,335 +385,154 @@ function InlineChat({ companyId, initialMessage }) {
   }, [companyId, token])
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  const sendMessage = useCallback(async (userMessage) => {
-    if (!userMessage?.trim() || !companyId) return
+  const send = useCallback(async (text) => {
+    if (!text?.trim() || !companyId) return
     setLoading(true)
-    setMessages(prev => [...prev, { id: Date.now(), role: 'user', content: userMessage, created_at: new Date().toISOString() }])
+    setMessages(prev => [...prev, { id: Date.now(), role: 'user', content: text, created_at: new Date().toISOString() }])
     try {
       const res = await fetch(apiUrl(`/api/user/companies/${companyId}/chat`), {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: userMessage })
+        body: JSON.stringify({ message: text })
       })
       const data = await res.json()
       if (data.success) {
         setMessages(prev => [...prev, { id: Date.now() + 1, role: 'assistant', content: data.message, created_at: new Date().toISOString() }])
       }
     } catch(e) {
-      setMessages(prev => [...prev, { id: Date.now() + 1, role: 'assistant', content: 'Error de conexión. Inténtalo de nuevo.', created_at: new Date().toISOString() }])
+      setMessages(prev => [...prev, { id: Date.now() + 1, role: 'assistant', content: 'Error de conexión.', created_at: new Date().toISOString() }])
     } finally { setLoading(false) }
   }, [companyId, token])
 
   useEffect(() => {
     if (initialMessage && companyId && !initialSent && messages.length > 0) {
       setInitialSent(true)
-      sendMessage(initialMessage)
+      send(initialMessage)
     }
-  }, [initialMessage, companyId, initialSent, messages.length, sendMessage])
+  }, [initialMessage, companyId, initialSent, messages.length, send])
 
-  const handleSend = (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault()
     if (!input.trim()) return
     const msg = input.trim()
     setInput('')
-    sendMessage(msg)
+    send(msg)
   }
 
   return (
-    <div className="flex-1 flex flex-col bg-gray-900/50 rounded-2xl border border-gray-700/50 overflow-hidden">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700/50">
-        <div className="flex items-center gap-2">
-          <span className="text-base">🧠</span>
-          <span className="text-sm font-semibold text-white">Co-Founder</span>
-          <span className="text-xs text-gray-500">Tu socio IA</span>
-        </div>
+    <div className="flex-1 flex flex-col bg-[#0d1117] border border-[#21262d] overflow-hidden min-h-0">
+      {/* Header */}
+      <div className="flex items-center justify-between px-3 py-2 border-b border-[#21262d] flex-shrink-0">
+        <span className="text-[10px] font-mono text-[#484f58] uppercase tracking-wider">co-founder</span>
         <span className="flex items-center gap-1.5">
-          <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />
-          <span className="text-xs text-emerald-400">Online</span>
+          <span className="w-1.5 h-1.5 bg-[#00ff87] rounded-full animate-pulse" />
+          <span className="text-[9px] font-mono text-[#00ff87]">online</span>
         </span>
       </div>
-      <div className="flex-1 overflow-y-auto p-4 space-y-3">
+
+      {/* Mensajes */}
+      <div className="flex-1 overflow-y-auto p-3 space-y-2.5 min-h-0">
         {messages.length === 0 && !loading && (
-          <div className="text-center py-8">
-            <p className="text-gray-500 text-sm">Tu Co-Founder está listo. ¿Qué necesitas?</p>
+          <div className="py-8 text-center">
+            <span className="text-[10px] font-mono text-[#484f58]">{'> listo. que necesitas?'}</span>
           </div>
         )}
         {messages.map(msg => (
           <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-            <div className={`max-w-[80%] px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap ${
+            <div className={`max-w-[88%] px-3 py-2 text-xs leading-relaxed whitespace-pre-wrap ${
               msg.role === 'user'
-                ? 'bg-emerald-600 text-white rounded-br-md'
-                : 'bg-gray-800 text-gray-200 rounded-bl-md'
+                ? 'bg-[#1f6feb]/20 text-[#c9d1d9] border border-[#1f6feb]/30'
+                : 'bg-[#161b22] text-[#c9d1d9] border border-[#21262d]'
             }`}>{msg.content}</div>
           </div>
         ))}
         {loading && (
           <div className="flex justify-start">
-            <div className="bg-gray-800 rounded-2xl rounded-bl-md px-4 py-3">
-              <div className="flex gap-1"><span className="w-1.5 h-1.5 bg-gray-500 rounded-full animate-bounce" /><span className="w-1.5 h-1.5 bg-gray-500 rounded-full animate-bounce" style={{animationDelay: '0.1s'}} /><span className="w-1.5 h-1.5 bg-gray-500 rounded-full animate-bounce" style={{animationDelay: '0.2s'}} /></div>
+            <div className="bg-[#161b22] border border-[#21262d] px-3 py-2">
+              <div className="flex gap-1 items-center">
+                <span className="text-[9px] font-mono text-[#484f58]">procesando</span>
+                {[0, 0.15, 0.3].map((d, i) => (
+                  <span key={i} className="w-1 h-1 bg-[#484f58] rounded-full animate-bounce" style={{ animationDelay: `${d}s` }} />
+                ))}
+              </div>
             </div>
           </div>
         )}
-        <div ref={messagesEndRef} />
+        <div ref={bottomRef} />
       </div>
-      <form onSubmit={handleSend} className="p-3 border-t border-gray-700/50 flex gap-2">
-        <input type="text" value={input} onChange={e => setInput(e.target.value)} placeholder="Escribe a tu Co-Founder..." className="flex-1 px-4 py-2.5 bg-gray-800 border border-gray-700/50 rounded-xl text-sm text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500/50 transition-colors" disabled={loading} />
-        <button type="submit" disabled={!input.trim() || loading} className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-30 disabled:cursor-not-allowed text-white text-sm font-medium rounded-xl transition-colors">Enviar</button>
+
+      {/* Input */}
+      <form onSubmit={handleSubmit} className="flex gap-2 p-3 border-t border-[#21262d] flex-shrink-0">
+        <input
+          type="text"
+          value={input}
+          onChange={e => setInput(e.target.value)}
+          placeholder="Escribe a tu Co-Founder..."
+          className="flex-1 px-3 py-1.5 bg-[#0a0e14] border border-[#30363d] text-xs text-[#c9d1d9] placeholder-[#484f58] focus:outline-none focus:border-[#484f58] transition-colors"
+          disabled={loading}
+        />
+        <button
+          type="submit"
+          disabled={!input.trim() || loading}
+          className="px-3 py-1.5 bg-[#21262d] hover:bg-[#30363d] disabled:opacity-30 disabled:cursor-not-allowed text-[#c9d1d9] text-[10px] font-mono transition-colors border border-[#30363d]"
+        >
+          enviar
+        </button>
       </form>
     </div>
   )
 }
 
-// ─── Tasks Widget ──────────────────────────────────────────────
-function TasksWidget({ companyId }) {
-  const [tasks, setTasks] = useState([])
-  const token = localStorage.getItem('token')
-  const navigate = useNavigate()
-
-  useEffect(() => {
-    if (!companyId) return
-    fetch(apiUrl(`/api/user/companies/${companyId}/backlog`), {
-      headers: { 'Authorization': `Bearer ${token}` }
-    })
-    .then(r => r.json())
-    .then(d => setTasks((d.backlog || []).slice(0, 3)))
-    .catch(() => {})
-  }, [companyId, token])
-
-  const STATUS_COLORS = { todo: 'bg-gray-500', in_progress: 'bg-amber-400', completed: 'bg-emerald-400', failed: 'bg-red-400' }
-  const TAG_COLORS = { code: 'text-blue-400', marketing: 'text-pink-400', email: 'text-amber-400', research: 'text-purple-400', data: 'text-cyan-400' }
-
-  return (
-    <div className="bg-gray-900/50 rounded-2xl border border-gray-700/50 overflow-hidden">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700/50">
-        <span className="text-sm font-semibold text-white flex items-center gap-2">
-          <span className="text-xs">📋</span> Tareas
-        </span>
-        <button onClick={() => navigate('/backlog')} className="text-xs text-gray-500 hover:text-emerald-400 transition-colors">Ver todo →</button>
-      </div>
-      <div className="p-3 space-y-2">
-        {tasks.length === 0 ? (
-          <div className="px-3 py-4 text-center">
-            <p className="text-gray-600 text-xs">Dile a tu Co-Founder qué quieres hacer</p>
-          </div>
-        ) : tasks.map(task => (
-          <div key={task.id} className="flex items-center gap-2.5 px-3 py-2 bg-gray-800/50 rounded-xl">
-            <span className={`w-2 h-2 rounded-full flex-shrink-0 ${STATUS_COLORS[task.status] || 'bg-gray-500'}`} />
-            <span className="text-xs text-gray-200 flex-1 truncate">{task.title}</span>
-            {task.tag && <span className={`text-[10px] ${TAG_COLORS[task.tag] || 'text-gray-500'}`}>{task.tag}</span>}
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-// ─── Stats Bar ────────────────────────────────────────────────
-function ProjectStatsBar({ company, totalCompanies, businessSlots }) {
-  const isLive = company?.status === 'live'
-  const revenue = company?.revenue_total || 0
-  const balance = company?.balance || 0
-  const visits = company?.visits_total || 0
-  const costLanzalo = company?.cost_lanzalo || 0
-  const costEmail = company?.cost_cold_email || 0
-  const costAds = company?.cost_ads || 0
-  const investment = costLanzalo + costEmail + costAds
-
-  return (
-    <div className="bg-gray-900/50 rounded-2xl border border-gray-700/50 p-3">
-      <div className="flex items-center gap-4 flex-wrap">
-        <div className="flex items-center gap-2.5 min-w-0 flex-shrink">
-          <div className="flex items-center gap-1.5">
-            <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${isLive ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
-            <span className="text-sm font-bold text-white truncate max-w-[160px]">{company?.name || 'Mi negocio'}</span>
-          </div>
-          <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium flex-shrink-0 ${isLive ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/15 text-amber-400 border border-amber-500/20'}`}>{isLive ? 'Activo' : 'Construyendo'}</span>
-        </div>
-        <div className="w-px h-6 bg-gray-700/50 hidden sm:block" />
-        <div className="flex items-center gap-4 flex-1">
-          <div className="text-center"><div className="text-xs text-gray-500">Ingresos</div><div className="text-sm font-bold text-emerald-400">${revenue}</div></div>
-          <div className="text-center flex items-center gap-2"><div><div className="text-xs text-gray-500">Balance</div><div className="text-sm font-bold text-white">${balance}</div></div>
-            <button onClick={() => alert('Retiradas disponibles pronto.')} className="text-[10px] px-2 py-1 bg-gray-800 hover:bg-gray-700 border border-gray-600/50 text-gray-400 rounded-lg transition-all mt-2">Retirar</button>
-          </div>
-          <div className="text-center"><div className="text-xs text-gray-500">Inversión</div><div className="text-sm font-bold text-orange-400">${investment}</div></div>
-          <div className="text-center"><div className="text-xs text-gray-500">Visitas</div><div className="text-sm font-bold text-blue-400">{visits}</div></div>
-          <div className="w-px h-6 bg-gray-700/50 hidden sm:block" />
-          <div className="text-center"><div className="text-xs text-gray-500">Negocios</div><div className="text-sm font-bold text-violet-400">{totalCompanies || 1}<span className="text-xs text-gray-500 font-normal">/{businessSlots}</span></div></div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// ─── Links & Documents Widget ─────────────────────────────────
-function LinksWidget({ company, companyId }) {
-  const [documents, setDocuments] = useState([])
-  const [expandedDoc, setExpandedDoc] = useState(null)
-  const [landing, setLanding] = useState(null)
-  const token = localStorage.getItem('token')
-
-  useEffect(() => {
-    if (!companyId) return
-    fetch(apiUrl(`/api/user/companies/${companyId}/documents`), {
-      headers: { 'Authorization': `Bearer ${token}` }
-    }).then(r => r.json()).then(d => setDocuments(d.documents || [])).catch(() => {})
-    fetch(apiUrl(`/api/user/companies/${companyId}/landing`), {
-      headers: { 'Authorization': `Bearer ${token}` }
-    }).then(r => r.json()).then(d => setLanding(d)).catch(() => {})
-  }, [companyId, token])
-
-  const subdomain = company?.subdomain
-  const websiteUrl = company?.website_url
-  const DOC_ICONS = { research: '📊', data: '📈', trends: '🌐' }
-
-  return (
-    <div className="bg-gray-900/50 rounded-2xl border border-gray-700/50 overflow-hidden">
-      <div className="px-4 py-3 border-b border-gray-700/50">
-        <span className="text-sm font-semibold text-white flex items-center gap-2">
-          <span className="text-xs">🔗</span> Web e informes
-        </span>
-      </div>
-      <div className="p-3 space-y-2">
-        {subdomain && (landing?.deployed ? (
-          <a href={landing.url || websiteUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 px-3 py-2.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl hover:bg-emerald-500/15 transition-colors group">
-            <span className="text-sm">🌐</span>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm text-emerald-400 group-hover:text-emerald-300 truncate font-medium">{subdomain}.lanzalo.pro</p>
-              <div className="flex items-center gap-2 mt-0.5">
-                <span className="flex items-center gap-1 text-xs text-emerald-500"><span className="w-1.5 h-1.5 bg-emerald-400 rounded-full" /> Live</span>
-                {landing.waitlistCount > 0 && <span className="text-xs text-gray-500">· {landing.waitlistCount} lead{landing.waitlistCount !== 1 ? 's' : ''}</span>}
-              </div>
-            </div>
-            <span className="text-xs text-gray-500 group-hover:text-emerald-400">↗</span>
-          </a>
-        ) : (
-          <div className="flex items-center gap-3 px-3 py-2.5 bg-gray-800/50 rounded-xl">
-            <span className="text-sm">🌐</span>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm text-gray-400 truncate">{subdomain}.lanzalo.pro</p>
-              <p className="text-xs text-amber-400/70">Pendiente — tu Co-Founder la construirá</p>
-            </div>
-            <span className="text-xs text-gray-600">⏳</span>
-          </div>
-        ))}
-        {documents.map(doc => (
-          <div key={doc.id}>
-            <button onClick={() => setExpandedDoc(expandedDoc === doc.id ? null : doc.id)} className="w-full flex items-center gap-3 px-3 py-2.5 bg-gray-800/50 rounded-xl hover:bg-gray-800 transition-colors group text-left">
-              <span className="text-sm">{DOC_ICONS[doc.tag] || '📄'}</span>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm text-gray-200 group-hover:text-emerald-400 transition-colors truncate">{doc.title}</p>
-                <p className="text-xs text-gray-500">{doc.tag || 'documento'} · {new Date(doc.completed_at || doc.created_at).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}</p>
-              </div>
-              <span className={`text-xs text-gray-500 transition-transform ${expandedDoc === doc.id ? 'rotate-180' : ''}`}>▼</span>
-            </button>
-            {expandedDoc === doc.id && doc.output && (
-              <div className="mt-1 mx-1 p-4 bg-gray-800/80 rounded-xl border border-gray-700/50 max-h-96 overflow-y-auto">
-                <pre className="whitespace-pre-wrap text-xs text-gray-300 leading-relaxed font-sans">{doc.output}</pre>
-              </div>
-            )}
-          </div>
-        ))}
-        {!subdomain && documents.length === 0 && (
-          <div className="px-3 py-4 text-center">
-            <p className="text-gray-600 text-xs">Los documentos generados aparecerán aquí</p>
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
-
-// ─── Activity Widget ───────────────────────────────────────────
-function ActivityWidget({ companyId }) {
-  const [events, setEvents] = useState([])
-  const [connected, setConnected] = useState(false)
-
-  useEffect(() => {
-    if (!companyId) return
-    const wsUrl = API_URL ? `${API_URL.replace('https://', 'wss://').replace('http://', 'ws://')}/ws` : `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws`
-    const ws = new WebSocket(wsUrl)
-    ws.onopen = () => setConnected(true)
-    ws.onclose = () => setConnected(false)
-    ws.onmessage = (event) => {
-      try {
-        const activity = JSON.parse(event.data)
-        if (!activity.companyId || activity.companyId === companyId) {
-          setEvents(prev => [{ id: Date.now(), ...activity, time: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }) }, ...prev].slice(0, 3))
-        }
-      } catch(e) {}
-    }
-    return () => ws.close()
-  }, [companyId])
-
-  const ICONS = { task_created: '📋', task_started: '⚡', task_completed: '✅', task_failed: '❌', ceo_message: '🧠', deploy: '🚀', email_sent: '📧', tweet_posted: '🐦' }
-
-  return (
-    <div className="bg-gray-900/50 rounded-2xl border border-gray-700/50 overflow-hidden">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700/50">
-        <span className="text-sm font-semibold text-white flex items-center gap-2">
-          <span className="text-xs">⚡</span> Actividad
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className={`w-1.5 h-1.5 rounded-full ${connected ? 'bg-emerald-400 animate-pulse' : 'bg-gray-600'}`} />
-          <span className={`text-xs ${connected ? 'text-emerald-400' : 'text-gray-600'}`}>{connected ? 'Live' : '...'}</span>
-        </span>
-      </div>
-      <div className="divide-y divide-gray-800/50">
-        {events.length === 0 ? (
-          <div className="px-4 py-4 text-center">
-            <p className="text-gray-600 text-xs">Conectando con tus agentes...</p>
-          </div>
-        ) : events.map(event => (
-          <div key={event.id} className="px-4 py-2 flex items-center gap-2">
-            <span className="text-xs">{ICONS[event.type] || '⚡'}</span>
-            <span className="text-xs text-gray-300 flex-1 truncate">{event.message || event.type}</span>
-            <span className="text-xs text-gray-600 flex-shrink-0">{event.time}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-// ─── Company Selector ──────────────────────────────────────────
+// ─── Company Selector ────────────────────────────────────────────
 function CompanySelector({ companies, selected, onSelect, onCreateNew, slotsAvailable }) {
   const [open, setOpen] = useState(false)
   if (companies.length <= 1 && !onCreateNew) return null
-  const canCreate = slotsAvailable > 0
 
   return (
     <div className="relative">
-      <button onClick={() => setOpen(!open)} className="flex items-center gap-2 px-3 py-1.5 bg-gray-800/50 border border-gray-700/50 rounded-lg hover:bg-gray-800 transition-colors">
-        <span className="text-sm font-medium text-white truncate max-w-[150px]">{selected?.name}</span>
-        <span className={`text-xs text-gray-500 transition-transform ${open ? 'rotate-180' : ''}`}>▼</span>
+      <button
+        onClick={() => setOpen(!open)}
+        className="flex items-center gap-1.5 px-2 py-1 border border-[#30363d] hover:border-[#8b949e] transition-colors"
+      >
+        <span className="text-[10px] font-mono text-[#8b949e] truncate max-w-[120px]">{selected?.name}</span>
+        <span className={`text-[9px] font-mono text-[#484f58] transition-transform ${open ? 'rotate-180' : ''}`}>▾</span>
       </button>
       {open && (
-        <div className="absolute top-full left-0 mt-1 w-56 bg-gray-800 border border-gray-700 rounded-xl shadow-xl z-50 overflow-hidden">
+        <div className="absolute top-full right-0 mt-1 w-48 bg-[#161b22] border border-[#30363d] shadow-2xl z-50">
           {companies.map(c => (
-            <button key={c.id} onClick={() => { onSelect(c); setOpen(false) }} className={`w-full text-left px-4 py-2.5 text-sm hover:bg-gray-700/50 transition-colors flex items-center gap-2 ${c.id === selected?.id ? 'text-emerald-400 bg-gray-700/30' : 'text-gray-300'}`}>
-              <span className="text-xs">{c.status === 'live' ? '🟢' : '🟡'}</span>
+            <button
+              key={c.id}
+              onClick={() => { onSelect(c); setOpen(false) }}
+              className={`w-full text-left px-3 py-2 text-[10px] font-mono hover:bg-[#21262d] transition-colors flex items-center gap-2 ${
+                c.id === selected?.id ? 'text-[#00ff87]' : 'text-[#8b949e]'
+              }`}
+            >
+              <span className={`w-1.5 h-1.5 rounded-full ${c.status === 'live' ? 'bg-[#00ff87]' : 'bg-[#d29922]'}`} />
               <span className="truncate">{c.name}</span>
             </button>
           ))}
-          {canCreate ? (
-            <button onClick={() => { onCreateNew(); setOpen(false) }} className="w-full text-left px-4 py-2.5 text-sm text-emerald-400 hover:bg-gray-700/50 transition-colors border-t border-gray-700 flex items-center gap-2">
-              <span className="text-xs">+</span><span>Crear nuevo negocio</span>
-            </button>
-          ) : (
-            <div className="w-full px-4 py-2.5 text-sm text-gray-500 border-t border-gray-700 flex items-center gap-2">
-              <span className="text-xs">🔒</span><span className="text-xs">Sin huecos — compra uno en ajustes</span>
-            </div>
-          )}
+          <div className="border-t border-[#21262d]">
+            {slotsAvailable > 0 ? (
+              <button
+                onClick={() => { onCreateNew(); setOpen(false) }}
+                className="w-full text-left px-3 py-2 text-[10px] font-mono text-[#58a6ff] hover:bg-[#21262d] transition-colors"
+              >
+                + nuevo negocio
+              </button>
+            ) : (
+              <div className="px-3 py-2 text-[10px] font-mono text-[#484f58]">sin slots disponibles</div>
+            )}
+          </div>
         </div>
       )}
     </div>
   )
 }
 
-// ─── Main DashboardHome (MINIMALISTA) ──────────────────────────
+// ─── Main DashboardHome ──────────────────────────────────────────
 export default function DashboardHome() {
   const { companies, selectedCompany: company, selectCompany, loadingCompanies: loading } = useCompanySelection()
   const [feedbackMessage, setFeedbackMessage] = useState(null)
@@ -387,7 +544,9 @@ export default function DashboardHome() {
   useEffect(() => {
     if (!token) return
     fetch(apiUrl('/api/user/profile'), { headers: { 'Authorization': `Bearer ${token}` } })
-    .then(r => r.json()).then(d => setUserProfile(d.user || null)).catch(() => {})
+      .then(r => r.json())
+      .then(d => setUserProfile(d.user || null))
+      .catch(() => {})
   }, [token])
 
   useEffect(() => {
@@ -412,19 +571,26 @@ export default function DashboardHome() {
   }, [companies])
 
   if (loading) {
-    return (<div className="flex-1 flex items-center justify-center"><div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" /></div>)
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <div className="w-4 h-4 border border-[#30363d] border-t-transparent rounded-full animate-spin" />
+      </div>
+    )
   }
 
   if (!company) {
     return (
       <div className="flex-1 flex items-center justify-center p-8">
-        <div className="text-center max-w-md">
-          <div className="w-16 h-16 bg-emerald-500/20 rounded-2xl flex items-center justify-center mx-auto mb-5">
-            <span className="text-3xl">🚀</span>
-          </div>
-          <h2 className="text-xl font-bold text-white mb-2">Lanza tu primer negocio</h2>
-          <p className="text-gray-400 text-sm mb-6">Describe tu idea y tu Co-Founder se encarga del resto.</p>
-          <button onClick={() => navigate('/onboarding/choose-path')} className="bg-emerald-600 hover:bg-emerald-500 text-white font-medium py-2.5 px-6 rounded-xl transition-colors text-sm">Empezar</button>
+        <div className="text-center max-w-xs">
+          <p className="font-mono text-[10px] text-[#484f58] mb-6">{'> lanzalo init'}</p>
+          <h2 className="text-base font-semibold text-white mb-2">Lanza tu primer negocio</h2>
+          <p className="text-[#8b949e] text-xs mb-6 font-mono">describe la idea — el co-founder hace el resto.</p>
+          <button
+            onClick={() => navigate('/onboarding/choose-path')}
+            className="bg-[#21262d] hover:bg-[#30363d] text-[#c9d1d9] font-mono text-xs py-2 px-5 border border-[#30363d] transition-colors"
+          >
+            empezar
+          </button>
         </div>
       </div>
     )
@@ -432,29 +598,50 @@ export default function DashboardHome() {
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      {companies.length > 0 && (
-        <div className="flex items-center justify-end px-4 pt-3 pb-1 flex-shrink-0">
-          <CompanySelector companies={companies} selected={company} onSelect={(c) => selectCompany(c.id)} onCreateNew={() => navigate('/onboarding/describe-idea')} slotsAvailable={userProfile?.slotsAvailable ?? 1} />
-        </div>
-      )}
+      {/* Terminal log — barra estrecha en tiempo real */}
+      <TerminalLog companyId={company.id} />
 
-      {/* Stats bar — siempre visible arriba */}
-      <div className="px-4 pt-2 flex-shrink-0">
-        <ProjectStatsBar company={company} totalCompanies={companies.length} businessSlots={userProfile?.businessSlots ?? 1} />
+      {/* Sub-header: nombre negocio + selector */}
+      <div className="flex items-center justify-between px-4 py-2 border-b border-[#21262d] flex-shrink-0">
+        <div className="flex items-center gap-2">
+          <span className={`w-1.5 h-1.5 rounded-full ${company.status === 'live' ? 'bg-[#00ff87] animate-pulse' : 'bg-[#d29922]'}`} />
+          <span className="text-sm font-medium text-white">{company.name}</span>
+        </div>
+        {companies.length > 0 && (
+          <CompanySelector
+            companies={companies}
+            selected={company}
+            onSelect={(c) => selectCompany(c.id)}
+            onCreateNew={() => navigate('/onboarding/describe-idea')}
+            slotsAvailable={userProfile?.slotsAvailable ?? 1}
+          />
+        )}
       </div>
 
-      <div className="flex-1 flex flex-col lg:flex-row gap-4 p-4 overflow-hidden">
-        {/* Left: Estado del negocio (30%) */}
-        <div className="lg:w-[30%] flex flex-col gap-3 overflow-y-auto min-h-0">
-          <TasksWidget companyId={company.id} />
-          <LinksWidget company={company} companyId={company.id} />
-          <ActivityWidget companyId={company.id} />
+      {/* 3 columnas */}
+      <div className="flex-1 flex flex-col lg:flex-row gap-0 overflow-hidden">
+
+        {/* COL IZQUIERDA — 25%: stats + agentes */}
+        <div className="lg:w-[25%] border-r border-[#21262d] flex flex-col overflow-y-auto">
+          <div className="p-3 space-y-3">
+            <BusinessStats company={company} />
+            <AgentStatus companyId={company.id} />
+          </div>
         </div>
 
-        {/* Right: Chat (70%) — protagonista */}
-        <div className="flex-1 lg:w-[70%] min-h-0 flex flex-col">
-          <InlineChat companyId={company.id} initialMessage={feedbackMessage} />
+        {/* COL CENTRAL — 40%: tareas + docs/links */}
+        <div className="lg:w-[40%] border-r border-[#21262d] flex flex-col overflow-y-auto">
+          <div className="p-3 space-y-3">
+            <Tasks companyId={company.id} />
+            <DocsLinks company={company} companyId={company.id} />
+          </div>
         </div>
+
+        {/* COL DERECHA — 35%: chat */}
+        <div className="flex-1 lg:w-[35%] flex flex-col overflow-hidden p-3 min-h-[400px] lg:min-h-0">
+          <Chat companyId={company.id} initialMessage={feedbackMessage} />
+        </div>
+
       </div>
     </div>
   )
