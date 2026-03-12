@@ -10,6 +10,9 @@ on:
       - 'frontend/tailwind.config.js'
   workflow_dispatch:
 
+
+permissions:
+  contents: write
 jobs:
   build:
     runs-on: ubuntu-latest
