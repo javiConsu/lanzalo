@@ -55,7 +55,7 @@ function TerminalLog({ companyId }) {
   return (
     <div className="h-7 flex items-center gap-2 px-4 bg-[#0a0e14] border-b border-[#21262d] text-[10px] font-mono overflow-hidden flex-shrink-0">
       <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${connected ? 'bg-[#00ff87]' : 'bg-[#484f58]'}`} />
-      <span className="text-[#484f58] flex-shrink-0">{connected ? 'live' : 'off'}</span>
+      <span className="text-[#484f58] flex-shrink-0">{connected ? 'en vivo' : 'desconectado'}</span>
       <span className="text-[#30363d] flex-shrink-0">|</span>
       {latest ? (
         <span ref={scrollRef} className="text-[#8b949e] truncate">
@@ -82,7 +82,7 @@ function StatsBar({ company, credits }) {
     <div className="flex items-center gap-4 px-4 py-1.5 bg-[#0d1117] border-b border-[#21262d] text-[10px] font-mono overflow-x-auto flex-shrink-0">
       <div className="flex items-center gap-1.5">
         <span className={`w-1.5 h-1.5 rounded-full ${isLive ? 'bg-[#00ff87] animate-pulse' : 'bg-[#d29922]'}`} />
-        <span className="text-[#8b949e]">{isLive ? 'live' : 'building'}</span>
+        <span className="text-[#8b949e]">Estadísticas</span>
       </div>
       <span className="text-[#21262d]">|</span>
       <div className="flex items-center gap-1">
@@ -163,7 +163,7 @@ function AgentStatus({ companyId }) {
           <div key={a.key} className="flex items-center gap-2 py-1">
             <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${dotClass}`} />
             <span className="text-[11px] text-[#c9d1d9] w-20">{a.name}</span>
-            <span className="text-[10px] text-[#8b949e] truncate">{st.task || st.status}</span>
+            <span className="text-[10px] text-[#8b949e] truncate">{st.task || ({working:'trabajando',idle:'inactivo',standby:'en espera'}[st.status] || st.status)}</span>
           </div>
         )
       })}
@@ -238,13 +238,13 @@ function DocsLinks({ company, companyId }) {
 
   return (
     <div className="bg-[#0d1117] border border-[#21262d] rounded p-3">
-      <h3 className="text-[10px] font-mono text-[#8b949e] uppercase tracking-wider mb-2">web / docs</h3>
+      <h3 className="text-[10px] font-mono text-[#8b949e] uppercase tracking-wider mb-2">web / documentos</h3>
       {subdomain && (landing?.deployed ? (
         <a href={landing.url} target="_blank" rel="noopener noreferrer"
           className="flex items-center gap-2 py-1 text-[11px] text-[#58a6ff] hover:underline">
           <span>↗</span> {subdomain}.lanzalo.pro
           {landing.waitlistCount > 0 && (
-            <span className="text-[9px] bg-[#21262d] text-[#8b949e] px-1.5 py-0.5 rounded">{landing.waitlistCount} leads</span>
+            <span className="text-[9px] bg-[#21262d] text-[#8b949e] px-1.5 py-0.5 rounded">{landing.waitlistCount} registros</span>
           )}
         </a>
       ) : (
@@ -432,7 +432,7 @@ function CompanySelector({ companies, selected, onSelect, onCreateNew, slotsAvai
               + nuevo negocio
             </button>
           ) : (
-            <div className="px-3 py-2 text-[9px] text-[#484f58]">sin slots disponibles</div>
+            <div className="px-3 py-2 text-[9px] text-[#484f58]">sin espacios disponibles</div>
           )}
         </div>
       )}
