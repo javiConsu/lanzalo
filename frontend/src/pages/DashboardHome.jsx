@@ -112,12 +112,12 @@ function StatsBar({ company, credits }) {
 
 // ─── Agent Status ───
 const AGENTS = [
-  { key: 'ceo', name: 'bender', tags: ['ceo', 'strategy'] },
-  { key: 'marketing', name: 'marketing', tags: ['marketing', 'copy', 'ads'] },
-  { key: 'code', name: 'código', tags: ['code', 'deploy', 'web'] },
-  { key: 'email', name: 'email', tags: ['email', 'drip'] },
-  { key: 'analytics', name: 'analytics', tags: ['analytics', 'data'] },
-  { key: 'finance', name: 'finanzas', tags: ['finance', 'financial'] },
+  { key: 'ceo', name: 'Bender', role: 'CEO', tags: ['ceo', 'strategy'] },
+  { key: 'marketing', name: 'Luna', role: 'Marketing', tags: ['marketing', 'copy', 'ads'] },
+  { key: 'code', name: 'Dev', role: 'Código', tags: ['code', 'deploy', 'web'] },
+  { key: 'email', name: 'Nora', role: 'Email', tags: ['email', 'drip'] },
+  { key: 'analytics', name: 'Data', role: 'Analytics', tags: ['analytics', 'data'] },
+  { key: 'finance', name: 'Rex', role: 'Finanzas', tags: ['finance', 'financial'] },
 ]
 
 function AgentStatus({ companyId }) {
@@ -162,7 +162,7 @@ function AgentStatus({ companyId }) {
         return (
           <div key={a.key} className="flex items-center gap-2 py-1">
             <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${dotClass}`} />
-            <span className="text-[11px] text-[#c9d1d9] w-20">{a.name}</span>
+                            <span className="text-[11px] w-24 flex flex-col leading-tight"><span className="text-[#c9d1d9] font-semibold">{a.name}</span><span className="text-[9px] text-[#8b949e]">{a.role}</span></span>
             <span className="text-[10px] text-[#8b949e] truncate">{st.task || ({working:'trabajando',idle:'inactivo',standby:'en espera'}[st.status] || st.status)}</span>
           </div>
         )
@@ -355,7 +355,7 @@ function Chat({ companyId, initialMessage }) {
     <div className="bg-[#0d1117] border border-[#21262d] rounded flex flex-col h-full">
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-[#21262d] flex-shrink-0">
-        <span className="text-[11px] font-mono font-semibold text-[#c9d1d9]">bender</span>
+        <span className="text-[11px] font-mono font-semibold text-[#c9d1d9]">BENDER — CO-FUNDADOR IA</span>
         <span className="flex items-center gap-1 text-[9px] font-mono text-[#00ff87]">
           <span className="w-1.5 h-1.5 rounded-full bg-[#00ff87]" /> en línea
         </span>
