@@ -1,0 +1,400 @@
+{
+  "planId": "plan_demo_polsia",
+  "companyName": "PolSia",
+  "idea": "Agencia de marketing con IA para pequeñas empresas del mercado hispano",
+  "targetCustomer": "Dueños de pymes hispanas (restaurantes, tiendas, servicios locales) con 1-10 empleados",
+  "objective14d": "Conseguir 3 clientes pagando €297/mes antes del día 14",
+  "totalTasks": 28,
+  "totalDays": 14,
+  "weeklyGoals": [
+    {
+      "week": 1,
+      "days": "1-7",
+      "goal": "Validar el dolor con 5 clientes reales y cerrar el primer cliente pagando",
+      "keyMetric": "5 conversaciones reales + 1 cliente pagando"
+    },
+    {
+      "week": 2,
+      "days": "8-14",
+      "goal": "Escalar a 3 clientes pagando y automatizar la entrega del servicio con IA",
+      "keyMetric": "3 clientes activos + proceso documentado"
+    }
+  ],
+  "milestones": [
+    {
+      "day": 3,
+      "title": "Primera validación confirmada",
+      "description": "Al menos 3 personas han confirmado el dolor y estarían dispuestas a pagar",
+      "success": "3+ conversaciones positivas documentadas"
+    },
+    {
+      "day": 7,
+      "title": "Primer cliente pagando",
+      "description": "Cierre del primer cliente con pago recibido (aunque sea €1 de prueba)",
+      "success": "Transferencia o pago online recibido"
+    },
+    {
+      "day": 11,
+      "title": "Tres clientes activos",
+      "description": "3 clientes usando el servicio con resultados medibles",
+      "success": "3 facturas emitidas, primeros resultados documentados"
+    },
+    {
+      "day": 14,
+      "title": "Decisión estratégica",
+      "description": "Datos suficientes para decidir: escalar, pivotar o parar",
+      "success": "Informe de aprendizajes + decisión documentada"
+    }
+  ],
+  "sprints": [
+    {
+      "id": 1,
+      "name": "Validación Rápida",
+      "days": "1-3",
+      "objective": "Hablar con 5 dueños de pymes reales antes de construir nada. No vendas, escucha.",
+      "tasks": [
+        {
+          "id": "t1",
+          "day": 1,
+          "title": "Prepara tu guión de entrevista de cliente",
+          "description": "5 preguntas para validar si el dolor de marketing existe y cuánto pagarían. El agente puede generarlo.",
+          "estimatedMinutes": 30,
+          "expectedOutput": "Guión de entrevista listo en Google Doc",
+          "category": "research",
+          "agentCanHelp": true,
+          "agentAction": "generate_interview_script"
+        },
+        {
+          "id": "t2",
+          "day": 1,
+          "title": "Lista de 20 pymes hispanas para contactar",
+          "description": "Busca en Google Maps, Instagram o grupos de Facebook. Enfócate en tu ciudad o nicho.",
+          "estimatedMinutes": 45,
+          "expectedOutput": "Lista con nombre, teléfono/email, red social en hoja de cálculo",
+          "category": "research",
+          "agentCanHelp": true,
+          "agentAction": "generate_prospect_list"
+        },
+        {
+          "id": "t3",
+          "day": 2,
+          "title": "Contacta a 10 empresas por WhatsApp o DM",
+          "description": "Mensaje corto y personal. No vendas nada, pide 15 minutos para hacerles preguntas.",
+          "estimatedMinutes": 60,
+          "expectedOutput": "10 mensajes enviados, 3+ respuestas positivas",
+          "category": "outreach",
+          "agentCanHelp": true,
+          "agentAction": "generate_outreach_message"
+        },
+        {
+          "id": "t4",
+          "day": 2,
+          "title": "Primera entrevista de cliente (en vivo o por llamada)",
+          "description": "Usa el guión. Graba con permiso o toma notas detalladas.",
+          "estimatedMinutes": 30,
+          "expectedOutput": "Notas de 1 entrevista + 3 insights clave",
+          "category": "validation",
+          "agentCanHelp": false
+        },
+        {
+          "id": "t5",
+          "day": 3,
+          "title": "Completa 4 entrevistas más",
+          "description": "Busca patrones: ¿qué problema mencionan todos? ¿cuánto gastan ahora en marketing?",
+          "estimatedMinutes": 120,
+          "expectedOutput": "5 entrevistas completadas + resumen de patrones",
+          "category": "validation",
+          "agentCanHelp": true,
+          "agentAction": "analyze_interview_patterns"
+        },
+        {
+          "id": "t6",
+          "day": 3,
+          "title": "Documenta el dolor validado",
+          "description": "Una frase que describe exactamente qué problema resuelves para quién y por qué ahora.",
+          "estimatedMinutes": 30,
+          "expectedOutput": "Propuesta de valor en 1 frase + evidencia de 5 entrevistas",
+          "category": "strategy",
+          "agentCanHelp": true,
+          "agentAction": "generate_value_proposition"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "MVP Mínimo",
+      "days": "4-7",
+      "objective": "Construir el servicio más básico que resuelva el dolor validado. Vende antes de construir.",
+      "tasks": [
+        {
+          "id": "t7",
+          "day": 4,
+          "title": "Define el paquete mínimo de servicio",
+          "description": "¿Qué es lo único que haría el 80% de la diferencia? Solo eso. El agente te ayuda a definirlo.",
+          "estimatedMinutes": 45,
+          "expectedOutput": "1 paquete de servicio definido: qué incluye, qué NO incluye, precio",
+          "category": "product",
+          "agentCanHelp": true,
+          "agentAction": "define_service_package"
+        },
+        {
+          "id": "t8",
+          "day": 4,
+          "title": "Crea la propuesta de venta (1 página)",
+          "description": "PDF o web simple con el dolor, tu solución, precio y CTA. El agente genera el copy.",
+          "estimatedMinutes": 60,
+          "expectedOutput": "Propuesta en 1 página lista para enviar",
+          "category": "sales",
+          "agentCanHelp": true,
+          "agentAction": "generate_sales_proposal"
+        },
+        {
+          "id": "t9",
+          "day": 5,
+          "title": "Contacta a los 5 mejores prospects de las entrevistas",
+          "description": "A los que más dolor mostraron. Envía la propuesta con precio claro.",
+          "estimatedMinutes": 45,
+          "expectedOutput": "5 propuestas enviadas",
+          "category": "sales",
+          "agentCanHelp": false
+        },
+        {
+          "id": "t10",
+          "day": 5,
+          "title": "Configura Canva + ChatGPT para crear posts de RRSS con IA",
+          "description": "El flujo básico del servicio: brief del cliente → prompt IA → diseño → aprobación.",
+          "estimatedMinutes": 90,
+          "expectedOutput": "Flujo documentado + ejemplo de 3 posts creados con IA en 30 min",
+          "category": "product",
+          "agentCanHelp": true,
+          "agentAction": "generate_content_workflow"
+        },
+        {
+          "id": "t11",
+          "day": 6,
+          "title": "Follow-up a todos los prospects contactados",
+          "description": "Un mensaje de seguimiento a los que no respondieron. Máximo 1 seguimiento.",
+          "estimatedMinutes": 30,
+          "expectedOutput": "Follow-up enviado a todos los contactados sin respuesta",
+          "category": "sales",
+          "agentCanHelp": true,
+          "agentAction": "generate_followup_message"
+        },
+        {
+          "id": "t12",
+          "day": 6,
+          "title": "Demo en vivo con el prospect más interesado",
+          "description": "Muéstrale en tiempo real cómo en 15 minutos generas 5 posts de RRSS para su negocio.",
+          "estimatedMinutes": 60,
+          "expectedOutput": "Demo completada + feedback anotado",
+          "category": "sales",
+          "agentCanHelp": false
+        },
+        {
+          "id": "t13",
+          "day": 7,
+          "title": "Cierra el primer cliente pagando",
+          "description": "Pide el pago antes de empezar. Bizum, Stripe o transferencia. Sin pago no hay servicio.",
+          "estimatedMinutes": 30,
+          "expectedOutput": "Primer pago recibido (aunque sea €50 de inicio)",
+          "category": "sales",
+          "agentCanHelp": false
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "Primeros Clientes",
+      "days": "8-11",
+      "objective": "Escalar a 3 clientes pagando y sistematizar la entrega para poder hacerlo sin agotarte.",
+      "tasks": [
+        {
+          "id": "t14",
+          "day": 8,
+          "title": "Entrega el primer mes de contenido al cliente 1",
+          "description": "12-16 posts de RRSS usando el flujo con IA. Tiempo real: máx 3 horas con las herramientas.",
+          "estimatedMinutes": 180,
+          "expectedOutput": "Carpeta compartida con cliente: 12+ posts listos para publicar",
+          "category": "delivery",
+          "agentCanHelp": true,
+          "agentAction": "generate_social_content"
+        },
+        {
+          "id": "t15",
+          "day": 8,
+          "title": "Automatiza el brief de cliente con un formulario",
+          "description": "Google Forms o Typeform: 5 preguntas para obtener todo lo que necesitas de un cliente nuevo.",
+          "estimatedMinutes": 45,
+          "expectedOutput": "Formulario de onboarding de cliente funcionando",
+          "category": "operations",
+          "agentCanHelp": true,
+          "agentAction": "generate_client_brief_form"
+        },
+        {
+          "id": "t16",
+          "day": 9,
+          "title": "Contacta a 10 pymes más con caso de éxito del cliente 1",
+          "description": "Usa el resultado real del cliente 1 como prueba social. 'Hice X posts en Y horas para Z empresa'.",
+          "estimatedMinutes": 60,
+          "expectedOutput": "10 mensajes enviados con caso de éxito incluido",
+          "category": "outreach",
+          "agentCanHelp": true,
+          "agentAction": "generate_case_study_message"
+        },
+        {
+          "id": "t17",
+          "day": 9,
+          "title": "Onboarding del cliente 2",
+          "description": "Usa el formulario. Recibe el brief. Empieza a generar contenido.",
+          "estimatedMinutes": 120,
+          "expectedOutput": "Cliente 2 onboardeado + primer batch de contenido generado",
+          "category": "delivery",
+          "agentCanHelp": false
+        },
+        {
+          "id": "t18",
+          "day": 10,
+          "title": "Cierra el cliente 3",
+          "description": "Tienes 2 casos reales. El cierre debería ser más fácil. Ofrece prueba de 1 semana si dudan.",
+          "estimatedMinutes": 60,
+          "expectedOutput": "Tercer pago recibido",
+          "category": "sales",
+          "agentCanHelp": false
+        },
+        {
+          "id": "t19",
+          "day": 10,
+          "title": "Documenta el proceso completo de entrega",
+          "description": "Un SOP (Standard Operating Procedure) que otro podría seguir para replicar tu servicio.",
+          "estimatedMinutes": 60,
+          "expectedOutput": "SOP de 1-2 páginas: brief → generación → revisión → entrega",
+          "category": "operations",
+          "agentCanHelp": true,
+          "agentAction": "generate_sop"
+        },
+        {
+          "id": "t20",
+          "day": 11,
+          "title": "Solicita testimonios a los clientes 1 y 2",
+          "description": "Un mensaje corto pidiendo un testimonio escrito o en video. Facilítalo con preguntas concretas.",
+          "estimatedMinutes": 20,
+          "expectedOutput": "2 testimonios recibidos listos para usar en marketing",
+          "category": "marketing",
+          "agentCanHelp": true,
+          "agentAction": "generate_testimonial_request"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "name": "Feedback Loop",
+      "days": "12-14",
+      "objective": "Analizar qué funcionó, qué no, y decidir con datos: escalar, pivotar o parar.",
+      "tasks": [
+        {
+          "id": "t21",
+          "day": 12,
+          "title": "Encuesta de satisfacción a los 3 clientes",
+          "description": "5 preguntas: NPS, qué valoran más, qué mejorarían, si renovarían, si recomendarían.",
+          "estimatedMinutes": 30,
+          "expectedOutput": "3 encuestas enviadas + respuestas recibidas",
+          "category": "feedback",
+          "agentCanHelp": true,
+          "agentAction": "generate_satisfaction_survey"
+        },
+        {
+          "id": "t22",
+          "day": 12,
+          "title": "Análisis de métricas de negocio",
+          "description": "Ingresos, horas invertidas, coste por cliente, margen estimado. ¿Es sostenible al precio actual?",
+          "estimatedMinutes": 60,
+          "expectedOutput": "Tabla de métricas: MRR potencial, horas/cliente, margen bruto",
+          "category": "analytics",
+          "agentCanHelp": true,
+          "agentAction": "analyze_business_metrics"
+        },
+        {
+          "id": "t23",
+          "day": 13,
+          "title": "Retrospectiva de las 2 semanas",
+          "description": "Qué funcionó, qué no funcionó, qué fue sorprendente. Sin juicios, solo datos y observaciones.",
+          "estimatedMinutes": 60,
+          "expectedOutput": "Documento: 5 cosas que funcionaron + 5 que no + 3 sorpresas",
+          "category": "strategy",
+          "agentCanHelp": true,
+          "agentAction": "generate_retrospective"
+        },
+        {
+          "id": "t24",
+          "day": 13,
+          "title": "Identifica el canal de adquisición que mejor funcionó",
+          "description": "¿WhatsApp, DM, referidos, frío? ¿Qué mensaje tuvo mejor tasa de respuesta?",
+          "estimatedMinutes": 30,
+          "expectedOutput": "Canal y mensaje ganador identificado",
+          "category": "analytics",
+          "agentCanHelp": false
+        },
+        {
+          "id": "t25",
+          "day": 14,
+          "title": "Decide: ¿escalar, pivotar o parar?",
+          "description": "Con datos reales: 3 clientes pagando, métricas, feedback. ¿Qué dice la evidencia?",
+          "estimatedMinutes": 45,
+          "expectedOutput": "Decisión documentada con evidencia + próximo paso concreto",
+          "category": "strategy",
+          "agentCanHelp": true,
+          "agentAction": "generate_decision_framework"
+        },
+        {
+          "id": "t26",
+          "day": 14,
+          "title": "Si escalar: prepara el plan de próximos 30 días",
+          "description": "Goal: 10 clientes. ¿Cómo llegar? ¿Qué necesitas delegar o automatizar?",
+          "estimatedMinutes": 60,
+          "expectedOutput": "Plan 30 días con goals, acciones y recursos necesarios",
+          "category": "strategy",
+          "agentCanHelp": true,
+          "agentAction": "generate_scale_plan"
+        },
+        {
+          "id": "t27",
+          "day": 14,
+          "title": "Renueva los 3 clientes para el mes 2",
+          "description": "Pide la renovación con descuento de early adopter. 'Por ser de los primeros, -20% si renuevas hoy'.",
+          "estimatedMinutes": 30,
+          "expectedOutput": "3 renovaciones confirmadas = €891/mes recurrente",
+          "category": "sales",
+          "agentCanHelp": true,
+          "agentAction": "generate_renewal_message"
+        },
+        {
+          "id": "t28",
+          "day": 14,
+          "title": "Celebra y comparte el resultado",
+          "description": "Post en LinkedIn o Twitter sobre lo que aprendiste en 14 días. Construye tu audiencia desde el primer día.",
+          "estimatedMinutes": 20,
+          "expectedOutput": "Post publicado con métricas reales: clientes, ingresos, aprendizajes",
+          "category": "marketing",
+          "agentCanHelp": true,
+          "agentAction": "generate_launch_post"
+        }
+      ]
+    }
+  ],
+  "days": [
+    { "day": 1, "sprint": 1, "focus": "Setup", "tasks": ["t1", "t2"] },
+    { "day": 2, "sprint": 1, "focus": "Outreach", "tasks": ["t3", "t4"] },
+    { "day": 3, "sprint": 1, "focus": "Validación", "tasks": ["t5", "t6"] },
+    { "day": 4, "sprint": 2, "focus": "Producto", "tasks": ["t7", "t8"] },
+    { "day": 5, "sprint": 2, "focus": "Ventas", "tasks": ["t9", "t10"] },
+    { "day": 6, "sprint": 2, "focus": "Cierre", "tasks": ["t11", "t12"] },
+    { "day": 7, "sprint": 2, "focus": "Primer Cliente", "tasks": ["t13"] },
+    { "day": 8, "sprint": 3, "focus": "Entrega", "tasks": ["t14", "t15"] },
+    { "day": 9, "sprint": 3, "focus": "Escala", "tasks": ["t16", "t17"] },
+    { "day": 10, "sprint": 3, "focus": "Sistemas", "tasks": ["t18", "t19"] },
+    { "day": 11, "sprint": 3, "focus": "Prueba Social", "tasks": ["t20"] },
+    { "day": 12, "sprint": 4, "focus": "Datos", "tasks": ["t21", "t22"] },
+    { "day": 13, "sprint": 4, "focus": "Retrospectiva", "tasks": ["t23", "t24"] },
+    { "day": 14, "sprint": 4, "focus": "Decisión", "tasks": ["t25", "t26", "t27", "t28"] }
+  ]
+}
