@@ -9,6 +9,7 @@ const bcrypt = require('bcrypt');
 const { register, login, requireAuth } = require('../middleware/auth');
 const { pool } = require('../db');
 const { Resend } = require('resend');
+const { captureServerEvent } = require('../services/posthog');
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -59,6 +60,13 @@ router.post('/register', async (req, res) => {
         }
       } catch(e) { /* silencioso — no bloquear registro */ }
     }
+
+    // Trackear registro en PostHog (server-side)
+    captureServerEvent(String(result.user.id), 'user_registered', {
+      email: result.user.email,
+      plan: 'trial',
+      origin: referralCode ? 'referral' : 'organic',
+    });
 
     res.json({
       status: 'ok',

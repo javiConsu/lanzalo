@@ -6,6 +6,7 @@ const express = require('express');
 const router = express.Router();
 const { pool } = require('../db');
 const { activatePro, renewMonthly, addCredits } = require('../middleware/credits');
+const { captureServerEvent } = require('../services/posthog');
 
 const stripe = process.env.STRIPE_SECRET_KEY 
   ? require('stripe')(process.env.STRIPE_SECRET_KEY) 
@@ -148,6 +149,12 @@ async function handleCheckoutComplete(session) {
       [companies.rows[0].id]
     );
   }
+
+  // Trackear suscripción iniciada en PostHog (server-side)
+  captureServerEvent(String(userId), 'subscription_started', {
+    plan: 'pro',
+    stripe_subscription_id: session.subscription,
+  });
 }
 
 /**

@@ -7,7 +7,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowRight, CheckCircle, Loader2, Bot, Clock, XCircle } from 'lucide-react';
 import api from '../lib/api';
-import { trackTaskAssigned, trackVentureLaunched } from '../lib/analytics/events';
+import { trackTaskAssigned, trackVentureLaunched, trackPlanGenerated } from '../lib/analytics/events';
 
 function LoadingPlan() {
   return (
@@ -158,8 +158,11 @@ export default function Plan14Days() {
         if (data.status === 'completed' && data.plan) {
           setPlan(data.plan);
           setPhase('result');
-          // Trackear primera asignación de tareas (plan generado)
           const userId = localStorage.getItem('lanzalo_user_id') || '';
+          // Trackear plan generado
+          const totalTasks = data.plan?.sprints?.reduce((acc, s) => acc + (s.tasks?.length || 0), 0) ?? 0;
+          trackPlanGenerated({ companyId: cid, userId, totalTasks });
+          // Trackear primera asignación de tareas
           const firstTaskId = data.plan?.sprints?.[0]?.tasks?.[0]?.id || 'plan-day-1';
           trackTaskAssigned({ agentId: cid, taskId: firstTaskId, userId });
         } else if (data.status === 'failed') {

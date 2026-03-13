@@ -1,7 +1,7 @@
 /**
  * lib/analytics/events.js
  * Módulo de eventos PostHog para Lanzalo.
- * Centraliza los 5 eventos clave del Loop 1.
+ * Centraliza los eventos del funnel: registro → onboarding → idea → análisis → plan → pago.
  *
  * Uso:
  *   import { trackAgentCreated } from '../lib/analytics/events'
@@ -132,4 +132,38 @@ export function trackSessionAndCheckActivation({ userId, plan, fechaRegistro }) 
     trackActivationComplete({ userId, daysToActivate, plan })
     localStorage.setItem(ACTIVATION_FIRED_KEY, userId)
   }
+}
+
+// ─── Eventos del funnel MVP ──────────────────────────────────
+
+/**
+ * Usuario completa el onboarding survey.
+ * @param {{ userId: string }} props
+ */
+export function trackOnboardingCompleted({ userId }) {
+  captureEvent('onboarding_completed', { user_id: userId })
+}
+
+/**
+ * Análisis de viabilidad completado.
+ * @param {{ companyId: string, userId: string, score?: number }} props
+ */
+export function trackViabilityAnalyzed({ companyId, userId, score }) {
+  captureEvent('viability_analyzed', {
+    company_id: companyId,
+    user_id: userId,
+    score: score ?? null,
+  })
+}
+
+/**
+ * Plan 14 días generado para el usuario.
+ * @param {{ companyId: string, userId: string, totalTasks?: number }} props
+ */
+export function trackPlanGenerated({ companyId, userId, totalTasks }) {
+  captureEvent('plan_generated', {
+    company_id: companyId,
+    user_id: userId,
+    total_tasks: totalTasks ?? null,
+  })
 }

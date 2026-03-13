@@ -8,6 +8,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowRight, CheckCircle, AlertTriangle, XCircle, Clock, Users, Zap, TrendingUp, Shield, AlertCircle } from 'lucide-react';
 import api from '../lib/api';
+import { trackViabilityAnalyzed } from '../lib/analytics/events';
 
 const LOG_STEPS = [
   { text: 'Perfil del founder procesado', delay: 800 },
@@ -350,6 +351,9 @@ export default function ViabilityAnalysis() {
           setAnalysis(data.analysis);
           setPhase('result');
           localStorage.removeItem('lanzalo_pending_analysis');
+          // Trackear análisis completado
+          const userId = localStorage.getItem('lanzalo_user_id') || '';
+          trackViabilityAnalyzed({ companyId: cid, userId, score: data.analysis?.viability_score ?? null });
         } else if (data.status === 'failed') {
           setPhase('error');
         } else {

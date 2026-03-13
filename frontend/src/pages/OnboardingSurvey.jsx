@@ -7,6 +7,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowRight, Gift, Loader2 } from 'lucide-react';
 import { apiUrl } from '../api.js';
+import { trackOnboardingCompleted } from '../lib/analytics/events';
 
 const SURVEY_QUESTIONS = [
   {
@@ -105,6 +106,9 @@ export default function OnboardingSurvey() {
         body: JSON.stringify({ answers: responses })
       });
       
+      // Trackear onboarding completado
+      const userId = localStorage.getItem('lanzalo_user_id') || '';
+      trackOnboardingCompleted({ userId });
       // Redirect to next step (describe idea or choose idea)
       navigate('/onboarding/choose-path');
     } catch (err) {
