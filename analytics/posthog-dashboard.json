@@ -1,0 +1,150 @@
+{
+  "name": "Loop 1 - Product Feedback",
+  "description": "Dashboard de las 5 métricas clave del Loop 1 para revisión semanal. Mide creación de agentes, activación, velocidad de lanzamiento y feedback cualitativo.",
+  "insights": [
+    {
+      "id": "metric_1_agents_created",
+      "name": "1. Agentes creados (total + por semana)",
+      "type": "trends",
+      "description": "Count del evento agent_created, agrupado por semana",
+      "query": {
+        "kind": "TrendsQuery",
+        "series": [
+          {
+            "kind": "EventsNode",
+            "event": "agent_created",
+            "name": "Agentes creados",
+            "math": "total"
+          }
+        ],
+        "interval": "week",
+        "dateRange": { "date_from": "-90d" },
+        "trendsFilter": {
+          "display": "ActionsBar",
+          "showLegend": true
+        }
+      }
+    },
+    {
+      "id": "metric_2_venture_launched_funnel",
+      "name": "2. % usuarios que llegan a venture_launched",
+      "type": "funnels",
+      "description": "Funnel: signup → venture_launched. Mide qué % de usuarios completan el onboarding hasta lanzar su venture.",
+      "query": {
+        "kind": "FunnelsQuery",
+        "series": [
+          {
+            "kind": "EventsNode",
+            "event": "$pageview",
+            "name": "Signup / primera visita",
+            "properties": [
+              { "key": "$current_url", "operator": "icontains", "value": "/login" }
+            ]
+          },
+          {
+            "kind": "EventsNode",
+            "event": "venture_launched",
+            "name": "Venture lanzado"
+          }
+        ],
+        "dateRange": { "date_from": "-90d" },
+        "funnelsFilter": {
+          "funnelWindowInterval": 14,
+          "funnelWindowIntervalUnit": "day"
+        }
+      }
+    },
+    {
+      "id": "metric_3_time_to_venture",
+      "name": "3. Tiempo medio hasta primer venture_launched",
+      "type": "trends",
+      "description": "Tiempo promedio (en días) entre el primer evento del usuario y venture_launched",
+      "query": {
+        "kind": "TrendsQuery",
+        "series": [
+          {
+            "kind": "EventsNode",
+            "event": "venture_launched",
+            "name": "venture_launched",
+            "math": "median_count_per_actor"
+          }
+        ],
+        "dateRange": { "date_from": "-90d" },
+        "trendsFilter": {
+          "display": "BoldNumber"
+        }
+      },
+      "note": "Para calcular tiempo exacto: usar 'time to convert' en PostHog Funnels entre $pageview inicial y venture_launched"
+    },
+    {
+      "id": "metric_4_activation_rate",
+      "name": "4. Tasa de activación (3+ sesiones en 7 días)",
+      "type": "trends",
+      "description": "% usuarios con evento activation_complete. Significa que volvieron 3+ veces en 7 días.",
+      "query": {
+        "kind": "TrendsQuery",
+        "series": [
+          {
+            "kind": "EventsNode",
+            "event": "activation_complete",
+            "name": "Usuarios activados",
+            "math": "unique_group",
+            "math_group_type_index": 0
+          }
+        ],
+        "dateRange": { "date_from": "-90d" },
+        "trendsFilter": {
+          "display": "ActionsLineGraph",
+          "showLegend": true
+        }
+      }
+    },
+    {
+      "id": "metric_5_survey_q1_breakdown",
+      "name": "5. Respuestas survey Q1 — top frenos",
+      "type": "trends",
+      "description": "Breakdown de survey_responded.q1: qué frenó a los usuarios antes de Lanzalo",
+      "query": {
+        "kind": "TrendsQuery",
+        "series": [
+          {
+            "kind": "EventsNode",
+            "event": "survey_responded",
+            "name": "survey_responded",
+            "math": "total",
+            "properties": [
+              { "key": "survey_type", "operator": "exact", "value": "activation" }
+            ]
+          }
+        ],
+        "breakdownFilter": {
+          "breakdown": "q1",
+          "breakdown_type": "event"
+        },
+        "dateRange": { "date_from": "-90d" },
+        "trendsFilter": {
+          "display": "ActionsBarValue",
+          "showLegend": true
+        }
+      }
+    }
+  ],
+  "layout": [
+    { "id": "metric_1_agents_created",          "x": 0, "y": 0, "w": 12, "h": 4 },
+    { "id": "metric_2_venture_launched_funnel",  "x": 0, "y": 4, "w": 6,  "h": 5 },
+    { "id": "metric_3_time_to_venture",          "x": 6, "y": 4, "w": 6,  "h": 5 },
+    { "id": "metric_4_activation_rate",          "x": 0, "y": 9, "w": 6,  "h": 4 },
+    { "id": "metric_5_survey_q1_breakdown",      "x": 6, "y": 9, "w": 6,  "h": 4 }
+  ],
+  "filters": {
+    "date_from": "-30d",
+    "properties": []
+  },
+  "meta": {
+    "created_by": "Alex (Engineer Agent)",
+    "created_at": "2026-03-13",
+    "posthog_project": "lanzalo.pro",
+    "review_frequency": "weekly",
+    "events_required": ["agent_created", "venture_launched", "activation_complete", "survey_responded"]
+  }
+}
