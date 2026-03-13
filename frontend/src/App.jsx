@@ -2,6 +2,8 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { useState, useEffect, Component } from 'react'
 import { apiUrl } from './api.js'
 import PostHogProvider from './components/PostHogProvider'
+import SupportWidget from './components/SupportWidget'
+import NpsModal from './components/NpsModal'
 import { identifyLanzaloUser, trackSessionAndCheckActivation } from './lib/analytics/events'
 import LandingPage from './pages/LandingPage'
 import Login from './pages/Login'
@@ -78,6 +80,18 @@ function App() {
   const [loading, setLoading] = useState(!!localStorage.getItem('token'))
   const [showLogin, setShowLogin] = useState(false)
   const [loginMode, setLoginMode] = useState('register')
+  const [showNps, setShowNps] = useState(false)
+
+  // Comprobar si hay que mostrar el NPS (se ejecuta una vez por sesión tras cargar el usuario)
+  useEffect(() => {
+    if (!token || !user) return
+    fetch(apiUrl('/api/surveys/nps/check'), {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+      .then(res => res.ok ? res.json() : null)
+      .then(data => { if (data?.show) setShowNps(true) })
+      .catch(() => {})
+  }, [token, user?.id])
 
   useEffect(() => {
     if (token) {
@@ -257,6 +271,8 @@ function App() {
           <Route path="*" element={<Navigate to="/dashboard" />} />
         </Routes>
         </PostHogProvider>
+        <SupportWidget token={token} />
+        {showNps && <NpsModal token={token} onClose={() => setShowNps(false)} />}
       </Router>
     </ErrorBoundary>
   )
