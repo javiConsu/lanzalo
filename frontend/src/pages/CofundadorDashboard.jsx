@@ -9,6 +9,7 @@ import { useState, useEffect, useRef } from 'react';
 import { apiUrl } from '../api.js';
 import { CheckCircle, Circle, Bot, ArrowRight, FileText, Clock, ChevronRight } from 'lucide-react';
 import { trackTaskAssigned, trackTaskCompleted } from '../lib/analytics/events';
+import ActivationSurvey from '../components/surveys/ActivationSurvey';
 
 function TaskItem({ task, onDelegate }) {
   const statusIcons = {
@@ -528,6 +529,8 @@ export default function CofundadorDashboard() {
           </div>
         </div>
       </div>
+      {/* Encuesta de activación — aparece 5s después de venture_launched */}
+      <ActivationSurvey />
     </div>
   );
 }

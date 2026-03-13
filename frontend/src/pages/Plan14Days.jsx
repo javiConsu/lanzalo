@@ -236,6 +236,10 @@ export default function Plan14Days() {
             // Trackear venture lanzado al hacer clic en "Empezar Día 1"
             const userId = localStorage.getItem('lanzalo_user_id') || '';
             trackVentureLaunched({ ventureId: companyId, ideaType: plan?.ideaType || 'custom', userId });
+            // Activar encuesta de activación en co-fundador (si no la ha respondido)
+            if (!localStorage.getItem('lanzalo_activation_survey_done')) {
+              localStorage.setItem('lanzalo_show_activation_survey', '1');
+            }
             navigate('/co-fundador');
           }}
           className="w-full flex items-center justify-center gap-2 px-6 py-4

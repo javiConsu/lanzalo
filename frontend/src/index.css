@@ -48,3 +48,12 @@ code, .font-mono, .metric-value {
   line-height: 1.5;
   color: #00ff87;
 }
+
+/* ─── ActivationSurvey slide-up animation ──────────────────── */
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-slide-up {
+  animation: slide-up 0.3s ease-out both;
+}
