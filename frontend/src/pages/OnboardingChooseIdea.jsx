@@ -7,6 +7,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, TrendingUp, Users, DollarSign, Target, Loader2, ArrowRight } from 'lucide-react';
 import { apiUrl } from '../api.js';
+import { trackAgentCreated } from '../lib/analytics/events';
 
 export default function OnboardingChooseIdea() {
   const navigate = useNavigate();
@@ -52,6 +53,9 @@ export default function OnboardingChooseIdea() {
       // Set the newly created company as the active selection
       if (result.company?.id) {
         localStorage.setItem('lanzalo_selected_company', result.company.id);
+        // Trackear creación de agente/venture
+        const userId = localStorage.getItem('lanzalo_user_id') || '';
+        trackAgentCreated({ agentId: result.company.id, agentType: 'validated_idea', userId });
       }
       // Force full reload so App re-fetches profile with onboardingCompleted=true
       window.location.href = '/';

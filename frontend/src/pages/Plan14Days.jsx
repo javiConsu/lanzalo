@@ -7,6 +7,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowRight, CheckCircle, Loader2, Bot, Clock, XCircle } from 'lucide-react';
 import api from '../lib/api';
+import { trackTaskAssigned, trackVentureLaunched } from '../lib/analytics/events';
 
 function LoadingPlan() {
   return (
@@ -157,6 +158,10 @@ export default function Plan14Days() {
         if (data.status === 'completed' && data.plan) {
           setPlan(data.plan);
           setPhase('result');
+          // Trackear primera asignación de tareas (plan generado)
+          const userId = localStorage.getItem('lanzalo_user_id') || '';
+          const firstTaskId = data.plan?.sprints?.[0]?.tasks?.[0]?.id || 'plan-day-1';
+          trackTaskAssigned({ agentId: cid, taskId: firstTaskId, userId });
         } else if (data.status === 'failed') {
           setPhase('error');
         } else {
@@ -227,7 +232,12 @@ export default function Plan14Days() {
 
         {/* CTA */}
         <button
-          onClick={() => navigate('/co-fundador')}
+          onClick={() => {
+            // Trackear venture lanzado al hacer clic en "Empezar Día 1"
+            const userId = localStorage.getItem('lanzalo_user_id') || '';
+            trackVentureLaunched({ ventureId: companyId, ideaType: plan?.ideaType || 'custom', userId });
+            navigate('/co-fundador');
+          }}
           className="w-full flex items-center justify-center gap-2 px-6 py-4
                    bg-[#00ff87] hover:bg-[#00e67a] text-black font-bold rounded-lg
                    transition-colors font-mono text-sm"

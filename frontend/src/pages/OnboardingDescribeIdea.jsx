@@ -7,6 +7,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Loader2, ArrowRight } from 'lucide-react';
 import api from '../lib/api';
+import { trackAgentCreated } from '../lib/analytics/events';
 
 function ProgressBar({ step, total }) {
   return (
@@ -64,6 +65,9 @@ export default function OnboardingDescribeIdea() {
         localStorage.setItem('lanzalo_pending_analysis', result.company.id);
         // Limpiar prefill del IdeaBrowser
         localStorage.removeItem('lanzalo_prefill_idea');
+        // Trackear creación de agente/venture
+        const userId = localStorage.getItem('lanzalo_user_id') || '';
+        trackAgentCreated({ agentId: result.company.id, agentType: 'co-founder', userId });
         // Ir a la pantalla de análisis
         navigate('/onboarding/viabilidad');
       } else if (result.code === 'NO_SLOTS') {

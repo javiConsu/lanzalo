@@ -8,6 +8,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { apiUrl } from '../api.js';
 import { CheckCircle, Circle, Bot, ArrowRight, FileText, Clock, ChevronRight } from 'lucide-react';
+import { trackTaskAssigned, trackTaskCompleted } from '../lib/analytics/events';
 
 function TaskItem({ task, onDelegate }) {
   const statusIcons = {
@@ -274,6 +275,10 @@ export default function CofundadorDashboard() {
     setTodayTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: 'in_progress' } : t));
     setAiThinking(true);
 
+    // Trackear tarea asignada al agente
+    const userId = localStorage.getItem('lanzalo_user_id') || '';
+    trackTaskAssigned({ agentId: selectedCompany, taskId: task.id, userId });
+
     const delegateMsg = `Ejecuta esta tarea por mí: "${task.title}". ${task.description || ''}`;
     setMessages(prev => [...prev, {
       id: Date.now(),
@@ -309,6 +314,9 @@ export default function CofundadorDashboard() {
   function markTaskDone(task) {
     setTaskStatus(selectedCompany, task.id, 'done');
     setTodayTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: 'done' } : t));
+    // Trackear tarea completada
+    const userId = localStorage.getItem('lanzalo_user_id') || '';
+    trackTaskCompleted({ agentId: selectedCompany, taskId: task.id, userId });
   }
 
   const selectedCompanyName = companies.find(c => c.id === selectedCompany)?.name;

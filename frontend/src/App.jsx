@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { useState, useEffect, Component } from 'react'
 import { apiUrl } from './api.js'
 import PostHogProvider from './components/PostHogProvider'
+import { identifyLanzaloUser, trackSessionAndCheckActivation } from './lib/analytics/events'
 import LandingPage from './pages/LandingPage'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
@@ -91,6 +92,20 @@ function App() {
         .then(data => {
           if (data.user) {
             setUser(data.user)
+            // Identificar usuario en PostHog y trackear sesión
+            const u = data.user
+            localStorage.setItem('lanzalo_user_id', u.id)
+            identifyLanzaloUser({
+              userId: u.id,
+              plan: u.plan || 'trial',
+              fechaRegistro: u.created_at || '',
+              tipoUsuario: u.is_agent ? 'agente_autonomo' : 'founder_humano',
+            })
+            trackSessionAndCheckActivation({
+              userId: u.id,
+              plan: u.plan || 'trial',
+              fechaRegistro: u.created_at || '',
+            })
           } else {
             localStorage.removeItem('token')
             setToken(null)
@@ -109,6 +124,15 @@ function App() {
     setToken(newToken)
     setUser(userData)
     setShowLogin(false)
+    if (userData?.id) {
+      localStorage.setItem('lanzalo_user_id', userData.id)
+      identifyLanzaloUser({
+        userId: userData.id,
+        plan: userData.plan || 'trial',
+        fechaRegistro: userData.created_at || '',
+        tipoUsuario: userData.is_agent ? 'agente_autonomo' : 'founder_humano',
+      })
+    }
   }
 
   const handleLogout = () => {
