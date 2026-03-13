@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { useState, useEffect, Component } from 'react'
 import { apiUrl } from './api.js'
+import PostHogProvider from './components/PostHogProvider'
 import LandingPage from './pages/LandingPage'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
@@ -130,9 +131,11 @@ function App() {
     return (
       <ErrorBoundary>
         <Router>
-          <Routes>
-            <Route path="/admin" element={<AdminDashboard />} />
-          </Routes>
+          <PostHogProvider>
+            <Routes>
+              <Route path="/admin" element={<AdminDashboard />} />
+            </Routes>
+          </PostHogProvider>
         </Router>
       </ErrorBoundary>
     )
@@ -197,6 +200,7 @@ function App() {
   return (
     <ErrorBoundary>
       <Router>
+        <PostHogProvider>
         <Routes>
           <Route path="/recover-password" element={<RecoverPassword />} />
           <Route path="/recover-password/confirm" element={<RecoverPasswordConfirm />} />
@@ -228,6 +232,7 @@ function App() {
           <Route path="/live" element={needsOnboarding ? <Navigate to="/onboarding" /> : <LiveFeedPage user={user} token={token} onLogout={handleLogout} />} />
           <Route path="*" element={<Navigate to="/dashboard" />} />
         </Routes>
+        </PostHogProvider>
       </Router>
     </ErrorBoundary>
   )

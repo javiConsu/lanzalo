@@ -27,6 +27,7 @@
     "nodemailer": "^6.9.7",
     "openai": "^4.28.0",
     "pg": "^8.11.3",
+    "posthog-node": "^5.28.1",
     "resend": "^3.2.0",
     "stripe": "^14.10.0",
     "twitter-api-v2": "^1.15.2",
