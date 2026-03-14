@@ -8,6 +8,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { apiUrl } from '../api.js';
 import { CheckCircle, Circle, Bot, ArrowRight, FileText, Clock, ChevronRight } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
 import { trackTaskAssigned, trackTaskCompleted } from '../lib/analytics/events';
 import ActivationSurvey from '../components/surveys/ActivationSurvey';
 
@@ -435,7 +436,17 @@ export default function CofundadorDashboard() {
                       <span className="text-[10px] font-mono text-[#00ff87]">Co-Fundador</span>
                     </div>
                   )}
-                  <div className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</div>
+                  {msg.role === 'assistant' ? (
+                    <div className="text-sm leading-relaxed prose prose-invert prose-sm max-w-none
+                      [&>p]:mb-2 [&>p:last-child]:mb-0
+                      [&>ul]:mb-2 [&>ul]:pl-4 [&>ul>li]:mb-1
+                      [&>ol]:mb-2 [&>ol]:pl-4 [&>ol>li]:mb-1
+                      [&>strong]:text-white [&>h1]:text-sm [&>h2]:text-sm [&>h3]:text-xs">
+                      <ReactMarkdown>{msg.content}</ReactMarkdown>
+                    </div>
+                  ) : (
+                    <div className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</div>
+                  )}
                   {msg.action && (
                     <div className="mt-2 pt-2 border-t border-white/10 text-[10px] font-mono opacity-60 flex items-center gap-1">
                       <span>⚡</span> {msg.action}

@@ -1,5 +1,6 @@
 import { apiUrl } from '../api.js'
 import { useState, useEffect, useRef } from 'react'
+import ReactMarkdown from 'react-markdown'
 
 export default function Chat() {
   const [companies, setCompanies] = useState([])
@@ -183,7 +184,18 @@ export default function Chat() {
                   : 'bg-gray-800/90 border border-gray-700/50 text-gray-100'
               }`}
             >
-              <div className="whitespace-pre-wrap leading-relaxed">{msg.content}</div>
+              {msg.role === 'assistant' ? (
+                <div className="prose prose-invert prose-sm max-w-none leading-relaxed
+                  [&>p]:mb-2 [&>p:last-child]:mb-0
+                  [&>ul]:mb-2 [&>ul]:pl-4 [&>ul>li]:mb-1
+                  [&>ol]:mb-2 [&>ol]:pl-4 [&>ol>li]:mb-1
+                  [&>h1]:text-base [&>h2]:text-base [&>h3]:text-sm
+                  [&>strong]:text-white">
+                  <ReactMarkdown>{msg.content}</ReactMarkdown>
+                </div>
+              ) : (
+                <div className="whitespace-pre-wrap leading-relaxed">{msg.content}</div>
+              )}
 
               {msg.action && (
                 <div className="mt-3 pt-3 border-t border-white/10 text-xs text-white/60 flex items-center gap-2">
