@@ -182,7 +182,7 @@ export default function LandingPage({ onNavigateToLogin }) {
         <div className="max-w-4xl mx-auto">
           <div className="inline-flex items-center gap-2 bg-[#00ff87]/10 border border-[#00ff87]/20 rounded-full px-4 py-1.5 text-[#00ff87] text-xs font-mono mb-8">
             <span className="w-1.5 h-1.5 bg-[#00ff87] rounded-full animate-pulse" />
-            7 dias de trial &mdash; sin tarjeta
+            14 dias de trial &mdash; sin tarjeta
           </div>
 
           <h1 className="text-4xl sm:text-6xl lg:text-7xl font-bold tracking-tight leading-[1.05] mb-6">
@@ -273,7 +273,7 @@ export default function LandingPage({ onNavigateToLogin }) {
             className={`mb-16 transition-all duration-700 ${isVisible('section-howit') ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
           >
             <h2 className="text-3xl sm:text-4xl font-bold mb-4">Tres pasos. Cero excusas.</h2>
-            <p className="text-gray-500 max-w-xl text-sm">
+            <p className="text-gray-400 max-w-xl text-sm">
               No necesitas saber programar, ni de marketing, ni de diseno. Solo una idea.
             </p>
           </div>
@@ -305,7 +305,7 @@ export default function LandingPage({ onNavigateToLogin }) {
               >
                 <div className="font-mono text-4xl font-bold text-white/5 mb-4 tabular-nums">{item.step}</div>
                 <h3 className="text-base font-semibold mb-2">{item.title}</h3>
-                <p className="text-sm text-gray-500 leading-relaxed">{item.desc}</p>
+                <p className="text-sm text-gray-400 leading-relaxed">{item.desc}</p>
               </div>
             ))}
           </div>
@@ -321,7 +321,7 @@ export default function LandingPage({ onNavigateToLogin }) {
             className={`mb-16 transition-all duration-700 ${isVisible('section-agents') ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
           >
             <h2 className="text-3xl sm:text-4xl font-bold mb-4">Tu equipo trabaja mientras duermes</h2>
-            <p className="text-gray-500 max-w-xl text-sm">
+            <p className="text-gray-400 max-w-xl text-sm">
               10+ agentes especializados coordinados por un Co-Fundador IA. 24/7, sin vacaciones.
             </p>
           </div>
@@ -349,7 +349,7 @@ export default function LandingPage({ onNavigateToLogin }) {
                   <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: agent.color }} />
                   <span className="text-xs font-mono font-semibold" style={{ color: agent.color }}>{agent.name}</span>
                 </div>
-                <p className="text-xs text-gray-500 leading-relaxed">{agent.desc}</p>
+                <p className="text-xs text-gray-400 leading-relaxed">{agent.desc}</p>
               </div>
             ))}
           </div>
@@ -365,7 +365,7 @@ export default function LandingPage({ onNavigateToLogin }) {
             className={`mb-16 transition-all duration-700 ${isVisible('section-why') ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
           >
             <h2 className="text-3xl sm:text-4xl font-bold mb-4">&ldquo;Esto no lo hace ya ChatGPT?&rdquo;</h2>
-            <p className="text-gray-500 max-w-xl text-sm">
+            <p className="text-gray-400 max-w-xl text-sm">
               No. ChatGPT te da texto. Lanzalo te monta un negocio.
               Como comparar un martillo con una constructora.
             </p>
@@ -428,7 +428,7 @@ export default function LandingPage({ onNavigateToLogin }) {
             className={`mb-12 transition-all duration-700 ${isVisible('section-pricing') ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
           >
             <h2 className="text-3xl sm:text-4xl font-bold mb-4">Menos que un autonomo. Mas que un equipo.</h2>
-            <p className="text-gray-500 text-sm">
+            <p className="text-gray-400 text-sm">
               Un equipo de IA que trabaja 24/7 por menos de lo que cuesta una cena con vino.
             </p>
           </div>
@@ -439,7 +439,7 @@ export default function LandingPage({ onNavigateToLogin }) {
             className={`relative bg-[#0d1117] border border-[#00ff87]/20 rounded-2xl p-8 sm:p-10 transition-all duration-700 ${isVisible('price-card') ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}
           >
             <div className="absolute -top-3 left-8 bg-[#00ff87] text-black text-xs font-mono font-bold px-4 py-1 rounded-full">
-              7 DIAS GRATIS
+              14 DIAS GRATIS
             </div>
 
             <div className="flex items-baseline gap-2 mb-1">

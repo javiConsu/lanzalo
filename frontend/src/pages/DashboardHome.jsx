@@ -55,7 +55,7 @@ function TerminalLog({ companyId }) {
   return (
     <div className="h-7 flex items-center gap-2 px-4 bg-[#0a0e14] border-b border-[#21262d] text-[10px] font-mono overflow-hidden flex-shrink-0">
       <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${connected ? 'bg-[#00ff87]' : 'bg-[#484f58]'}`} />
-      <span className="text-[#484f58] flex-shrink-0">{connected ? 'en vivo' : 'desconectado'}</span>
+      <span className="text-[#8b949e] flex-shrink-0">{connected ? 'en vivo' : 'desconectado'}</span>
       <span className="text-[#30363d] flex-shrink-0">|</span>
       {latest ? (
         <span ref={scrollRef} className="text-[#8b949e] truncate">
@@ -65,7 +65,7 @@ function TerminalLog({ companyId }) {
           {' '}{latest.msg}
         </span>
       ) : (
-        <span className="text-[#484f58]">{'> conectado, esperando actividad...'}</span>
+        <span className="text-[#8b949e]">{'> conectado, esperando actividad...'}</span>
       )}
     </div>
   )
@@ -82,28 +82,28 @@ function StatsBar({ company, credits }) {
     <div className="flex items-center gap-4 px-4 py-1.5 bg-[#0d1117] border-b border-[#21262d] text-[10px] font-mono overflow-x-auto flex-shrink-0">
       <div className="flex items-center gap-1.5">
         <span className={`w-1.5 h-1.5 rounded-full ${isLive ? 'bg-[#00ff87] animate-pulse' : 'bg-[#d29922]'}`} />
-        <span className="text-[#8b949e]">Estadísticas</span>
+        <span className="text-[#adbac7]">Estadísticas</span>
       </div>
-      <span className="text-[#21262d]">|</span>
+      <span className="text-[#30363d]">|</span>
       <div className="flex items-center gap-1">
-        <span className="text-[#8b949e]">ingresos</span>
+        <span className="text-[#adbac7]">ingresos</span>
         <span className="text-[#c9d1d9]">${revenue.toFixed(2)}</span>
       </div>
       <div className="flex items-center gap-1">
-        <span className="text-[#8b949e]">balance</span>
+        <span className="text-[#adbac7]">balance</span>
         <span className="text-[#c9d1d9]">${balance}</span>
       </div>
       <div className="flex items-center gap-1">
-        <span className="text-[#8b949e]">visitas</span>
+        <span className="text-[#adbac7]">visitas</span>
         <span className="text-[#c9d1d9]">{visits}</span>
       </div>
       <div className="flex items-center gap-1">
-        <span className="text-[#8b949e]">inversión</span>
+        <span className="text-[#adbac7]">inversión</span>
         <span className="text-[#c9d1d9]">${investment}</span>
       </div>
-      <span className="text-[#21262d]">|</span>
+      <span className="text-[#30363d]">|</span>
       <div className="flex items-center gap-1">
-        <span className="text-[#8b949e]">créditos</span>
+        <span className="text-[#adbac7]">créditos</span>
         <span className="text-[#58a6ff] font-semibold">{credits ?? '...'}</span>
       </div>
     </div>
@@ -154,7 +154,7 @@ function AgentStatus({ companyId }) {
 
   return (
     <div className="bg-[#0d1117] border border-[#21262d] rounded p-3">
-      <h3 className="text-[10px] font-mono text-[#8b949e] uppercase tracking-wider mb-2">agentes</h3>
+      <h3 className="text-[10px] font-mono text-[#adbac7] uppercase tracking-wider mb-2">agentes</h3>
       {AGENTS.map(a => {
         const st = states[a.key] || { status: 'standby', task: null }
         const dotClass = st.status === 'working' ? 'bg-[#00ff87] animate-pulse'
@@ -162,8 +162,8 @@ function AgentStatus({ companyId }) {
         return (
           <div key={a.key} className="flex items-center gap-2 py-1">
             <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${dotClass}`} />
-                            <span className="text-[11px] w-24 flex flex-col leading-tight"><span className="text-[#c9d1d9] font-semibold">{a.name}</span><span className="text-[9px] text-[#8b949e]">{a.role}</span></span>
-            <span className="text-[10px] text-[#8b949e] truncate">{st.task || ({working:'trabajando',idle:'inactivo',standby:'en espera'}[st.status] || st.status)}</span>
+                            <span className="text-[11px] w-24 flex flex-col leading-tight"><span className="text-[#c9d1d9] font-semibold">{a.name}</span><span className="text-[10px] text-[#8b949e]">{a.role}</span></span>
+            <span className="text-[11px] text-[#8b949e] truncate">{st.task || ({working:'trabajando',idle:'inactivo',standby:'en espera'}[st.status] || st.status)}</span>
           </div>
         )
       })}
@@ -198,9 +198,9 @@ function Tasks({ companyId }) {
   return (
     <div className="bg-[#0d1117] border border-[#21262d] rounded p-3">
       <div className="flex items-center justify-between mb-2">
-        <h3 className="text-[10px] font-mono text-[#8b949e] uppercase tracking-wider">tareas</h3>
+        <h3 className="text-[10px] font-mono text-[#adbac7] uppercase tracking-wider">tareas</h3>
         {tasks.length > 0 && (
-          <span className="text-[10px] font-mono text-[#484f58]">{pct}%</span>
+          <span className="text-[10px] font-mono text-[#8b949e]">{pct}%</span>
         )}
       </div>
       {tasks.length === 0 ? (
@@ -209,7 +209,7 @@ function Tasks({ companyId }) {
         <div key={t.id} className="flex items-center gap-2 py-1">
           <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${dotColor[t.status] || 'bg-[#484f58]'}`} />
           <span className="text-[11px] text-[#c9d1d9] truncate flex-1">{t.title}</span>
-          {t.tag && <span className="text-[9px] text-[#484f58] font-mono">{t.tag}</span>}
+          {t.tag && <span className="text-[10px] text-[#8b949e] font-mono">{t.tag}</span>}
         </div>
       ))}
     </div>
@@ -238,13 +238,13 @@ function DocsLinks({ company, companyId }) {
 
   return (
     <div className="bg-[#0d1117] border border-[#21262d] rounded p-3">
-      <h3 className="text-[10px] font-mono text-[#8b949e] uppercase tracking-wider mb-2">web / documentos</h3>
+      <h3 className="text-[10px] font-mono text-[#adbac7] uppercase tracking-wider mb-2">web / documentos</h3>
       {subdomain && (landing?.deployed ? (
         <a href={landing.url} target="_blank" rel="noopener noreferrer"
           className="flex items-center gap-2 py-1 text-[11px] text-[#58a6ff] hover:underline">
           <span>↗</span> {subdomain}.lanzalo.pro
           {landing.waitlistCount > 0 && (
-            <span className="text-[9px] bg-[#21262d] text-[#8b949e] px-1.5 py-0.5 rounded">{landing.waitlistCount} registros</span>
+            <span className="text-[10px] bg-[#21262d] text-[#adbac7] px-1.5 py-0.5 rounded">{landing.waitlistCount} registros</span>
           )}
         </a>
       ) : (
@@ -263,7 +263,7 @@ function DocsLinks({ company, companyId }) {
             <span className="text-[10px] text-[#484f58]">◈</span>
             <div className="flex-1 min-w-0">
               <span className="text-[11px] text-[#c9d1d9] block truncate">{doc.title}</span>
-              <span className="text-[9px] text-[#484f58]">{doc.tag || 'doc'} · {new Date(doc.completed_at || doc.created_at).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}</span>
+              <span className="text-[10px] text-[#8b949e]">{doc.tag || 'doc'} · {new Date(doc.completed_at || doc.created_at).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}</span>
             </div>
             <span className="text-[9px] text-[#484f58]">▾</span>
           </button>
