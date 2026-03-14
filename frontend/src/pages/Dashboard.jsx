@@ -87,7 +87,7 @@ export default function Dashboard({ user, onLogout }) {
                   <p className="text-[10px] font-mono text-[#484f58]">{user?.is_admin ? 'admin' : 'pro'}</p>
                 </div>
                 <Link
-                  to="/settings"
+                  to="/dashboard/settings"
                   onClick={() => setUserMenuOpen(false)}
                   className="block px-3 py-2 text-xs text-[#8b949e] hover:text-[#c9d1d9] hover:bg-[#21262d] transition-colors"
                 >
