@@ -10,6 +10,7 @@ const router = express.Router();
 const { pool } = require('../db');
 const { authenticate } = require('../middleware/auth');
 const { callLLM } = require('../llm');
+const scrapeCreators = require('../services/scrapeCreatorsService');
 
 /**
  * POST /api/analysis/viability
@@ -250,6 +251,32 @@ Reglas:
     throw new Error('El modelo no devolvió JSON válido');
   }
 
+  // Obtener señales de mercado reales de Facebook Ad Library (con fallback graceful)
+  const keyword = extractKeyword(ideaData);
+  let marketSignals = null;
+  try {
+    if (scrapeCreators.enabled) {
+      marketSignals = await scrapeCreators.getMarketSignals(keyword, 'ES');
+      console.log(`[Analysis] Market signals para "${keyword}": ${marketSignals.advertiserCount} anunciantes, ${marketSignals.adCount} anuncios`);
+    }
+  } catch (scErr) {
+    console.warn(`[Analysis] ScrapeCreators falló (no bloqueante): ${scErr.message}`);
+  }
+
+  // Añadir señales de mercado al análisis (si están disponibles)
+  if (marketSignals) {
+    analysis.marketSignals = {
+      keyword,
+      country: 'ES/LATAM',
+      advertiserCount: marketSignals.advertiserCount,
+      adCount: marketSignals.adCount,
+      signal: marketSignals.signal,
+      signalLabel: marketSignals.signalLabel,
+      topAdvertisers: marketSignals.topAdvertisers,
+      source: 'Facebook Ad Library via ScrapeCreators',
+    };
+  }
+
   // Guardar resultado en companies.metadata
   await pool.query(
     `UPDATE companies SET metadata = metadata || $1 WHERE id = $2`,
@@ -257,6 +284,24 @@ Reglas:
   );
 
   console.log(`[Analysis] Viabilidad completada para ${companyId}: verdict=${analysis.verdict}, confidence=${analysis.confidenceScore}`);
+}
+
+/**
+ * Extrae una keyword de búsqueda relevante para el nicho de la idea.
+ * Prioriza targetCustomer (más específico), fallback a las primeras palabras de la descripción.
+ * @param {Object} ideaData
+ * @returns {string}
+ */
+function extractKeyword(ideaData) {
+  // Usar targetCustomer si está disponible y no es muy genérico
+  if (ideaData.targetCustomer && ideaData.targetCustomer.length > 2) {
+    return ideaData.targetCustomer.trim().split(/\s+/).slice(0, 4).join(' ');
+  }
+  // Fallback: primeras 4 palabras de la descripción
+  if (ideaData.description) {
+    return ideaData.description.trim().split(/\s+/).slice(0, 4).join(' ');
+  }
+  return 'negocio';
 }
 
 module.exports = router;
