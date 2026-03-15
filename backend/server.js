@@ -40,6 +40,10 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
+
+// IMPORTANTE: Stripe webhook ANTES de express.json() — necesita raw body para validar firma
+app.use('/api/webhooks', require('./routes/webhooks'));
+
 app.use(express.json());
 
 // Health check
@@ -71,7 +75,6 @@ app.use('/api/budgets', require('./routes/budgets'));
 app.use('/api/governance', require('./routes/governance'));
 app.use('/api/heartbeat', require('./routes/heartbeat'));
 app.use('/sites', require('./routes/sites'));
-app.use('/api/webhooks', require('./routes/webhooks'));
 app.use('/api/migrate', require('./routes/migrate')); // Migrations (before email-pro auth catch)
 app.use('/api', require('./routes/email-pro')); // Email Pro (cold email service)
 app.use('/api', require('./routes/marketing-content')); // Marketing content + Gamma + Ads
