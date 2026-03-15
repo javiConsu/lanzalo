@@ -14,6 +14,8 @@
     "deploy:frontend": "cd frontend && vercel --prod"
   },
   "dependencies": {
+    "@clerk/clerk-sdk-node": "^5.1.6",
+    "@sentry/node": "^8.48.0",
     "axios": "^1.6.2",
     "bcrypt": "^5.1.1",
     "cheerio": "^1.0.0",

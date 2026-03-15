@@ -1,289 +1,147 @@
 /**
- * Sistema de Autenticación
- * Separación Admin vs Users
+ * Middleware de autenticación — Clerk
+ * Reemplaza el sistema JWT custom por verificación de tokens Clerk.
  */
 
-const jwt = require('jsonwebtoken');
-const bcrypt = require('bcrypt');
+const { ClerkExpressRequireAuth, ClerkExpressWithAuth } = require('@clerk/clerk-sdk-node');
 const { pool } = require('../db');
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'change-this-in-production';
-const JWT_EXPIRY = '24h';
 
-/**
- * Generar JWT token
- */
-function generateToken(user) {
-  return jwt.sign(
-    {
-      id: user.id,
-      email: user.email,
-      role: user.role,
-      plan: user.plan
-    },
-    JWT_SECRET,
-    { expiresIn: JWT_EXPIRY }
-  );
-}
-
-/**
- * Verificar JWT token
- */
-function verifyToken(token) {
-  try {
-    return jwt.verify(token, JWT_SECRET);
-  } catch (error) {
-    return null;
-  }
-}
-
-/**
- * Hash password
- */
+// Funciones utilitarias — mantenidas por compatibilidad con rutas legacy
 async function hashPassword(password) {
-  return await bcrypt.hash(password, 10);
+  return bcrypt.hash(password, 10);
 }
-
-/**
- * Verificar password
- */
 async function verifyPassword(password, hash) {
-  return await bcrypt.compare(password, hash);
+  return bcrypt.compare(password, hash);
+}
+function generateToken(user) {
+  return jwt.sign({ id: user.id, email: user.email, role: user.role, plan: user.plan }, JWT_SECRET, { expiresIn: '24h' });
 }
 
 /**
- * Middleware: Requiere autenticación
+ * Middleware principal de autenticación.
+ * Verifica el token Clerk del header Authorization y carga req.user desde la DB.
  */
 async function requireAuth(req, res, next) {
-  try {
-    const authHeader = req.headers.authorization;
-    
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({ 
+  ClerkExpressRequireAuth()(req, res, async (err) => {
+    if (err) {
+      return res.status(401).json({
         error: 'No autorizado',
-        message: 'Token requerido' 
+        message: 'Token de Clerk requerido o inválido'
       });
     }
 
-    const token = authHeader.split(' ')[1];
-    const decoded = verifyToken(token);
+    try {
+      const clerkUserId = req.auth?.userId;
+      if (!clerkUserId) {
+        return res.status(401).json({ error: 'No autorizado' });
+      }
 
-    if (!decoded) {
-      return res.status(401).json({ 
-        error: 'Token inválido o expirado' 
-      });
+      const result = await pool.query(
+        `SELECT id, email, name, role, plan, subscription_tier,
+                trial_ends_at, onboarding_completed, business_slots,
+                referral_code, credits, created_at
+         FROM users WHERE clerk_user_id = $1`,
+        [clerkUserId]
+      );
+
+      if (result.rows.length === 0) {
+        return res.status(401).json({
+          error: 'Usuario no encontrado. Llama a POST /api/auth/sync para sincronizar tu cuenta.'
+        });
+      }
+
+      req.user = result.rows[0];
+      next();
+    } catch (error) {
+      console.error('[requireAuth] Error:', error);
+      res.status(500).json({ error: 'Error de autenticación' });
     }
-
-    // Obtener usuario de DB
-    const result = await pool.query(
-      'SELECT id, email, name, role, plan FROM users WHERE id = $1',
-      [decoded.id]
-    );
-
-    if (result.rows.length === 0) {
-      return res.status(401).json({ 
-        error: 'Usuario no encontrado' 
-      });
-    }
-
-    req.user = result.rows[0];
-    next();
-
-  } catch (error) {
-    console.error('Error en requireAuth:', error);
-    res.status(500).json({ error: 'Error de autenticación' });
-  }
+  });
 }
 
 /**
- * Middleware: Optional auth — sets req.user if valid token, continues otherwise
+ * Auth opcional — si hay token Clerk válido, carga req.user; si no, continúa sin auth.
  */
 async function optionalAuth(req, res, next) {
-  try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return next(); // No token — continue as unauthenticated
-    }
+  ClerkExpressWithAuth()(req, res, async () => {
+    const clerkUserId = req.auth?.userId;
+    if (!clerkUserId) return next();
 
-    const token = authHeader.split(' ')[1];
-    const decoded = verifyToken(token);
-    if (!decoded) return next();
-
-    const result = await pool.query(
-      'SELECT id, email, name, role, plan, subscription_tier FROM users WHERE id = $1',
-      [decoded.id]
-    );
-    if (result.rows[0]) {
-      req.user = result.rows[0];
+    try {
+      const result = await pool.query(
+        `SELECT id, email, name, role, plan, subscription_tier,
+                trial_ends_at, onboarding_completed
+         FROM users WHERE clerk_user_id = $1`,
+        [clerkUserId]
+      );
+      if (result.rows[0]) req.user = result.rows[0];
+    } catch (e) {
+      // Silencioso — no bloquear peticiones públicas
     }
     next();
-  } catch (error) {
-    next(); // On error, continue without auth
-  }
+  });
 }
 
 /**
- * Middleware: Requiere rol admin
+ * Requiere rol admin.
  */
 function requireAdmin(req, res, next) {
   if (!req.user) {
-    return res.status(401).json({ 
-      error: 'No autenticado' 
-    });
+    return res.status(401).json({ error: 'No autenticado' });
   }
-
   if (req.user.role !== 'admin') {
-    return res.status(403).json({ 
+    return res.status(403).json({
       error: 'Acceso denegado',
-      message: 'Solo administradores pueden acceder' 
+      message: 'Solo administradores pueden acceder'
     });
   }
-
   next();
 }
 
 /**
- * Middleware: Verifica que el usuario tiene acceso a la empresa
+ * Verifica que el usuario tiene acceso a una empresa concreta.
  */
 async function requireCompanyAccess(req, res, next) {
   try {
     const companyId = req.params.companyId || req.params.id || req.body.company_id || req.headers['x-company-id'];
-    
+
     if (!companyId) {
-      return res.status(400).json({ 
-        error: 'company_id requerido' 
-      });
+      return res.status(400).json({ error: 'company_id requerido' });
     }
 
-    // Admins tienen acceso a todo
     if (req.user.role === 'admin') {
       req.companyId = companyId;
       return next();
     }
 
-    // Users solo a sus empresas
     const result = await pool.query(
       'SELECT id FROM companies WHERE id = $1 AND user_id = $2',
       [companyId, req.user.id]
     );
 
     if (result.rows.length === 0) {
-      return res.status(403).json({ 
-        error: 'No tienes acceso a esta empresa' 
-      });
+      return res.status(403).json({ error: 'No tienes acceso a esta empresa' });
     }
 
     req.companyId = companyId;
     next();
-
   } catch (error) {
-    console.error('Error en requireCompanyAccess:', error);
+    console.error('[requireCompanyAccess] Error:', error);
     res.status(500).json({ error: 'Error verificando acceso' });
   }
 }
 
-/**
- * Registro de nuevo usuario
- */
-async function register(email, password, name) {
-  // Verificar si existe
-  const existing = await pool.query(
-    'SELECT id FROM users WHERE email = $1',
-    [email]
-  );
-
-  if (existing.rows.length > 0) {
-    throw new Error('Email ya registrado');
-  }
-
-  // Crear usuario con créditos iniciales (50) y trial (14 días)
-  const passwordHash = await hashPassword(password);
-  const trialEndsAt = new Date();
-  trialEndsAt.setDate(trialEndsAt.getDate() + 14);
-
-  const result = await pool.query(
-    `INSERT INTO users (email, password_hash, name, role, plan, credits, trial_ends_at)
-     VALUES ($1, $2, $3, 'user', 'trial', 50, $4)
-     RETURNING id, email, name, role, plan, credits, trial_ends_at`,
-    [email, passwordHash, name, trialEndsAt]
-  );
-
-  const user = result.rows[0];
-  const token = generateToken(user);
-
-  return { user, token };
-}
-
-/**
- * Login
- */
-async function login(email, password) {
-  const result = await pool.query(
-    'SELECT * FROM users WHERE email = $1',
-    [email.toLowerCase().trim()]
-  );
-
-  if (result.rows.length === 0) {
-    throw new Error('Credenciales inválidas');
-  }
-
-  const user = result.rows[0];
-  const validPassword = await verifyPassword(password, user.password_hash);
-
-  if (!validPassword) {
-    throw new Error('Credenciales inválidas');
-  }
-
-  // No retornar password_hash
-  delete user.password_hash;
-
-  const token = generateToken(user);
-
-  return { user, token };
-}
-
-/**
- * Crear admin inicial
- */
-async function createInitialAdmin() {
-  const adminEmail = process.env.ADMIN_EMAIL || 'admin@lanzalo.app';
-  const adminPassword = process.env.ADMIN_PASSWORD || 'changeme123';
-
-  const existing = await pool.query(
-    'SELECT id FROM users WHERE email = $1',
-    [adminEmail]
-  );
-
-  if (existing.rows.length > 0) {
-    console.log('⚠️  Admin ya existe');
-    return;
-  }
-
-  const passwordHash = await hashPassword(adminPassword);
-
-  await pool.query(
-    `INSERT INTO users (email, password_hash, name, role, plan, email_verified)
-     VALUES ($1, $2, 'Admin', 'admin', 'pro', true)`,
-    [adminEmail, passwordHash]
-  );
-
-  console.log('✅ Admin creado:');
-  console.log(`   Email: ${adminEmail}`);
-  console.log(`   Password: ${adminPassword}`);
-  console.log('   ⚠️  CAMBIA LA CONTRASEÑA INMEDIATAMENTE');
-}
-
 module.exports = {
-  generateToken,
-  verifyToken,
-  hashPassword,
-  verifyPassword,
   requireAuth,
   optionalAuth,
   requireAdmin,
   requireCompanyAccess,
-  register,
-  login,
-  createInitialAdmin,
-  authenticate: requireAuth,
+  authenticate: requireAuth,   // alias para compatibilidad
+  hashPassword,
+  verifyPassword,
+  generateToken,
 };

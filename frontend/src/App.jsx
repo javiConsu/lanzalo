@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { useState, useEffect, Component } from 'react'
+import { useAuth, useClerk } from '@clerk/clerk-react'
 import { apiUrl } from './api.js'
 import PostHogProvider from './components/PostHogProvider'
 import SupportWidget from './components/SupportWidget'
@@ -29,8 +30,6 @@ import AdminDashboard from './pages/AdminDashboard'
 import CompanyDashboard from './pages/CompanyDashboard'
 import Paywall from './components/Paywall'
 import BusinessHub from './pages/BusinessHub'
-import RecoverPassword from './pages/RecoverPassword'
-import RecoverPasswordConfirm from './pages/RecoverPasswordConfirm'
 import Settings from './pages/Settings'
 import Chat from './pages/Chat'
 import Metrics from './pages/Metrics'
@@ -75,14 +74,17 @@ class ErrorBoundary extends Component {
 }
 
 function App() {
-  const [token, setToken] = useState(localStorage.getItem('token'))
+  const { isLoaded, isSignedIn, getToken } = useAuth()
+  const { signOut } = useClerk()
+
+  const [token, setToken] = useState(null)
   const [user, setUser] = useState(null)
-  const [loading, setLoading] = useState(!!localStorage.getItem('token'))
+  const [loading, setLoading] = useState(true)
   const [showLogin, setShowLogin] = useState(false)
   const [loginMode, setLoginMode] = useState('register')
   const [showNps, setShowNps] = useState(false)
 
-  // Comprobar si hay que mostrar el NPS (se ejecuta una vez por sesión tras cargar el usuario)
+  // NPS check
   useEffect(() => {
     if (!token || !user) return
     fetch(apiUrl('/api/surveys/nps/check'), {
@@ -93,21 +95,39 @@ function App() {
       .catch(() => {})
   }, [token, user?.id])
 
+  // Sincronizar con Clerk y cargar perfil de nuestra DB
   useEffect(() => {
-    if (token) {
+    if (!isLoaded) return
+
+    if (!isSignedIn) {
+      setToken(null)
+      setUser(null)
+      setLoading(false)
+      return
+    }
+
+    const loadUser = async () => {
       setLoading(true)
-      fetch(apiUrl('/api/user/profile'), {
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
-        .then(res => {
-          if (!res.ok) throw new Error('Token invalido')
-          return res.json()
+      try {
+        const clerkToken = await getToken()
+        setToken(clerkToken)
+
+        // Sincronizar usuario con nuestra DB (crea si no existe, vincula clerk_user_id si ya existe)
+        await fetch(apiUrl('/api/auth/sync'), {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${clerkToken}` }
         })
-        .then(data => {
-          if (data.user) {
-            setUser(data.user)
-            // Identificar usuario en PostHog y trackear sesión
-            const u = data.user
+
+        // Cargar perfil completo de nuestra DB
+        const profileRes = await fetch(apiUrl('/api/user/profile'), {
+          headers: { 'Authorization': `Bearer ${clerkToken}` }
+        })
+
+        if (profileRes.ok) {
+          const data = await profileRes.json()
+          const u = data.user || data
+          setUser(u)
+          if (u?.id) {
             localStorage.setItem('lanzalo_user_id', u.id)
             identifyLanzaloUser({
               userId: u.id,
@@ -120,38 +140,31 @@ function App() {
               plan: u.plan || 'trial',
               fechaRegistro: u.created_at || '',
             })
-          } else {
-            localStorage.removeItem('token')
-            setToken(null)
           }
-        })
-        .catch(() => {
-          localStorage.removeItem('token')
-          setToken(null)
-        })
-        .finally(() => setLoading(false))
+        }
+      } catch (err) {
+        console.error('[App] Error cargando usuario:', err)
+      } finally {
+        setLoading(false)
+      }
     }
-  }, [token])
 
-  const handleLogin = (newToken, userData) => {
-    localStorage.setItem('token', newToken)
-    setToken(newToken)
-    setUser(userData)
-    setShowLogin(false)
-    if (userData?.id) {
-      localStorage.setItem('lanzalo_user_id', userData.id)
-      identifyLanzaloUser({
-        userId: userData.id,
-        plan: userData.plan || 'trial',
-        fechaRegistro: userData.created_at || '',
-        tipoUsuario: userData.is_agent ? 'agente_autonomo' : 'founder_humano',
-      })
-    }
-  }
+    loadUser()
 
-  const handleLogout = () => {
-    localStorage.removeItem('token')
-    localStorage.removeItem('user')
+    // Refrescar token de Clerk cada 55 minutos (expira en 60)
+    const interval = setInterval(async () => {
+      try {
+        const fresh = await getToken({ skipCache: true })
+        setToken(fresh)
+      } catch (e) {}
+    }, 55 * 60 * 1000)
+
+    return () => clearInterval(interval)
+  }, [isLoaded, isSignedIn])
+
+  const handleLogout = async () => {
+    await signOut()
+    localStorage.removeItem('lanzalo_user_id')
     setToken(null)
     setUser(null)
     setShowLogin(false)
@@ -179,7 +192,7 @@ function App() {
     )
   }
 
-  if (loading) {
+  if (!isLoaded || loading) {
     return (
       <div style={{ minHeight: '100vh', background: '#0d1117', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#c9d1d9', fontFamily: 'Inter, sans-serif' }}>
         <div style={{ textAlign: 'center' }}>
@@ -190,23 +203,10 @@ function App() {
     )
   }
 
-  if (!token) {
+  if (!isSignedIn) {
     const urlParams = new URLSearchParams(window.location.search)
     if (urlParams.get('ref')) {
       localStorage.setItem('pendingRef', urlParams.get('ref'))
-    }
-
-    const resetToken = urlParams.get('reset_token')
-    if (resetToken) {
-      return (
-        <RecoverPasswordConfirm
-          token={resetToken}
-          onClose={() => {
-            window.history.replaceState({}, '', window.location.pathname)
-            setShowLogin(false)
-          }}
-        />
-      )
     }
 
     if (urlParams.get('feedback') && urlParams.get('company')) {
@@ -220,10 +220,19 @@ function App() {
       }
     }
 
+    // Rutas protegidas: mostrar login
+    const protectedPaths = ['/dashboard', '/onboarding', '/cofundador', '/chat', '/live', '/metrics']
+    if (protectedPaths.some(p => window.location.pathname.startsWith(p))) {
+      if (!showLogin) {
+        setLoginMode('login')
+        setShowLogin(true)
+      }
+    }
+
+
     if (showLogin) {
       return (
         <Login
-          onLogin={handleLogin}
           mode={loginMode}
           onClose={() => setShowLogin(false)}
         />
@@ -240,8 +249,6 @@ function App() {
       <Router>
         <PostHogProvider>
         <Routes>
-          <Route path="/recover-password" element={<RecoverPassword />} />
-          <Route path="/recover-password/confirm" element={<RecoverPasswordConfirm />} />
           <Route path="/onboarding" element={<OnboardingSurvey user={user} token={token} />} />
           <Route path="/onboarding/choose-path" element={<OnboardingChoosePath user={user} token={token} />} />
           <Route path="/onboarding/choose-idea" element={<OnboardingChooseIdea user={user} token={token} />} />
