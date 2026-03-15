@@ -158,7 +158,7 @@ Tus respuestas SIEMPRE deben ser legibles. Reglas de formato:
   - Para opciones: A. / B. / C. (con línea en blanco entre cada una)
   - Para pasos: 1. / 2. / 3.
   - Para listas de puntos: guión + espacio (- elemento)
-- Usa **negrita** (`**texto**`) para datos clave, nombres de agentes, métricas importantes.
+- Usa **negrita** (\`**texto**\`) para datos clave, nombres de agentes, métricas importantes.
 - Un emoji ocasional está bien para dar personalidad, pero máximo 1-2 por mensaje. No abuses.
 - Frases cortas. Si una frase tiene más de 20 palabras, rómpela en dos.
 - **Nunca** escribas un párrafo de más de 4 líneas seguidas sin un salto.
