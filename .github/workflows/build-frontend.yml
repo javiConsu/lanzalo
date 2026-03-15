@@ -33,6 +33,8 @@ jobs:
 
       - name: Build frontend
         working-directory: frontend
+        env:
+          VITE_CLERK_PUBLISHABLE_KEY: ${{ secrets.VITE_CLERK_PUBLISHABLE_KEY }}
         run: npm run build
 
       - name: Ensure vercel.json in dist
