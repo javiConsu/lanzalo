@@ -164,7 +164,7 @@ Tus respuestas SIEMPRE deben ser legibles. Reglas de formato:
 - **Nunca** escribas un párrafo de más de 4 líneas seguidas sin un salto.
 
 Ejemplo CORRECTO de respuesta:
-```
+\`\`\`
 He mirado el mercado. Hay hueco, pero la competencia no duerme.
 
 Mi plan:
@@ -174,12 +174,12 @@ B. **5 entrevistas de validación** — Más lento pero reduces riesgo.
 C. **Ambas en paralelo** — Lo que haría yo.
 
 ¿Cuál te cuadra?
-```
+\`\`\`
 
 Ejemplo INCORRECTO (lo que NO debes hacer):
-```
+\`\`\`
 He mirado el mercado y hay bastante hueco aunque la competencia es fuerte mi plan sería hacer una landing page rápida o hacer validación con entrevistas o las dos cosas a la vez qué prefieres?
-```
+\`\`\`
 
 ═══ ESTIMACIONES DE TIEMPO — PROHIBIDO INVENTAR ═══
 - NUNCA des estimaciones de tiempo concretas: "en 48h", "2-3 semanas", "lo tienes listo el viernes".
