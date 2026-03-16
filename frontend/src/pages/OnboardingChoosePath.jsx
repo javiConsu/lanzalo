@@ -1,5 +1,5 @@
 /**
- * Onboarding — Paso 1 de 3: Elige tu camino
+ * Onboarding — Paso 1 de 6: Elige tu camino
  * Minimalismo tecnico. IBM Plex Mono. Sin emoji.
  */
 
@@ -35,18 +35,8 @@ export default function OnboardingChoosePath() {
       onClick: () => navigate('/onboarding/describe-idea'),
     },
     {
-      key: 'discovery',
-      label: '02',
-      title: 'Quiero explorar',
-      desc: 'Strategic Discovery completo: 28 preguntas, unfair advantages, 3-5 paths con plan de 90 dias.',
-      detail: '15-20 minutos. Muy profundo.',
-      color: '#3b82f6',
-      recommended: false,
-      onClick: () => navigate('/discovery'),
-    },
-    {
       key: 'ideas',
-      label: '03',
+      label: '02',
       title: 'Sin idea aun',
       desc: 'Explora 50+ ideas ya validadas con datos de demanda y competencia. 1-click launch.',
       detail: 'Ideas con evidencia de mercado.',
@@ -60,11 +50,11 @@ export default function OnboardingChoosePath() {
     <div className="min-h-screen bg-[#0a0e14] flex items-center justify-center px-4 py-12">
       <div className="max-w-4xl w-full">
 
-        <ProgressBar step={1} total={3} />
+        <ProgressBar step={1} total={6} />
 
         {/* Header */}
         <div className="mb-10">
-          <div className="text-xs font-mono text-[#484f58] uppercase tracking-widest mb-3">paso 1 de 3</div>
+          <div className="text-xs font-mono text-[#484f58] uppercase tracking-widest mb-3">paso 1 de 6</div>
           <h1 className="text-3xl sm:text-4xl font-bold text-white mb-3">
             Como quieres empezar?
           </h1>
@@ -74,7 +64,7 @@ export default function OnboardingChoosePath() {
         </div>
 
         {/* Paths */}
-        <div className="grid md:grid-cols-3 gap-4">
+        <div className="grid md:grid-cols-2 gap-4 max-w-2xl">
           {paths.map((path) => (
             <button
               key={path.key}

@@ -42,6 +42,7 @@ const migrationFiles = [
   { name: '030_add_projects_mvp.sql', file: path.join(__dirname, '..', 'database', 'migrations', '030_add_projects_mvp.sql') },
   { name: '031_add_nps_responses.sql', file: path.join(__dirname, '..', 'database', 'migrations', '031_add_nps_responses.sql') },
   { name: '032_add_survey_responses.sql', file: path.join(__dirname, '..', 'database', 'migrations', '032_add_survey_responses.sql') },
+  { name: '033_seed_ideas.sql', file: path.join(__dirname, '..', 'database', 'migrations', '033_seed_ideas.sql') },
 ];
 
 async function runMigrations() {

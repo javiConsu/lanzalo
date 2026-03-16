@@ -6,7 +6,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, TrendingUp, Users, DollarSign, Target, Loader2, ArrowRight } from 'lucide-react';
-import { apiUrl } from '../api.js';
+import api from '../lib/api.js';
 import { trackAgentCreated } from '../lib/analytics/events';
 
 export default function OnboardingChooseIdea() {
