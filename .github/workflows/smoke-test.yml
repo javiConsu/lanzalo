@@ -1,0 +1,42 @@
+name: Smoke Test — lanzalo.pro
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: "URL a testear (por defecto: https://lanzalo.pro)"
+        required: false
+        default: "https://lanzalo.pro"
+  workflow_run:
+    workflows: ["Deploy to Railway"]
+    types:
+      - completed
+
+jobs:
+  smoke-test:
+    name: Smoke Test Post-Deploy
+    runs-on: ubuntu-latest
+    # Solo ejecutar si el deploy fue exitoso (en workflow_run) o si es manual
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Make script executable
+        run: chmod +x scripts/smoke-test.sh
+
+      - name: Run smoke tests
+        env:
+          BASE_URL: ${{ github.event.inputs.base_url || 'https://lanzalo.pro' }}
+          BACKEND_URL: ${{ github.event.inputs.base_url || 'https://lanzalo.pro' }}
+        run: ./scripts/smoke-test.sh
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "🚨 Smoke test FALLIDO en $BASE_URL"
+          echo "Revisar los logs del paso anterior para detalles."
+          # Aquí se puede añadir webhook de Slack/Discord si se tiene
