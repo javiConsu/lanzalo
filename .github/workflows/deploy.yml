@@ -11,6 +11,7 @@ concurrency:
 
 jobs:
   # ─── Backend → Railway ───────────────────────────────────────────────
+  # Vercel frontend: auto-desplegado via GitHub App integration (sin CLI necesario)
   deploy-backend:
     name: Deploy Backend (Railway)
     runs-on: ubuntu-latest
@@ -24,41 +25,3 @@ jobs:
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
         run: railway up --detach
-
-  # ─── Frontend → Vercel ───────────────────────────────────────────────
-  deploy-frontend:
-    name: Deploy Frontend (Vercel)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
-
-      - name: Install dependencies
-        working-directory: frontend
-        run: npm ci
-
-      - name: Build frontend
-        working-directory: frontend
-        env:
-          VITE_CLERK_PUBLISHABLE_KEY: ${{ secrets.VITE_CLERK_PUBLISHABLE_KEY }}
-          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
-          VITE_POSTHOG_KEY: ${{ secrets.VITE_POSTHOG_KEY }}
-          VITE_POSTHOG_HOST: ${{ secrets.VITE_POSTHOG_HOST }}
-          VITE_API_URL: ${{ secrets.VITE_API_URL }}
-        run: npm run build
-
-      - name: Install Vercel CLI
-        run: npm install -g vercel
-
-      - name: Deploy a Vercel (producción)
-        working-directory: frontend
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-        run: vercel deploy --prod --token=$VERCEL_TOKEN
