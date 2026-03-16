@@ -1,7 +1,7 @@
-name: Build Frontend
+name: CI — Build Frontend
 
 on:
-  push:
+  pull_request:
     branches: [main]
     paths:
       - 'frontend/src/**'
@@ -10,16 +10,12 @@ on:
       - 'frontend/tailwind.config.js'
   workflow_dispatch:
 
-permissions:
-  contents: write
-
 jobs:
   build:
+    name: Build check (PR)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: actions/setup-node@v4
         with:
@@ -31,19 +27,8 @@ jobs:
         working-directory: frontend
         run: npm ci
 
-      - name: Build frontend
+      - name: Build frontend (check)
         working-directory: frontend
         env:
           VITE_CLERK_PUBLISHABLE_KEY: ${{ secrets.VITE_CLERK_PUBLISHABLE_KEY }}
         run: npm run build
-
-      - name: Ensure vercel.json in dist
-        run: echo '{"rewrites":[{"source":"/(.*)","destination":"/index.html"}]}' > frontend/dist/vercel.json
-
-      - name: Commit dist
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add frontend/dist/ -f
-          git diff --staged --quiet || git commit -m "build: auto-regenerar frontend/dist/"
-          git push
