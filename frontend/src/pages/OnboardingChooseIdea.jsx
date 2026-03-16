@@ -161,7 +161,7 @@ export default function OnboardingChooseIdea() {
             </p>
             <div className="flex gap-4 justify-center">
               <button
-                onClick={() => navigate('/discovery')}
+                onClick={() => navigate('/dashboard/discovery')}
                 className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold py-3 px-6 rounded-xl transition-all shadow-lg shadow-blue-500/25 flex items-center gap-2"
               >
                 Strategic Discovery
@@ -203,7 +203,7 @@ export default function OnboardingChooseIdea() {
                   {idea.title}
                 </h3>
                 <p className="text-gray-400 text-sm mb-4 line-clamp-2">
-                  {idea.description}
+                  {idea.problem || idea.description}
                 </p>
 
                 {/* Metrics */}
@@ -218,7 +218,7 @@ export default function OnboardingChooseIdea() {
                   </div>
                   <div className="flex items-center gap-2">
                     <DollarSign className="w-4 h-4 text-yellow-500" />
-                    <span className="text-gray-400">{idea.revenue_potential || 'Alta'}</span>
+                    <span className="text-gray-400">{idea.potential_revenue || idea.revenue_potential || 'Alta'}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Target className="w-4 h-4 text-purple-500" />
@@ -252,7 +252,7 @@ export default function OnboardingChooseIdea() {
             ¿Prefieres tu propia idea?
           </p>
           <button
-            onClick={() => navigate('/discovery')}
+            onClick={() => navigate('/dashboard/discovery')}
             className="text-blue-500 hover:text-blue-400 font-medium"
           >
             Empezar Strategic Discovery →
