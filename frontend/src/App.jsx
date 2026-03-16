@@ -111,6 +111,7 @@ function App() {
       try {
         const clerkToken = await getToken()
         setToken(clerkToken)
+        localStorage.setItem('token', clerkToken)
 
         // Sincronizar usuario con nuestra DB (crea si no existe, vincula clerk_user_id si ya existe)
         await fetch(apiUrl('/api/auth/sync'), {
@@ -156,6 +157,7 @@ function App() {
       try {
         const fresh = await getToken({ skipCache: true })
         setToken(fresh)
+        localStorage.setItem('token', fresh)
       } catch (e) {}
     }, 55 * 60 * 1000)
 
@@ -164,6 +166,7 @@ function App() {
 
   const handleLogout = async () => {
     await signOut()
+    localStorage.removeItem('token')
     localStorage.removeItem('lanzalo_user_id')
     setToken(null)
     setUser(null)

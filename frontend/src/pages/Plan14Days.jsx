@@ -121,7 +121,7 @@ export default function Plan14Days() {
   useEffect(() => {
     const cid = searchParams.get('company') || localStorage.getItem('lanzalo_selected_company');
     if (!cid) {
-      navigate('/onboarding/viabilidad');
+      navigate('/onboarding/viability');
       return;
     }
     setCompanyId(cid);

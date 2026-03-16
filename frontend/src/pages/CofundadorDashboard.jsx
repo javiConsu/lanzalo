@@ -506,7 +506,7 @@ export default function CofundadorDashboard() {
 
           <div className="flex-1 overflow-y-auto p-3 space-y-2">
             {/* Análisis de viabilidad siempre disponible */}
-            <a href="/onboarding/viabilidad" className="block p-3 rounded-lg border border-[#21262d] bg-[#0a0e14] hover:border-[#30363d] transition-colors">
+            <a href="/onboarding/viability" className="block p-3 rounded-lg border border-[#21262d] bg-[#0a0e14] hover:border-[#30363d] transition-colors">
               <div className="flex items-start gap-2">
                 <span className="text-base flex-shrink-0">📊</span>
                 <div>
