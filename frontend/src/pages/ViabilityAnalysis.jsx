@@ -283,7 +283,7 @@ function ResultsPhase({ analysis, companyId }) {
 
         {/* CTA */}
         <button
-          onClick={() => navigate(`/onboarding/plan-14-dias?company=${companyId}`)}
+          onClick={() => navigate(`/onboarding/plan?company=${companyId}`)}
           className="w-full flex items-center justify-center gap-2 px-6 py-4
                    bg-[#00ff87] hover:bg-[#00e67a] text-black font-bold rounded-lg
                    transition-colors font-mono text-sm"
@@ -311,7 +311,7 @@ export default function ViabilityAnalysis() {
   useEffect(() => {
     const cid = localStorage.getItem('lanzalo_pending_analysis') || localStorage.getItem('lanzalo_selected_company');
     if (!cid) {
-      navigate('/onboarding/perfil');
+      navigate('/onboarding/describe-idea');
       return;
     }
     setCompanyId(cid);

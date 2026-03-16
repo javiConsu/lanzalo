@@ -116,7 +116,7 @@ export default function OnboardingDescribeIdea() {
 
         {/* Back button */}
         <button
-          onClick={() => navigate('/onboarding/idea-source')}
+          onClick={() => navigate('/onboarding')}
           className="flex items-center gap-2 text-[#484f58] hover:text-[#8b949e] mb-8 transition-colors text-sm font-mono"
         >
           <ArrowLeft className="w-4 h-4" />

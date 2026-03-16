@@ -243,7 +243,7 @@ export default function Plan14Days() {
             if (!localStorage.getItem('lanzalo_activation_survey_done')) {
               localStorage.setItem('lanzalo_show_activation_survey', '1');
             }
-            navigate('/co-fundador');
+            navigate('/cofundador');
           }}
           className="w-full flex items-center justify-center gap-2 px-6 py-4
                    bg-[#00ff87] hover:bg-[#00e67a] text-black font-bold rounded-lg
