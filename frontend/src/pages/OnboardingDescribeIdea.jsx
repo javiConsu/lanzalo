@@ -40,7 +40,7 @@ export default function OnboardingDescribeIdea() {
   const [launching, setLaunching] = useState(false);
   const [error, setError] = useState(null);
 
-  const canSubmit = description.trim() && targetCustomer.trim() && problem.trim();
+  const canSubmit = description.trim() && targetCustomer.trim();
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -199,7 +199,8 @@ export default function OnboardingDescribeIdea() {
           {/* Problema */}
           <div>
             <label className="block text-xs font-mono text-[#8b949e] uppercase tracking-wider mb-2">
-              ¿Qué problema resuelve? ¿Por qué es un dolor ahora? <span className="text-[#00ff87]">*</span>
+              ¿Qué problema resuelve? ¿Por qué es un dolor ahora?
+              <span className="text-[#484f58] ml-2">(opcional)</span>
             </label>
             <textarea
               value={problem}
@@ -209,7 +210,6 @@ export default function OnboardingDescribeIdea() {
               className="w-full bg-[#0d1117] border border-[#21262d] hover:border-[#30363d] rounded-lg px-4 py-3
                        text-white placeholder-[#484f58] focus:border-[#00ff87]
                        focus:ring-1 focus:ring-[#00ff87]/20 outline-none resize-none text-sm transition-colors"
-              required
               maxLength={280}
             />
             <div className="text-right text-xs font-mono text-[#484f58] mt-1">{problem.length}/280</div>

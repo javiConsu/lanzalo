@@ -257,7 +257,7 @@ function App() {
       <Router>
         <PostHogProvider>
         <Routes>
-          <Route path="/onboarding" element={<OnboardingSurvey user={user} token={token} />} />
+          <Route path="/onboarding" element={<Navigate to="/onboarding/describe-idea" replace />} />
           <Route path="/onboarding/choose-path" element={<OnboardingChoosePath user={user} token={token} />} />
           <Route path="/onboarding/choose-idea" element={<OnboardingChooseIdea user={user} token={token} />} />
           <Route path="/onboarding/describe-idea" element={<OnboardingDescribeIdea user={user} token={token} />} />
