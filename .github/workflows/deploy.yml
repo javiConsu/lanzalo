@@ -10,18 +10,16 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # ─── Backend → Railway ───────────────────────────────────────────────
+  # --- Backend -> Railway ---
   # Vercel frontend: auto-desplegado via GitHub App integration (sin CLI necesario)
   deploy-backend:
     name: Deploy Backend (Railway)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - name: Install Railway CLI
         run: npm install -g @railway/cli
-
       - name: Deploy a Railway
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-        run: railway up --detach
+        run: railway up --detach --service 72972204-a24b-44f0-aea0-663b2d75e417
