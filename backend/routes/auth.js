@@ -80,4 +80,39 @@ router.get('/verify', requireAuth, (req, res) => {
   });
 });
 
+/**
+ * GET /api/auth/status
+ * Diagnóstico de configuración Clerk — sin exponer valores reales.
+ * Útil para verificar que las env vars están bien en Railway.
+ */
+router.get('/status', (req, res) => {
+  const sk = process.env.CLERK_SECRET_KEY || '';
+  const pk = process.env.CLERK_PUBLISHABLE_KEY || process.env.VITE_CLERK_PUBLISHABLE_KEY || '';
+
+  const skMode = sk.startsWith('sk_live_') ? 'production' : sk.startsWith('sk_test_') ? 'development' : 'missing';
+  const pkMode = pk.startsWith('pk_live_') ? 'production' : pk.startsWith('pk_test_') ? 'development' : 'missing';
+
+  res.json({
+    clerk: {
+      secretKey: {
+        set: sk.length > 0,
+        mode: skMode,
+        prefix: sk.substring(0, 8) || 'NOT_SET',
+      },
+      publishableKey: {
+        set: pk.length > 0,
+        mode: pkMode,
+        prefix: pk.substring(0, 8) || 'NOT_SET',
+      },
+      mismatch: skMode !== 'missing' && pkMode !== 'missing' && skMode !== pkMode,
+      recommendation: skMode === 'missing'
+        ? 'CLERK_SECRET_KEY no está en las variables de entorno de Railway'
+        : skMode !== pkMode
+          ? `Mismatch: backend usa ${skMode} pero frontend usa ${pkMode} — deben ser la misma instancia`
+          : 'OK',
+    },
+    node_env: process.env.NODE_ENV || 'development',
+  });
+});
+
 module.exports = router;

@@ -81,8 +81,12 @@ export default function OnboardingDescribeIdea() {
       console.error('Error creating company:', err);
       if (err?.response?.code === 'NO_SLOTS' || err?.code === 'NO_SLOTS') {
         setError('Has alcanzado el límite de negocios de tu plan. Compra un hueco extra desde tu panel.');
+      } else if (err?.message?.includes('401') || err?.response?.error?.includes('Token') || err?.response?.error?.includes('autorizado')) {
+        setError('Sesión expirada. Recarga la página e inténtalo de nuevo.');
       } else {
-        setError('Error al crear la empresa. Intenta de nuevo.');
+        // Mostrar el error real del backend en desarrollo para facilitar diagnóstico
+        const debugMsg = err?.response?.debug || err?.response?.error || '';
+        setError(`Error al crear la empresa. Intenta de nuevo.${debugMsg ? ` (${debugMsg})` : ''}`);
       }
       setLaunching(false);
     }

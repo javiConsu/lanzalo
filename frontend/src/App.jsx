@@ -114,10 +114,15 @@ function App() {
         localStorage.setItem('token', clerkToken)
 
         // Sincronizar usuario con nuestra DB (crea si no existe, vincula clerk_user_id si ya existe)
-        await fetch(apiUrl('/api/auth/sync'), {
+        const syncRes = await fetch(apiUrl('/api/auth/sync'), {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${clerkToken}` }
         })
+        if (!syncRes.ok) {
+          const syncErr = await syncRes.json().catch(() => ({}))
+          console.error('[App] auth/sync failed', syncRes.status, syncErr)
+          // No bloqueamos al usuario, pero logueamos para diagnóstico
+        }
 
         // Cargar perfil completo de nuestra DB
         const profileRes = await fetch(apiUrl('/api/user/profile'), {

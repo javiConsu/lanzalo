@@ -46,9 +46,20 @@ app.use('/api/webhooks', require('./routes/webhooks'));
 
 app.use(express.json());
 
-// Health check
+// Health check — versión extendida con diagnóstico de config crítica
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString(), version: '1.0.0', env: process.env.NODE_ENV || 'development' });
+  const clerkConfigured = !!(process.env.CLERK_SECRET_KEY && !process.env.CLERK_SECRET_KEY.includes('your_'));
+  res.json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    version: '1.0.0',
+    env: process.env.NODE_ENV || 'development',
+    config: {
+      clerk: clerkConfigured ? 'ok' : 'MISSING_OR_PLACEHOLDER',
+      db: !!(process.env.DATABASE_URL),
+      resend: !!(process.env.RESEND_API_KEY && !process.env.RESEND_API_KEY.includes('your_')),
+    }
+  });
 });
 
 // Public routes (NO auth — MUST be before any router with catch-all requireAuth)
@@ -138,9 +149,29 @@ async function autoMigrate() {
   }
 }
 
+// Validar env vars críticas al arranque
+function validateEnv() {
+  const checks = [
+    { key: 'CLERK_SECRET_KEY', required: true },
+    { key: 'DATABASE_URL', required: true },
+    { key: 'RESEND_API_KEY', required: false },
+    { key: 'OPENROUTER_API_KEY', required: false },
+  ];
+  checks.forEach(({ key, required }) => {
+    const val = process.env[key];
+    if (!val || val.includes('your_') || val.includes('placeholder')) {
+      const level = required ? '❌ CRITICAL' : '⚠️  OPTIONAL';
+      console.warn(`[ENV] ${level}: ${key} no está configurada o usa valor placeholder`);
+    } else {
+      console.log(`[ENV] ✅ ${key}: ${val.substring(0, 8)}...`);
+    }
+  });
+}
+
 // Start HTTP server
 const server = app.listen(PORT, async () => {
   console.log(`🚀 Lanzalo API running on port ${PORT}`);
+  validateEnv();
 
   // Run pending DB migrations before starting services
   await autoMigrate();
