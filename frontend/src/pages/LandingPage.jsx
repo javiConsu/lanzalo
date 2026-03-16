@@ -182,7 +182,7 @@ export default function LandingPage({ onNavigateToLogin }) {
         <div className="max-w-4xl mx-auto">
           <div className="inline-flex items-center gap-2 bg-[#00ff87]/10 border border-[#00ff87]/20 rounded-full px-4 py-1.5 text-[#00ff87] text-xs font-mono mb-8">
             <span className="w-1.5 h-1.5 bg-[#00ff87] rounded-full animate-pulse" />
-            14 dias de trial &mdash; sin tarjeta
+            14 días de trial &mdash; sin tarjeta
           </div>
 
           <h1 className="text-4xl sm:text-6xl lg:text-7xl font-bold tracking-tight leading-[1.05] mb-6">
@@ -193,7 +193,7 @@ export default function LandingPage({ onNavigateToLogin }) {
 
           <p className="text-lg text-gray-400 max-w-2xl mb-6 leading-relaxed">
             Un equipo de agentes IA trabaja 24/7 para construir tu negocio completo:
-            web, marketing, ventas y operaciones. En espanol, para emprendedores reales.
+            web, marketing, ventas y operaciones. En español, para emprendedores reales.
           </p>
 
           <div className="h-10 flex items-center mb-10">
@@ -213,12 +213,12 @@ export default function LandingPage({ onNavigateToLogin }) {
               onClick={() => scrollToSection('demo')}
               className="w-full sm:w-auto text-sm text-gray-500 hover:text-white border border-white/10 hover:border-white/20 px-8 py-3.5 rounded-xl transition-all"
             >
-              Ver agentes en accion
+              Ver agentes en acción
             </button>
           </div>
 
           <p className="text-xs text-gray-700 font-mono">
-            $39/mes por negocio &bull; 0% comision sobre ventas &bull; cancela cuando quieras
+            $39/mes por negocio &bull; 0% comisión sobre ventas &bull; cancela cuando quieras
           </p>
         </div>
       </section>
@@ -253,7 +253,7 @@ export default function LandingPage({ onNavigateToLogin }) {
           {[
             { value: '600M', label: 'hispanohablantes sin herramientas propias' },
             { value: '$39', label: 'al mes por negocio' },
-            { value: '0%', label: 'comision sobre ventas' },
+            { value: '0%', label: 'comisión sobre ventas' },
             { value: '10+', label: 'agentes especializados' },
           ].map((stat, i) => (
             <div key={i} className="text-center">
@@ -406,7 +406,7 @@ export default function LandingPage({ onNavigateToLogin }) {
                   '10+ agentes trabajando en equipo',
                   'Espanol nativo, para emprendedores reales',
                   'El Co-Fundador IA lo orquesta todo',
-                  '0% comision — tu te quedas con todo',
+                  '0% comisión — tú te quedas con todo',
                 ].map((item, i) => (
                   <li key={i} className="flex items-start gap-2 text-sm text-gray-300">
                     <span className="text-[#00ff87] mt-0.5 font-mono">+</span>
@@ -501,8 +501,8 @@ export default function LandingPage({ onNavigateToLogin }) {
                 a: 'No. Lanzalo monta negocios completos: estrategia, web, marketing, emails, analytics — orquestado por agentes que trabajan como un equipo real.',
               },
               {
-                q: 'Por que en espanol?',
-                a: '600 millones de personas hablan espanol y las alternativas estan en ingles o con traducciones que parecen de Google Translate de 2010.',
+                q: '¿Por qué en español?',
+                a: '600 millones de personas hablan español y las alternativas están en inglés o con traducciones que parecen de Google Translate de 2010.',
               },
               {
                 q: 'Y si ya tengo un negocio?',
