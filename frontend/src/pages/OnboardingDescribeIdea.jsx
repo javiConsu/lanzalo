@@ -23,7 +23,7 @@ function ProgressBar({ step, total }) {
   );
 }
 
-export default function OnboardingDescribeIdea() {
+export default function OnboardingDescribeIdea({ token }) {
   const navigate = useNavigate();
 
   // Pre-rellenar si viene del IdeaBrowser
@@ -45,6 +45,13 @@ export default function OnboardingDescribeIdea() {
   async function handleSubmit(e) {
     e.preventDefault();
     if (!canSubmit) return;
+
+    // Verificar token antes de cualquier llamada a la API
+    const hasToken = token || localStorage.getItem('token');
+    if (!hasToken) {
+      setError('NO_TOKEN');
+      return;
+    }
 
     setLaunching(true);
     setError(null);
@@ -81,8 +88,8 @@ export default function OnboardingDescribeIdea() {
       console.error('Error creating company:', err);
       if (err?.response?.code === 'NO_SLOTS' || err?.code === 'NO_SLOTS') {
         setError('Has alcanzado el límite de negocios de tu plan. Compra un hueco extra desde tu panel.');
-      } else if (err?.message?.includes('401') || err?.response?.error?.includes('Token') || err?.response?.error?.includes('autorizado')) {
-        setError('Sesión expirada. Recarga la página e inténtalo de nuevo.');
+      } else if (err?.code === 'UNAUTHENTICATED' || err?.status === 401 || err?.message?.includes('401') || err?.response?.error?.includes('Token') || err?.response?.error?.includes('autorizado')) {
+        setError('SESSION_EXPIRED');
       } else {
         // Mostrar el error real del backend en desarrollo para facilitar diagnóstico
         const debugMsg = err?.response?.debug || err?.response?.error || '';
@@ -239,7 +246,21 @@ export default function OnboardingDescribeIdea() {
           {/* Error */}
           {error && (
             <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3">
-              <p className="text-red-400 text-sm font-mono">{error}</p>
+              {error === 'NO_TOKEN' || error === 'SESSION_EXPIRED' ? (
+                <p className="text-red-400 text-sm font-mono">
+                  {error === 'NO_TOKEN'
+                    ? 'Para continuar necesitas estar conectado. '
+                    : 'Tu sesión ha expirado. '}
+                  <a
+                    href="/login"
+                    className="underline text-[#00ff87] hover:text-[#00e67a]"
+                  >
+                    Haz clic aquí para reconectarte
+                  </a>
+                </p>
+              ) : (
+                <p className="text-red-400 text-sm font-mono">{error}</p>
+              )}
             </div>
           )}
 
