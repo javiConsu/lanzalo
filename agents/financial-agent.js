@@ -54,7 +54,7 @@ class FinancialAgent {
     const mrrResult = await pool.query(
       `SELECT COUNT(*) as pro_users FROM users WHERE plan = 'pro' AND role != 'admin'`
     );
-    const proUsers = parseInt(mrrResult.rows[0]$1.pro_users || 0);
+    const proUsers = parseInt(mrrResult.rows[0].pro_users || 0);
     const mrr = proUsers * 39;
 
     // Costos LLM (último mes)
@@ -63,7 +63,7 @@ class FinancialAgent {
        FROM llm_usage 
        WHERE recorded_at > datetime('now', '-30 days')`
     );
-    const llmCosts = parseFloat(costsResult.rows[0]$2.total || 0);
+    const llmCosts = parseFloat(costsResult.rows[0].total || 0);
 
     // Costos por empresa
     const perCompanyResult = await pool.query(
@@ -82,7 +82,7 @@ class FinancialAgent {
     const infraCosts = 60; // Fixed
     const totalCosts = llmCosts + infraCosts;
     const profit = mrr - totalCosts;
-    const margin = mrr > 0 $3 ((profit / mrr) * 100) : 0;
+    const margin = mrr > 0 ? ((profit / mrr) * 100) : 0;
 
     return {
       mrr,
@@ -99,8 +99,8 @@ class FinancialAgent {
         name: r.name,
         plan: r.plan,
         cost: parseFloat(r.cost),
-        revenue: r.plan === 'pro' $4 39 : 0,
-        profitable: r.plan === 'pro' $5 (39 - parseFloat(r.cost)) > 0 : false
+        revenue: r.plan === 'pro' ? 39 : 0,
+        profitable: r.plan === 'pro' ? (39 - parseFloat(r.cost)) > 0 : false
       }))
     };
   }
@@ -123,10 +123,10 @@ ${data.companies.filter(c => !c.profitable).slice(0, 5).map(c =>
 ).join('\n')}
 
 ANALIZA:
-1. ¿La situación es sostenible$6
-2. ¿Cuáles son los mayores problemas$7
-3. ¿Qué riesgos existen$8
-4. ¿Qué oportunidades hay$9
+1. ¿La situación es sostenible?
+2. ¿Cuáles son los mayores problemas?
+3. ¿Qué riesgos existen?
+4. ¿Qué oportunidades hay?
 
 Responde en JSON:
 {
