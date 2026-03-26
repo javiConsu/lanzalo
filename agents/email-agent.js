@@ -10,10 +10,21 @@
  * Requiere: Email Pro subscription activa + Instantly API key
  */
 
+const fs = require('fs');
+const path = require('path');
 const { pool } = require('../backend/db');
 const { callLLM } = require('../backend/llm');
 const { sendEmail } = require('../backend/email');
 const governanceHelper = require('../backend/services/governance-helper');
+const instantly = require('../backend/services/instantly-service');
+
+const coldEmailPlaybookPath = path.join(__dirname, '../docs/cold-email-playbook.md');
+let coldEmailPlaybook = '';
+try {
+  coldEmailPlaybook = fs.readFileSync(coldEmailPlaybookPath, 'utf8');
+} catch {
+  console.warn('[EmailAgent] Cold email playbook not found — using default strategies');
+}
 
 class EmailAgent {
   async execute(company) {
