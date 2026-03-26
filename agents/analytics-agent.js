@@ -96,7 +96,13 @@ Responde en JSON:
 }`;
 
     const response = await callLLM(prompt);
-    return JSON.parse(response);
+    const content = typeof response === 'string' ? response : response.content;
+    try {
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      return jsonMatch ? JSON.parse(jsonMatch[0]) : { summary: 'Análisis completado' };
+    } catch {
+      return { summary: 'Análisis completado', raw: content };
+    }
   }
 
   async executeCustomTask(company, taskDescription) {
@@ -105,7 +111,13 @@ Responde en JSON:
 Genera el análisis solicitado.`;
     
     const response = await callLLM(prompt);
-    return JSON.parse(response);
+    const content = typeof response === 'string' ? response : response.content;
+    try {
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      return jsonMatch ? JSON.parse(jsonMatch[0]) : { response: content };
+    } catch {
+      return { response: content };
+    }
   }
 }
 

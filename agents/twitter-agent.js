@@ -2,10 +2,11 @@
  * Agente de Twitter - Automatización de redes sociales
  */
 
-const { createTask, updateTask, createTweet, logActivity } = require('../backend/db');
+const { createTask, updateTask, createTweet, updateTweet, logActivity } = require('../backend/db');
 const { callLLM } = require('../backend/llm');
 const { postTweet } = require('../backend/twitter');
 const governanceHelper = require('../backend/services/governance-helper');
+const brandConfig = require('../backend/services/brand-config');
 
 class TwitterAgent {
   async execute(company) {

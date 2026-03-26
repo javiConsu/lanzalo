@@ -11,6 +11,8 @@
 const { pool } = require('../backend/db');
 const { callLLM } = require('../backend/llm');
 const governanceHelper = require('../backend/services/governance-helper');
+const brandConfig = require('../backend/services/brand-config');
+const gamma = require('../backend/services/gamma-service');
 
 class MarketingAgent {
   async execute(company) {
@@ -27,7 +29,7 @@ class MarketingAgent {
 
     await governanceHelper.recordHeartbeat('Marketing');
 
-    const task = await createTask(company.id, 'marketing',
+    const task = await this.createTask(company.id, 
       'Campaña de marketing diaria',
       'Generar estrategia y contenido de marketing');
 
@@ -78,8 +80,8 @@ class MarketingAgent {
 
       return {
         success: true,
-        summary: `${content.length} piezas de contenido creadas`,
-        content
+        summary: `${posts.length} piezas de contenido creadas`,
+        posts
       };
 
     } catch (error) {

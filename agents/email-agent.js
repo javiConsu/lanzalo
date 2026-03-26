@@ -30,7 +30,7 @@ class EmailAgent {
 
     await governanceHelper.recordHeartbeat('Email');
 
-    const task = await createTask(company.id, 'email',
+    const task = await this.createTask(company.id, 
       'Outreach diario por email',
       'Encontrar prospectos y enviar emails fríos personalizados');
 
