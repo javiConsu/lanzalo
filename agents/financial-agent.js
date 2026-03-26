@@ -310,7 +310,7 @@ Responde en JSON:
   async forceUpgrade(companyId) {
     // Pausar empresa y notificar al dueño
     await pool.query(
-      `UPDATE companies SET status = 'paused' WHERE id = $10`,
+      `UPDATE companies SET status = 'paused' WHERE id = $1`,
       [companyId]
     );
 
