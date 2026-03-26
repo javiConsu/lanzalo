@@ -11,7 +11,10 @@
     "db:setup": "psql -U postgres -f database/schema.sql",
     "deploy": "npm run deploy:backend && npm run deploy:frontend",
     "deploy:backend": "railway up",
-    "deploy:frontend": "cd frontend && vercel --prod"
+    "deploy:frontend": "cd frontend && vercel --prod",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage"
   },
   "dependencies": {
     "@clerk/clerk-sdk-node": "^5.1.6",
@@ -37,6 +40,7 @@
   },
   "devDependencies": {
     "concurrently": "^8.2.2",
+    "jest": "^30.3.0",
     "nodemon": "^3.0.2"
   },
   "engines": {
