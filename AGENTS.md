@@ -2,6 +2,31 @@
 
 Lanzalo es una plataforma SaaS de Co-Fundador IA que permite crear y lanzar empresas autonomas impulsadas por IA.
 
+## ⚠️ PRIMERO: Heartbeat Protocol
+
+**AL DESPERTAR, DEBES:**
+
+1. **Obtener tus tareas asignadas:**
+```bash
+curl -s -H "Authorization: Bearer $PAPERCLIP_API_KEY" \
+  "${PAPERCLIP_API_URL}/api/companies/${PAPERCLIP_COMPANY_ID}/issues?assigneeAgentId=${PAPERCLIP_AGENT_ID}&status=todo,in_progress,blocked"
+```
+
+2. **Si hay tareas, hacer CHECKOUT inmediatamente:**
+```bash
+curl -X POST -H "Authorization: Bearer $PAPERCLIP_API_KEY" \
+  -H "Content-Type: application/json" \
+  -H "X-Paperclip-Run-Id: $PAPERCLIP_RUN_ID" \
+  "${PAPERCLIP_API_URL}/api/issues/{ISSUE_ID}/checkout" \
+  -d '{"agentId": "'$PAPERCLIP_AGENT_ID'", "expectedStatuses": ["todo", "backlog", "blocked"]}'
+```
+
+3. **Trabajar en la tarea y actualizar estado**
+
+**NUNCA ignores las tareas asignadas. Si no hay tareas, entra en modo Self-Improvement.**
+
+---
+
 ## Tech Stack
 
 - **Frontend**: Next.js 14 + React + Tailwind CSS (en `/frontend`)
@@ -94,3 +119,46 @@ Before planning, writing, delegating, selling, or reviewing, you MUST read `javi
 
 ## External Access Rule
 If a workflow depends on an external credential or integration, never report it vaguely. You MUST specify: (1) exact credential name, (2) exact service where it is created, (3) exact route to obtain it, and (4) whether it can be obtained autonomously from existing authenticated sessions. Only escalate when payment, OTP, CAPTCHA, or a missing owner-only permission blocks execution.
+
+## Paperclip Heartbeat Protocol
+
+### Autenticacion
+- Variables de entorno: `PAPERCLIP_AGENT_ID`, `PAPERCLIP_COMPANY_ID`, `PAPERCLIP_API_URL`, `PAPERCLIP_API_KEY`
+- Todos los requests usan `Authorization: Bearer $PAPERCLIP_API_KEY`
+- Incluir header `X-Paperclip-Run-Id: $PAPERCLIP_RUN_ID` en requests que modifican issues
+
+### Procedimiento por Heartbeat
+
+**Paso 1 - Identidad:** `GET /api/agents/me`
+
+**Paso 2 - Obtener asignaciones:**
+```
+GET /api/companies/{companyId}/issues?assigneeAgentId={your-agent-id}&status=todo,in_progress,blocked
+```
+
+**Paso 3 - Checkout (OBLIGATORIO antes de trabajar):**
+```
+POST /api/issues/{issueId}/checkout
+Headers: Authorization: Bearer $PAPERCLIP_API_KEY, X-Paperclip-Run-Id: $PAPERCLIP_RUN_ID
+{ "agentId": "{your-agent-id}", "expectedStatuses": ["todo", "backlog", "blocked"] }
+```
+
+**Paso 4 - Contexto:** `GET /api/issues/{issueId}` y `GET /api/issues/{issueId}/comments`
+
+**Paso 5 - Trabajar:** Ejecutar la tarea asignada
+
+**Paso 6 - Actualizar estado:**
+```
+PATCH /api/issues/{issueId}
+Headers: X-Paperclip-Run-Id: $PAPERCLIP_RUN_ID
+{ "status": "done", "comment": "Que se hizo y por que." }
+```
+
+Estados: `backlog`, `todo`, `in_progress`, `in_review`, `done`, `blocked`, `cancelled`
+
+### Reglas Criticas
+- **SIEMPRE hacer checkout** antes de trabajar
+- **NUNCA reintentar un 409** (la tarea pertenece a otro agente)
+- **Siempre comentar** en tareas `in_progress` antes de salir
+- Si estas bloqueado, actualizar status a `blocked` con comentario explicando el bloqueo
+- Los @mentions (`@AgentName`) disparan heartbeats - usar con moderacion
