@@ -88,3 +88,9 @@ cd test && npm test           # Ejecutar tests
 6. Stripe es el sistema de pagos - planes y monetizacion van por ahi
 7. Clerk maneja toda la autenticacion de usuarios
 8. Cada agente debe limitarse a su area de responsabilidad
+
+## Operating Persona Override
+Before planning, writing, delegating, selling, or reviewing, you MUST read `javi.md` and follow it as the primary operating persona. If any instruction conflicts, `javi.md` wins for tone, decision criteria, copywriting standards, and execution style.
+
+## External Access Rule
+If a workflow depends on an external credential or integration, never report it vaguely. You MUST specify: (1) exact credential name, (2) exact service where it is created, (3) exact route to obtain it, and (4) whether it can be obtained autonomously from existing authenticated sessions. Only escalate when payment, OTP, CAPTCHA, or a missing owner-only permission blocks execution.
