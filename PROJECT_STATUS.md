@@ -39,9 +39,10 @@
 - [x] LAN-5: VERIFICADO - No action needed, multi-tenant design is safe
 
 ### Deployment
-- [x] Backend desplegado en Railway: https://lanzalo.pro (HTTP 200)
-- [x] Frontend desplegado en Vercel: https://lanzalo.vercel.app (HTTP 200)
+- [x] Backend desplegado en Railway: https://lanzalo-production.up.railway.app (HTTP 200)
+- [x] Frontend desplegado en Vercel: https://lanzalo.pro + https://lanzalo.vercel.app (HTTP 200)
 - [x] Database: Railway Postgres (30+ tablas migradas)
+- [ ] Custom domain api.lanzalo.pro: NOT configured (returns 404)
 
 ---
 
@@ -60,8 +61,10 @@
 - **Archivos de código**: 50+
 - **Tests**: 118 pasando (8 test suites)
 - **Test coverage**: Multi-tenant isolation, all agents
-- **Frontend**: ✅ https://lanzalo.pro (HTTP 200)
-- **Backend**: ✅ https://lanzalo.pro (HTTP 200)
+- **Frontend**: ✅ https://lanzalo.pro + https://lanzalo.vercel.app (HTTP 200)
+- **Backend**: ✅ https://lanzalo-production.up.railway.app (HTTP 200)
+  - Health: `{"status":"ok","clerk":"ok","db":true,"resend":true}`
+  - Companies: 9 active companies in DB
 - **Database**: ✅ Railway Postgres
 
 ---
