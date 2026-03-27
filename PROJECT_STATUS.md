@@ -1,8 +1,8 @@
 # Estado del Proyecto Lanzalo
 
-**Fecha**: 2026-03-26
+**Fecha**: 2026-03-27
 **Versión**: 1.0.0-beta
-**Estado**: 🟡 EN DESARROLLO - Frontend desplegado, Backend pendiente
+**Estado**: 🟢 EN PRODUCCIÓN - Fase 1 y 2 completadas
 
 ---
 
@@ -36,22 +36,19 @@
 - [x] LAN-6: Code Agent imports fixed
 - [x] LAN-7: Marketing Agent variables fixed
 - [x] Syntax errors fixed (financial-agent.js, admin-financials.js)
+- [x] LAN-5: VERIFICADO - No action needed, multi-tenant design is safe
 
 ### Deployment
-- [x] Frontend desplegado en Vercel: https://lanzalo.pro (HTTP 200)
+- [x] Backend desplegado en Railway: https://lanzalo.pro (HTTP 200)
+- [x] Frontend desplegado en Vercel: https://lanzalo.vercel.app (HTTP 200)
+- [x] Database: Railway Postgres (30+ tablas migradas)
 
 ---
 
 ## 🚧 PENDIENTE
 
-### Bloqueos Críticos (requieren board)
-- [ ] Railway token con permisos de escritura
-- [ ] DATABASE_URL válida (Supabase DNS no resuelve)
-- [ ] Railway deploy (backend)
-
 ### Importante (2-4 semanas)
 - [ ] Security fixes: 4 high vulnerabilities (nodemailer, tar, undici, node-pre-gyp)
-- [ ] LAN-5: Orchestrator singleton refactor (priority: medium)
 - [ ] Load testing
 - [ ] Error tracking (Sentry)
 - [ ] Monitoring (UptimeRobot)
@@ -64,34 +61,8 @@
 - **Tests**: 118 pasando (8 test suites)
 - **Test coverage**: Multi-tenant isolation, all agents
 - **Frontend**: ✅ https://lanzalo.pro (HTTP 200)
-- **Backend**: ❌ Pendiente Railway deploy
-- **Database**: ❌ Supabase no accesible
-
----
-
-## 🎯 Próxima Acción Inmediata
-
-**Requiere Board:**
-1. Railway token con permisos de escritura
-2. DATABASE_URL válida
-
-**Cuando tengamos credenciales:**
-```bash
-# Backend
-railway up
-
-# Database
-npm run db:setup
-```
-
----
-
-## 💰 Proyección de Costos
-
-- Railway: ~$20/mes
-- Vercel: $0 (hobby)
-- Supabase: $0 (free tier)
-- **Total infra**: ~$20/mes
+- **Backend**: ✅ https://lanzalo.pro (HTTP 200)
+- **Database**: ✅ Railway Postgres
 
 ---
 
@@ -99,13 +70,23 @@ npm run db:setup
 
 | Fase | Objetivo | Status |
 |------|----------|--------|
-| Fase 1 | Despliegue Baseline | 🟡 Frontend done, Backend blocked |
-| Fase 2 | Multi-Tenant Backend | 🔴 Blocked by Fase 1 |
-| Fase 3 | Onboarding Frontend | 🔴 Blocked by Fase 2 |
-| Fase 4 | Monetización Stripe | 🔴 Blocked by Fase 3 |
-| Fase 5 | Superpowers Stack | 🔴 Blocked by Fase 4 |
-| Fase 6 | Felix Loop | 🔴 Blocked by Fase 5 |
+| Fase 1 | Despliegue Baseline | ✅ COMPLETADA (2026-03-27) |
+| Fase 2 | Multi-Tenant Backend | ✅ VERIFICADO (2026-03-27) |
+| Fase 3 | Onboarding Frontend | 🔄 TODO (LAN-11) - Asignado a @Fron-Dani |
+| Fase 4 | Monetización Stripe | 🔄 TODO (LAN-10) - Asignado a @Back-David |
+| Fase 5 | Superpowers Stack | 🔴 NO INICIADA |
+| Fase 6 | Felix Loop | 🔴 NO INICIADA |
 
 ---
 
-**Estado**: 🟡 ESPERANDO CREDENCIALES DEL BOARD
+## Equipo Actual
+
+| Agente | Rol | Tarea Actual |
+|--------|-----|--------------|
+| CEO - Neo | CEO | Orquestación |
+| Fron-Dani | Frontend | LAN-11 (Fase 3) |
+| Back-David | Backend | LAN-10 (Fase 4) |
+
+---
+
+**Estado**: 🟢 FASE 1 Y 2 COMPLETADAS - EQUIPO TRABAJANDO EN FASE 3 Y 4
