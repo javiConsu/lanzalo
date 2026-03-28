@@ -2,20 +2,12 @@ const express = require('express');
 const router = express.Router();
 const heartbeat = require('../services/heartbeat');
 const { pool } = require('../db');
-
-// Protect routes with middleware (TODO: implement proper auth middleware)
-const authMiddleware = (req, res, next) => {
-  // TODO: Add proper JWT authentication
-  if (!req.user) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-  next();
-};
+const { requireAuth, requireAdmin } = require('../middleware/auth');
 
 /**
  * GET /api/heartbeat/status - Get health status for all agents
  */
-router.get('/status', authMiddleware, async (req, res) => {
+router.get('/status', requireAuth, async (req, res) => {
   try {
     const data = await heartbeat.getAllHealthStatus();
     res.json(data);
@@ -28,7 +20,7 @@ router.get('/status', authMiddleware, async (req, res) => {
 /**
  * GET /api/heartbeat/status/:agentType - Get health status for a specific agent
  */
-router.get('/status/:agentType', authMiddleware, async (req, res) => {
+router.get('/status/:agentType', requireAuth, async (req, res) => {
   try {
     const { agentType } = req.params;
     const status = await heartbeat.getHealthStatus(agentType);
@@ -42,7 +34,7 @@ router.get('/status/:agentType', authMiddleware, async (req, res) => {
 /**
  * POST /api/heartbeat/ping - Record a heartbeat from an agent
  */
-router.post('/ping', async (req, res) => {
+router.post('/ping', requireAdmin, async (req, res) => {
   try {
     const { agent_type } = req.body;
     if (!agent_type) {
@@ -67,7 +59,7 @@ router.post('/ping', async (req, res) => {
 /**
  * GET /api/heartbeat/history/:agentType - Get heartbeat history for an agent
  */
-router.get('/history/:agentType', authMiddleware, async (req, res) => {
+router.get('/history/:agentType', requireAuth, async (req, res) => {
   try {
     const { agentType } = req.params;
     const { hours = 24, limit = 100 } = req.query;
@@ -89,7 +81,7 @@ router.get('/history/:agentType', authMiddleware, async (req, res) => {
 /**
  * GET /api/heartbeat/history - Get heartbeat history for all agents
  */
-router.get('/history', authMiddleware, async (req, res) => {
+router.get('/history', requireAuth, async (req, res) => {
   try {
     const { hours = 24, limit = 100 } = req.query;
 
@@ -109,7 +101,7 @@ router.get('/history', authMiddleware, async (req, res) => {
 /**
  * GET /api/heartbeat/frequency/:agentType - Get heartbeat frequency for an agent
  */
-router.get('/frequency/:agentType', authMiddleware, async (req, res) => {
+router.get('/frequency/:agentType', requireAuth, async (req, res) => {
   try {
     const { agentType } = req.params;
 
@@ -124,7 +116,7 @@ router.get('/frequency/:agentType', authMiddleware, async (req, res) => {
 /**
  * DELETE /api/heartbeat/clear - Clear old heartbeat logs
  */
-router.delete('/clear', authMiddleware, async (req, res) => {
+router.delete('/clear', requireAdmin, async (req, res) => {
   try {
     const { days = 30 } = req.query;
 
@@ -143,7 +135,7 @@ router.delete('/clear', authMiddleware, async (req, res) => {
 /**
  * GET /api/heartbeat/summary - Get heartbeat summary
  */
-router.get('/summary', authMiddleware, async (req, res) => {
+router.get('/summary', requireAuth, async (req, res) => {
   try {
 const agentsResult = await pool.query('SELECT COUNT(*) as total FROM agents');
       const heartbeatsResult = await pool.query(

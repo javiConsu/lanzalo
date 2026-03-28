@@ -6,7 +6,7 @@ import TrialBadge from '../components/TrialBadge.jsx'
 const NAV_ITEMS = [
   { path: '/chat', label: 'Bender' },
   // { path: '/ideas', label: 'Ideas' },
-  // { path: '/backlog', label: 'Backlog' },
+  // { path: '/backlog', label: 'Cola de trabajo' },
   // { path: '/metrics', label: 'Métricas' },
   // { path: '/company', label: 'Control' },
   // { path: '/live', label: 'Live Feed' },

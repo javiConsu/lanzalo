@@ -907,7 +907,7 @@ function AgentPanel({ agents, totalActive, totalInProgress }) {
         </div>
       </div>
 
-      {/* Quick link to Backlog */}
+      {/* Quick link to Cola de trabajo */}
       <a href="/backlog" className="bg-gray-900/50 rounded-2xl border border-gray-700/50 p-3 hover:border-gray-600 transition-colors flex items-center justify-between">
         <span className="text-xs text-gray-400 flex items-center gap-2">
           <span>📋</span> Ver cola de procesos

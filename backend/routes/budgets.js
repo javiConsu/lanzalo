@@ -2,20 +2,12 @@ const express = require('express');
 const router = express.Router();
 const budgetManager = require('../services/budget-manager');
 const { pool } = require('../db');
-
-// Protect routes with middleware (TODO: implement proper auth middleware)
-const authMiddleware = (req, res, next) => {
-  // TODO: Add proper JWT authentication
-  if (!req.user) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-  next();
-};
+const { requireAuth, requireAdmin } = require('../middleware/auth');
 
 /**
  * GET /api/budgets - Get all budgets
  */
-router.get('/', authMiddleware, async (req, res) => {
+router.get('/', requireAuth, async (req, res) => {
   try {
     const data = await budgetManager.getAllBudgets();
     res.json(data);
@@ -28,7 +20,7 @@ router.get('/', authMiddleware, async (req, res) => {
 /**
  * GET /api/budgets/:agentType - Get budget status for a specific agent
  */
-router.get('/:agentType', authMiddleware, async (req, res) => {
+router.get('/:agentType', requireAuth, async (req, res) => {
   try {
     const { agentType } = req.params;
     const status = await budgetManager.getBudgetStatus(agentType);
@@ -42,7 +34,7 @@ router.get('/:agentType', authMiddleware, async (req, res) => {
 /**
  * GET /api/budgets/:agentType/usage - Get usage history for an agent
  */
-router.get('/:agentType/usage', authMiddleware, async (req, res) => {
+router.get('/:agentType/usage', requireAuth, async (req, res) => {
   try {
     const { agentType } = req.params;
     const { days = 7 } = req.query;
@@ -70,7 +62,7 @@ router.get('/:agentType/usage', authMiddleware, async (req, res) => {
 /**
  * PUT /api/budgets/:agentType - Update budget for a specific agent
  */
-router.put('/:agentType', authMiddleware, async (req, res) => {
+router.put('/:agentType', requireAdmin, async (req, res) => {
   try {
     const { agentType } = req.params;
     const { daily_budget } = req.body;
@@ -94,7 +86,7 @@ router.put('/:agentType', authMiddleware, async (req, res) => {
 /**
  * GET /api/budgets/summary - Get budget summary for all agents
  */
-router.get('/summary', authMiddleware, async (req, res) => {
+router.get('/summary', requireAuth, async (req, res) => {
   try {
     const data = await budgetManager.getAllBudgets();
 

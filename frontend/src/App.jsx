@@ -5,6 +5,7 @@ import { apiUrl } from './api.js'
 import PostHogProvider from './components/PostHogProvider'
 import SupportWidget from './components/SupportWidget'
 import NpsModal from './components/NpsModal'
+import { ToastProvider } from './components/Toast'
 import { identifyLanzaloUser, trackSessionAndCheckActivation } from './lib/analytics/events'
 import LandingPage from './pages/LandingPage'
 import Login from './pages/Login'
@@ -254,41 +255,43 @@ function App() {
 
   return (
     <ErrorBoundary>
-      <Router>
-        <PostHogProvider>
-        <Routes>
-          <Route path="/onboarding" element={<Navigate to="/onboarding/describe-idea" replace />} />
-          <Route path="/onboarding/choose-path" element={<OnboardingChoosePath user={user} token={token} />} />
-          <Route path="/onboarding/choose-idea" element={<OnboardingChooseIdea user={user} token={token} />} />
-          <Route path="/onboarding/describe-idea" element={<OnboardingDescribeIdea user={user} token={token} />} />
-          <Route path="/onboarding/founder-profile" element={<OnboardingFounderProfile user={user} token={token} />} />
-          <Route path="/onboarding/idea-source" element={<OnboardingIdeaSource user={user} token={token} />} />
-          <Route path="/onboarding/idea-browser" element={<OnboardingIdeaBrowser user={user} token={token} />} />
-          <Route path="/onboarding/viability" element={<ViabilityAnalysis user={user} token={token} />} />
-          <Route path="/onboarding/plan" element={<Plan14Days user={user} token={token} />} />
-          <Route path="/cofundador" element={<CofundadorDashboard user={user} token={token} />} />
-          <Route path="/company/:companyId" element={<CompanyDashboard user={user} token={token} />} />
-          <Route path="/paywall" element={<Paywall user={user} token={token} />} />
-          <Route path="/dashboard" element={needsOnboarding ? <Navigate to="/onboarding" /> : <Dashboard user={user} token={token} onLogout={handleLogout} />}>
-            <Route index element={needsOnboarding ? <Navigate to="/onboarding" /> : <DashboardHome user={user} token={token} />} />
-            <Route path="agents" element={needsOnboarding ? <Navigate to="/onboarding" /> : <AgentOffice user={user} token={token} />} />
-            <Route path="ideas" element={<Ideas user={user} token={token} />} />
-            <Route path="backlog" element={needsOnboarding ? <Navigate to="/onboarding" /> : <Backlog user={user} token={token} />} />
-            <Route path="marketing" element={needsOnboarding ? <Navigate to="/onboarding" /> : <Marketing user={user} token={token} />} />
-            <Route path="discovery" element={<Discovery user={user} token={token} />} />
-            <Route path="discovery/:analysisId" element={<DiscoveryAnalysis user={user} token={token} />} />
-            <Route path="hub" element={<BusinessHub user={user} token={token} />} />
-            <Route path="settings" element={<Settings user={user} token={token} />} />
-          </Route>
-          <Route path="/chat" element={needsOnboarding ? <Navigate to="/onboarding" /> : <Chat user={user} token={token} onLogout={handleLogout} />} />
-          <Route path="/metrics" element={<Metrics user={user} token={token} />} />
-          <Route path="/live" element={needsOnboarding ? <Navigate to="/onboarding" /> : <LiveFeedPage user={user} token={token} onLogout={handleLogout} />} />
-          <Route path="*" element={<Navigate to="/dashboard" />} />
-        </Routes>
-        </PostHogProvider>
-        <SupportWidget token={token} />
-        {showNps && <NpsModal token={token} onClose={() => setShowNps(false)} />}
-      </Router>
+      <ToastProvider>
+        <Router>
+          <PostHogProvider>
+          <Routes>
+            <Route path="/onboarding" element={<Navigate to="/onboarding/describe-idea" replace />} />
+            <Route path="/onboarding/choose-path" element={<OnboardingChoosePath user={user} token={token} />} />
+            <Route path="/onboarding/choose-idea" element={<OnboardingChooseIdea user={user} token={token} />} />
+            <Route path="/onboarding/describe-idea" element={<OnboardingDescribeIdea user={user} token={token} />} />
+            <Route path="/onboarding/founder-profile" element={<OnboardingFounderProfile user={user} token={token} />} />
+            <Route path="/onboarding/idea-source" element={<OnboardingIdeaSource user={user} token={token} />} />
+            <Route path="/onboarding/idea-browser" element={<OnboardingIdeaBrowser user={user} token={token} />} />
+            <Route path="/onboarding/viability" element={<ViabilityAnalysis user={user} token={token} />} />
+            <Route path="/onboarding/plan" element={<Plan14Days user={user} token={token} />} />
+            <Route path="/cofundador" element={<CofundadorDashboard user={user} token={token} />} />
+            <Route path="/company/:companyId" element={<CompanyDashboard user={user} token={token} />} />
+            <Route path="/paywall" element={<Paywall user={user} token={token} />} />
+            <Route path="/dashboard" element={needsOnboarding ? <Navigate to="/onboarding" /> : <Dashboard user={user} token={token} onLogout={handleLogout} />}>
+              <Route index element={needsOnboarding ? <Navigate to="/onboarding" /> : <DashboardHome user={user} token={token} />} />
+              <Route path="agents" element={needsOnboarding ? <Navigate to="/onboarding" /> : <AgentOffice user={user} token={token} />} />
+              <Route path="ideas" element={<Ideas user={user} token={token} />} />
+              <Route path="backlog" element={needsOnboarding ? <Navigate to="/onboarding" /> : <Backlog user={user} token={token} />} />
+              <Route path="marketing" element={needsOnboarding ? <Navigate to="/onboarding" /> : <Marketing user={user} token={token} />} />
+              <Route path="discovery" element={<Discovery user={user} token={token} />} />
+              <Route path="discovery/:analysisId" element={<DiscoveryAnalysis user={user} token={token} />} />
+              <Route path="hub" element={<BusinessHub user={user} token={token} />} />
+              <Route path="settings" element={<Settings user={user} token={token} />} />
+            </Route>
+            <Route path="/chat" element={needsOnboarding ? <Navigate to="/onboarding" /> : <Chat user={user} token={token} onLogout={handleLogout} />} />
+            <Route path="/metrics" element={<Metrics user={user} token={token} />} />
+            <Route path="/live" element={needsOnboarding ? <Navigate to="/onboarding" /> : <LiveFeedPage user={user} token={token} onLogout={handleLogout} />} />
+            <Route path="*" element={<Navigate to="/dashboard" />} />
+          </Routes>
+          </PostHogProvider>
+          <SupportWidget token={token} />
+          {showNps && <NpsModal token={token} onClose={() => setShowNps(false)} />}
+        </Router>
+      </ToastProvider>
     </ErrorBoundary>
   )
 }
