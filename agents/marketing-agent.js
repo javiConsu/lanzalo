@@ -22,12 +22,12 @@ class MarketingAgent {
       return { error: budgetCheck.error, budget_exceeded: true, action: 'skipped' };
     }
 
-    const governanceCheck = await governanceHelper.checkGovernanceStatus('Marketing');
+    const governanceCheck = await governanceHelper.checkGovernanceStatus('Marketing', company.id);
     if (!governanceCheck.allowed) {
       return { error: 'Marketing Agent is paused or terminated', paused: governanceCheck.paused, terminated: governanceCheck.terminated };
     }
 
-    await governanceHelper.recordHeartbeat('Marketing');
+    await governanceHelper.recordHeartbeat(company.id, 'Marketing');
 
     const task = await this.createTask(company.id, 
       'Campaña de marketing diaria',
@@ -76,7 +76,7 @@ class MarketingAgent {
       await this.logActivity(company.id, task.id, 'task_complete', output);
 
       // GOVERNANCE: Record budget usage
-      governanceHelper.recordBudgetUsage('Marketing', 2000, 0.05).catch(() => {});
+      governanceHelper.recordBudgetUsage(company.id, 'Marketing', 0.05, 'dollars').catch(() => {});
 
       return {
         success: true,

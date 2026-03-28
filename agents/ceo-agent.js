@@ -52,7 +52,7 @@ class CEOAgent {
     }
 
     // Governance Check 2: Governance status check (paused/terminated)
-    const governanceCheck = await governanceHelper.checkGovernanceStatus('CEO');
+    const governanceCheck = await governanceHelper.checkGovernanceStatus('CEO', this.companyId);
     if (!governanceCheck.allowed) {
       console.log('[CEO] Governance check failed: agent is paused or terminated');
       if (governanceCheck.paused) {
@@ -70,7 +70,7 @@ class CEOAgent {
     }
 
     // Record heartbeat before processing
-    await governanceHelper.recordHeartbeat('CEO');
+    await governanceHelper.recordHeartbeat(this.companyId, 'CEO');
 
     // Guardar mensaje del usuario
     await this.saveMessage('user', userMessage);
@@ -192,7 +192,7 @@ INGRESOS: $${this.company.revenue_total || 0}`;
 
     // Governance Check 3: Record budget usage (estimated for the response)
     // Este es un estimate; el agente puede reportar usage real después
-    governanceHelper.recordBudgetUsage('CEO', responseContent.length / 10).catch(() => {});
+    governanceHelper.recordBudgetUsage(this.companyId, 'CEO', responseContent.length / 10, 'tokens').catch(() => {});
 
     return {
       message: responseContent,

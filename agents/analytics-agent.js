@@ -14,12 +14,12 @@ class AnalyticsAgent {
       return { error: budgetCheck.error, budget_exceeded: true, action: 'skipped' };
     }
 
-    const governanceCheck = await governanceHelper.checkGovernanceStatus('Data');
+    const governanceCheck = await governanceHelper.checkGovernanceStatus('Data', company.id);
     if (!governanceCheck.allowed) {
       return { error: 'Data Agent is paused or terminated', paused: governanceCheck.paused, terminated: governanceCheck.terminated };
     }
 
-    await governanceHelper.recordHeartbeat('Data');
+    await governanceHelper.recordHeartbeat(company.id, 'Data');
 
     const task = await createTask(company.id, 'analytics',
       'Análisis diario de métricas',
@@ -53,7 +53,7 @@ class AnalyticsAgent {
         `Analytics completado: ${metrics.length} métricas registradas`);
 
       // GOVERNANCE: Record budget usage
-      governanceHelper.recordBudgetUsage('Data', 5000, 0.05).catch(() => {});
+      governanceHelper.recordBudgetUsage(company.id, 'Data', 0.05, 'dollars').catch(() => {});
 
       return {
         success: true,

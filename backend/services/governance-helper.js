@@ -8,12 +8,23 @@ const governance = require('./governance');
 const heartbeat = require('./heartbeat');
 const { pool } = require('../db');
 
+function isUuid(value) {
+  return typeof value === 'string' && /^[0-9a-fA-F-]{36}$/.test(value);
+}
+
+function normalizeAgentType(agentType) {
+  if (!agentType) return agentType;
+  if (agentType === 'code') return 'Code';
+  return String(agentType);
+}
+
 /**
  * Check budget before executing an action
  */
 async function checkBudgetBeforeAction(agentType, tokensUsed = 0, hoursUsed = 0) {
   try {
-    const status = await budgetManager.checkBudget(agentType, tokensUsed, hoursUsed);
+    const normalizedAgentType = normalizeAgentType(agentType);
+    const status = await budgetManager.checkBudget(normalizedAgentType, tokensUsed, hoursUsed);
 
     if (!status.allowed) {
       return {
@@ -36,30 +47,64 @@ async function checkBudgetBeforeAction(agentType, tokensUsed = 0, hoursUsed = 0)
     };
   } catch (error) {
     console.error('[GovernanceHelper] Error checking budget:', error);
-    // Don't block action on budget check error
-    return { allowed: true };
+    return { allowed: true, warning: 'budget_check_failed' };
   }
 }
 
 /**
- * Record budget usage after executing an action
+ * Record budget usage after executing an action.
+ * Supports:
+ *   recordBudgetUsage(agentType, tokensUsed, hoursUsed)
+ *   recordBudgetUsage(companyId, agentType, amount, metricType)
  */
-async function recordBudgetUsage(agentType, tokensUsed = 0, hoursUsed = 0) {
+async function recordBudgetUsage(arg1, arg2 = 0, arg3 = 0, arg4 = 'dollars') {
   try {
-    await budgetManager.recordUsage(agentType, tokensUsed, hoursUsed);
+    if (isUuid(arg1) && typeof arg2 === 'string') {
+      return await budgetManager.recordUsage(arg1, normalizeAgentType(arg2), Number(arg3) || 0, arg4 || 'dollars');
+    }
+
+    return await budgetManager.recordUsage(normalizeAgentType(arg1), Number(arg2) || 0, Number(arg3) || 0);
   } catch (error) {
     console.error('[GovernanceHelper] Error recording budget usage:', error);
+    return { success: false, error: error.message };
   }
 }
 
 /**
  * Check governance status (paused/terminated)
+ * Company-scoped governance tables are authoritative; if they are not populated yet,
+ * do not block execution but report the ambiguity.
  */
-async function checkGovernanceStatus(agentType) {
+async function checkGovernanceStatus(agentType, companyId = null) {
   try {
+    const normalizedAgentType = normalizeAgentType(agentType);
+
+    if (companyId && isUuid(companyId)) {
+      const events = await governance.getEvents(companyId, 200);
+      const relevantEvents = events.filter(event => event.agent_role === normalizedAgentType);
+      const latest = relevantEvents[0];
+
+      if (!latest) {
+        return {
+          allowed: true,
+          paused: false,
+          terminated: false,
+          source: 'company_governance_unset'
+        };
+      }
+
+      return {
+        allowed: !['pause', 'terminate'].includes(latest.action),
+        paused: latest.action === 'pause',
+        terminated: latest.action === 'terminate',
+        source: 'company_governance_events',
+        last_event: latest
+      };
+    }
+
     const agent = await pool.query(
       `SELECT * FROM agents WHERE agent_type = $1 AND company_id IS NULL ORDER BY created_at DESC LIMIT 1`,
-      [agentType]
+      [normalizedAgentType]
     );
 
     const agentRow = agent.rows[0];
@@ -68,30 +113,43 @@ async function checkGovernanceStatus(agentType) {
       return {
         allowed: true,
         paused: false,
-        terminated: false
+        terminated: false,
+        source: 'legacy_agent_unset'
       };
     }
 
     return {
       allowed: !agentRow.paused && agentRow.status !== 'terminated',
       paused: agentRow.paused,
-      terminated: agentRow.status === 'terminated'
+      terminated: agentRow.status === 'terminated',
+      source: 'legacy_agents_table'
     };
   } catch (error) {
     console.error('[GovernanceHelper] Error checking governance status:', error);
-    // Don't block action on governance check error
-    return { allowed: true };
+    return { allowed: true, warning: 'governance_check_failed' };
   }
 }
 
 /**
- * Record heartbeat after executing an action
+ * Record heartbeat after executing an action.
+ * Supports:
+ *   recordHeartbeat(companyId, agentType, status?, data?)
+ *   recordHeartbeat(agentType)  -> skipped with trace to avoid fake success
  */
-async function recordHeartbeat(agentType) {
+async function recordHeartbeat(arg1, arg2 = null, arg3 = 'healthy', arg4 = {}) {
   try {
-    await heartbeat.recordHeartbeat(agentType);
+    if (isUuid(arg1) && typeof arg2 === 'string') {
+      return await heartbeat.recordHeartbeat(arg1, normalizeAgentType(arg2), arg3 || 'healthy', arg4 || {});
+    }
+
+    const skipped = await heartbeat.recordHeartbeat(normalizeAgentType(arg1));
+    if (skipped?.skipped) {
+      console.warn(`[GovernanceHelper] Heartbeat skipped for ${normalizeAgentType(arg1)}: companyId missing`);
+    }
+    return skipped;
   } catch (error) {
     console.error('[GovernanceHelper] Error recording heartbeat:', error);
+    return { success: false, error: error.message };
   }
 }
 
@@ -99,23 +157,23 @@ async function recordHeartbeat(agentType) {
  * Validate budget from estimate
  */
 async function estimateAndValidateBudget(agentType, estimatedTokens = 0) {
-  const hourlyCost = 0.1; // Default hourly cost for agents
-  const estimatedHours = estimatedTokens > 0 ? estimatedTokens / 1000 : 0; // 1000 tokens ≈ 1 minute
+  const hourlyCost = 0.1;
+  const estimatedHours = estimatedTokens > 0 ? estimatedTokens / 1000 : 0;
 
   const budgetCheck = await checkBudgetBeforeAction(agentType, 0, estimatedHours);
 
   return {
     ...budgetCheck,
     estimated_hours: estimatedHours,
-    estimated_cost: (budgetCheck.remaining_budget * hourlyCost).toFixed(4)
+    estimated_cost: (estimatedHours * hourlyCost).toFixed(4)
   };
 }
 
 /**
  * Batch check for multiple actions
  */
-async function validateAction(agentType, estimatedTokens = 0) {
-  const governanceCheck = await checkGovernanceStatus(agentType);
+async function validateAction(agentType, estimatedTokens = 0, companyId = null) {
+  const governanceCheck = await checkGovernanceStatus(agentType, companyId);
   const budgetCheck = await estimateAndValidateBudget(agentType, estimatedTokens);
 
   return {
@@ -130,29 +188,21 @@ async function validateAction(agentType, estimatedTokens = 0) {
 /**
  * Get usage report for an agent
  */
-async function getUsageReport(agentType, hours = 24) {
+async function getUsageReport(agentType, hours = 24, companyId = null) {
   try {
-    const budget = budgetManager.BUDGETS[agentType];
-    if (!budget) {
-      throw new Error(`Unknown agent type: ${agentType}`);
-    }
-
-    const usage = await budgetManager.getBudgetStatus(agentType);
-    const health = await heartbeat.getHealthStatus(agentType);
-    const governance = await pool.query(
-      `SELECT * FROM agents WHERE agent_type = $1 ORDER BY created_at DESC LIMIT 1`,
-      [agentType]
-    );
-
-    const governanceRow = governance.rows[0];
+    const normalizedAgentType = normalizeAgentType(agentType);
+    const budget = budgetManager.BUDGETS[normalizedAgentType] || { total: 0 };
+    const usage = await budgetManager.getBudgetStatus(normalizedAgentType);
+    const health = await heartbeat.getHealthStatus(companyId || normalizedAgentType, companyId ? normalizedAgentType : null);
+    const governanceStatus = await checkGovernanceStatus(normalizedAgentType, companyId);
 
     return {
-      agent_type: agentType,
-      name: budget.name,
+      agent_type: normalizedAgentType,
+      name: normalizedAgentType,
       budgets: {
-        daily_budget: budget.daily_budget,
-        hourly_cost: budget.hourly_cost,
-        token_cost: budget.token_cost,
+        daily_budget: budget.total || usage.daily_budget || 0,
+        hourly_cost: usage.hourly_cost || 0,
+        token_cost: usage.token_cost || 0,
         current_cost: usage.current_cost,
         remaining_budget: usage.remaining_budget,
         status: usage.status
@@ -166,10 +216,12 @@ async function getUsageReport(agentType, hours = 24) {
         time_since_last_heartbeat: health.time_since_last_heartbeat
       },
       governance: {
-        paused: governanceRow?.paused || false,
-        terminated: governanceRow?.status === 'terminated' || false,
-        terminated_at: governanceRow?.terminated_at || null
-      }
+        paused: governanceStatus.paused || false,
+        terminated: governanceStatus.terminated || false,
+        source: governanceStatus.source || 'unknown'
+      },
+      window_hours: hours,
+      company_id: companyId
     };
   } catch (error) {
     console.error('[GovernanceHelper] Error getting usage report:', error);

@@ -34,12 +34,12 @@ class EmailAgent {
       return { error: budgetCheck.error, budget_exceeded: true, action: 'skipped' };
     }
 
-    const governanceCheck = await governanceHelper.checkGovernanceStatus('Email');
+    const governanceCheck = await governanceHelper.checkGovernanceStatus('Email', company.id);
     if (!governanceCheck.allowed) {
       return { error: 'Email Agent is paused or terminated', paused: governanceCheck.paused, terminated: governanceCheck.terminated };
     }
 
-    await governanceHelper.recordHeartbeat('Email');
+    await governanceHelper.recordHeartbeat(company.id, 'Email');
 
     const task = await this.createTask(company.id, 
       'Outreach diario por email',
@@ -106,7 +106,7 @@ class EmailAgent {
       await this.logActivity(company.id, task.id, 'task_complete', output);
 
       // GOVERNANCE: Record budget usage
-      governanceHelper.recordBudgetUsage('Email', 1000, 0.02).catch(() => {});
+      governanceHelper.recordBudgetUsage(company.id, 'Email', 0.02, 'dollars').catch(() => {});
 
       return {
         success: true,

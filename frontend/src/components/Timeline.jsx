@@ -1,13 +1,21 @@
-import { LucideActivity, LucideAlertTriangle, LucideCheckCircle2, LucideClock, LucideInfo, LucideStopCircle } from "lucide-react"
+import {
+  LucideActivity,
+  LucideAlertTriangle,
+  LucideCheckCircle2,
+  LucideCircleAlert,
+  LucideClock,
+  LucideInfo,
+  LucideStopCircle
+} from 'lucide-react'
 
 /**
- * Componente Timeline - Feed de eventos en tiempo real
- * Muestra eventos del sistema en orden cronológico
+ * Componente Timeline - Feed de eventos operativos
  */
-export function Timeline({ events }) {
+export function Timeline({ events = [] }) {
   const getEventIcon = (eventType) => {
     switch (eventType) {
       case 'heartbeat':
+      case 'heartbeat_warning':
         return LucideActivity
       case 'budget_warning':
       case 'budget_exceeded':
@@ -29,54 +37,63 @@ export function Timeline({ events }) {
   const getEventColor = (eventType) => {
     switch (eventType) {
       case 'budget_exceeded':
-        return 'bg-red-100 border-red-200'
-      case 'agent_paused':
-      case 'agent_terminated':
-        return 'bg-orange-100 border-orange-200'
       case 'heartbeat_unhealthy':
       case 'heartbeat_timeout':
-        return 'bg-red-100 border-red-200'
+        return 'bg-red-100 border-red-200 text-red-700'
+      case 'agent_paused':
+      case 'agent_terminated':
+      case 'budget_warning':
+      case 'heartbeat_warning':
+        return 'bg-orange-100 border-orange-200 text-orange-700'
+      case 'agent_resumed':
+      case 'agent_started':
+      case 'heartbeat':
+        return 'bg-green-100 border-green-200 text-green-700'
       default:
-        return 'bg-blue-50 border-blue-100'
+        return 'bg-blue-50 border-blue-100 text-blue-700'
     }
   }
 
   const getEventText = (event) => {
-    const { agentName, eventType, timestamp, reason } = event
+    const { agentName, agentRole, eventType, timestamp, reason } = event
+    const label = agentName || agentRole || 'Agent'
 
     switch (eventType) {
       case 'heartbeat':
-        return `${agentName} heartbeat received (${new Date(timestamp).toLocaleTimeString()})`
+        return `${label} heartbeat recibido (${new Date(timestamp).toLocaleTimeString()})`
+      case 'heartbeat_warning':
+        return `${label} se acerca al timeout de heartbeat`
       case 'budget_warning':
-        return `${agentName} budget warning: used ${reason}% of budget`
+        return `${label} se acerca al límite de presupuesto`
       case 'budget_exceeded':
-        return `${agentName} budget exceeded! Agent paused. Used ${reason}`
+        return `${label} ha excedido su presupuesto`
       case 'agent_paused':
-        return `${agentName} paused by governance`
+        return `${label} pausado${reason ? ` · ${reason}` : ''}`
       case 'agent_resumed':
-        return `${agentName} resumed by governance`
+        return `${label} reanudado${reason ? ` · ${reason}` : ''}`
       case 'agent_terminated':
-        return `${agentName} terminated by governance`
+        return `${label} terminado${reason ? ` · ${reason}` : ''}`
       case 'agent_started':
-        return `${agentName} started running`
+        return `${label} ha iniciado trabajo`
       case 'heartbeat_unhealthy':
-        return `${agentName} heartbeat timeout (no data for 5 minutes)`
       case 'heartbeat_timeout':
-        return `${agentName} heartbeat timeout (no data for 10 minutes)`
+        return `${label} sin señal de heartbeat saludable`
       default:
-        return `${agentName}: ${eventType}`
+        return `${label}: ${eventType}`
     }
   }
 
   const formatTimestamp = (timestamp) => {
+    if (!timestamp) return 'Sin fecha'
+
     const date = new Date(timestamp)
     const now = new Date()
     const diffMs = now - date
     const diffMins = Math.floor(diffMs / 60000)
 
-    if (diffMins < 1) return 'Just now'
-    if (diffMins < 60) return `${diffMins}m ago`
-    if (diffMins < 1440) return `${Math.floor(diffMins / 60)}h ago`
+    if (diffMins < 1) return 'Ahora'
+    if (diffMins < 60) return `${diffMins}m`
+    if (diffMins < 1440) return `${Math.floor(diffMins / 60)}h`
     return date.toLocaleDateString()
   }
 
@@ -84,11 +101,11 @@ export function Timeline({ events }) {
     <div className="w-full bg-white rounded-lg shadow-lg border border-gray-200">
       <div className="p-4 border-b border-gray-200 flex items-center gap-2">
         <LucideClock className="w-6 h-6 text-blue-500" />
-        <h3 className="text-lg font-semibold text-gray-900">Live Timeline</h3>
+        <h3 className="text-lg font-semibold text-gray-900">Timeline operativa</h3>
       </div>
+
       <div className="p-4">
         <div className="relative">
-          {/* Timeline line */}
           <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-200" />
 
           <div className="space-y-4">
@@ -102,14 +119,12 @@ export function Timeline({ events }) {
                     key={event.id || index}
                     className="relative flex gap-4"
                   >
-                    {/* Timeline dot */}
                     <div className={`w-8 h-8 rounded-full ${colorClass} flex items-center justify-center z-10 -ml-8`}>
                       <Icon className="w-4 h-4" />
                     </div>
 
-                    {/* Event content */}
                     <div className={`flex-1 p-3 rounded-lg border ${colorClass}`}>
-                      <div className="text-sm">
+                      <div className="text-sm font-medium">
                         {getEventText(event)}
                       </div>
                       <div className="text-xs text-gray-500 mt-1">
@@ -122,8 +137,8 @@ export function Timeline({ events }) {
             ) : (
               <div className="text-center text-gray-500 py-8">
                 <LucideClock className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                <div className="text-sm">No events yet</div>
-                <div className="text-xs">Waiting for agent activity...</div>
+                <div className="text-sm">Sin eventos todavía</div>
+                <div className="text-xs">Esperando actividad operativa real</div>
               </div>
             )}
           </div>

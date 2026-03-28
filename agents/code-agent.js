@@ -21,12 +21,12 @@ class CodeAgent {
       return { error: budgetCheck.error, budget_exceeded: true, action: 'skipped' };
     }
 
-    const governanceCheck = await governanceHelper.checkGovernanceStatus('Code');
+    const governanceCheck = await governanceHelper.checkGovernanceStatus('Code', company.id);
     if (!governanceCheck.allowed) {
       return { error: 'Code Agent is paused or terminated', paused: governanceCheck.paused, terminated: governanceCheck.terminated };
     }
 
-    await governanceHelper.recordHeartbeat('Code');
+    await governanceHelper.recordHeartbeat(company.id, 'Code');
 
     const db = new TenantDB(company.id);
     
@@ -48,7 +48,7 @@ class CodeAgent {
         `Agente de código completado: ${result.summary || 'OK'}`);
 
       // GOVERNANCE: Record budget usage
-      governanceHelper.recordBudgetUsage('Code', 5000, 0.1).catch(() => {});
+      governanceHelper.recordBudgetUsage(company.id, 'Code', 0.1, 'dollars').catch(() => {});
 
       return {
         success: true,

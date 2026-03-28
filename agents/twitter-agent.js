@@ -16,12 +16,12 @@ class TwitterAgent {
       return { error: budgetCheck.error, budget_exceeded: true, action: 'skipped' };
     }
 
-    const governanceCheck = await governanceHelper.checkGovernanceStatus('Twitter');
+    const governanceCheck = await governanceHelper.checkGovernanceStatus('Twitter', company.id);
     if (!governanceCheck.allowed) {
       return { error: 'Twitter Agent is paused or terminated', paused: governanceCheck.paused, terminated: governanceCheck.terminated };
     }
 
-    await governanceHelper.recordHeartbeat('Twitter');
+    await governanceHelper.recordHeartbeat(company.id, 'Twitter');
 
     const task = await createTask(company.id, 'twitter',
       'Publicación diaria en Twitter',
@@ -78,7 +78,7 @@ class TwitterAgent {
         `Agente de Twitter publicó ${postedCount} tweets`);
 
       // GOVERNANCE: Record budget usage
-      governanceHelper.recordBudgetUsage('Twitter', 500, 0.02).catch(() => {});
+      governanceHelper.recordBudgetUsage(company.id, 'Twitter', 0.02, 'dollars').catch(() => {});
 
       return {
         success: true,
