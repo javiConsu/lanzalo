@@ -1,21 +1,24 @@
 /**
  * Sistema de Créditos — Lanzalo
  * 
- * Trial (14 días): 5 créditos gratis
- * Pro ($39/mes): 20 créditos/mes (reseteo mensual, no acumulan)
+ * Trial (14 días): 50 créditos gratis
+ * Starter (29€/mes): 10 créditos/mes
+ * Pro (79€/mes): 30 créditos/mes
+ * Business (199€/mes): 100 créditos/mes
  * Packs extra: 10cr/$9, 25cr/$19 (no expiran)
  * Pedir cambios: GRATIS siempre
  * 
- * Decisiones: 2026-03-08
+ * Decisiones: 2026-03-08, actualizado 2026-03-28
  */
 
 const { pool } = require('../db');
 
-// Configuración de créditos por plan
 const CREDIT_CONFIG = {
-  trial: { initial: 50, monthly: 0 },  // Changed from 5 to 50 (Opción 3)
-  pro:   { initial: 0, monthly: 20 },
-  free:  { initial: 0, monthly: 0 }
+  free:     { initial: 0, monthly: 0 },
+  trial:    { initial: 50, monthly: 0 },
+  starter:  { initial: 0, monthly: 10 },
+  pro:      { initial: 0, monthly: 30 },
+  business: { initial: 0, monthly: 100 }
 };
 
 // Coste en créditos por tipo de generación
@@ -176,22 +179,21 @@ async function addCredits(userId, amount, type, metadata = null) {
 }
 
 /**
- * Activar plan Pro (desde webhook Stripe)
+ * Activar plan (desde webhook Stripe)
+ * Soporta: starter, pro, business
  */
-async function activatePro(userId) {
-  const config = CREDIT_CONFIG.pro;
+async function activatePro(userId, tier = 'pro') {
+  const config = CREDIT_CONFIG[tier] || CREDIT_CONFIG.pro;
   
-  // Verificar si ya tiene registro
   const existing = await pool.query(
     'SELECT * FROM user_credits WHERE user_id = $1',
     [userId]
   );
 
   if (existing.rows.length === 0) {
-    await initCredits(userId, 'pro');
+    await initCredits(userId, tier);
   }
 
-  // Setear créditos mensuales + sumar 20 al total
   await pool.query(
     `UPDATE user_credits 
      SET monthly_credits = $2, 
@@ -201,7 +203,14 @@ async function activatePro(userId) {
     [userId, config.monthly]
   );
 
-  await logTransaction(userId, config.monthly, null, 'monthly_grant', 'pro_activation', null);
+  await logTransaction(userId, config.monthly, null, 'monthly_grant', `${tier}_activation`, null);
+}
+
+/**
+ * Activar tier específico (alias para activatePro con tier)
+ */
+async function activateTier(userId, tier) {
+  return activatePro(userId, tier);
 }
 
 /**
@@ -287,6 +296,7 @@ module.exports = {
   consumeCredit,
   addCredits,
   activatePro,
+  activateTier,
   renewMonthly,
   checkCredits,
   logTransaction

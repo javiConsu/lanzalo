@@ -24,6 +24,7 @@ import OnboardingDescribeIdea from './pages/OnboardingDescribeIdea'
 import OnboardingFounderProfile from './pages/OnboardingFounderProfile'
 import OnboardingIdeaSource from './pages/OnboardingIdeaSource'
 import OnboardingIdeaBrowser from './pages/OnboardingIdeaBrowser'
+import OnboardingTeamTemplate from './pages/OnboardingTeamTemplate'
 import ViabilityAnalysis from './pages/ViabilityAnalysis'
 import Plan14Days from './pages/Plan14Days'
 import CofundadorDashboard from './pages/CofundadorDashboard'
@@ -266,6 +267,7 @@ function App() {
             <Route path="/onboarding/founder-profile" element={<OnboardingFounderProfile user={user} token={token} />} />
             <Route path="/onboarding/idea-source" element={<OnboardingIdeaSource user={user} token={token} />} />
             <Route path="/onboarding/idea-browser" element={<OnboardingIdeaBrowser user={user} token={token} />} />
+            <Route path="/onboarding/team-template" element={<OnboardingTeamTemplate user={user} token={token} />} />
             <Route path="/onboarding/viability" element={<ViabilityAnalysis user={user} token={token} />} />
             <Route path="/onboarding/plan" element={<Plan14Days user={user} token={token} />} />
             <Route path="/cofundador" element={<CofundadorDashboard user={user} token={token} />} />

@@ -75,8 +75,8 @@ export default function OnboardingDescribeIdea({ token }) {
         // Trackear creación de agente/venture
         const userId = localStorage.getItem('lanzalo_user_id') || '';
         trackAgentCreated({ agentId: result.company.id, agentType: 'co-founder', userId });
-        // Ir a la pantalla de análisis
-        navigate('/onboarding/viability');
+        // Ir a la pantalla de seleccion de plantilla de equipo
+        navigate('/onboarding/team-template');
       } else if (result.code === 'NO_SLOTS') {
         setError(`Has alcanzado el límite de negocios (${result.used}/${result.slots}). Compra un hueco extra desde tu panel.`);
         setLaunching(false);

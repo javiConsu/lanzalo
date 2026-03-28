@@ -31,7 +31,7 @@ export default function Chat() {
   // Cargar historial cuando cambia empresa
   useEffect(() => {
     if (selectedCompany) {
-      fetch(`/api/user/companies/${selectedCompany}/chat/history?limit=50`, {
+      fetch(apiUrl(`/api/user/companies/${selectedCompany}/chat/history?limit=50`), {
         headers: { 'Authorization': `Bearer ${token}` }
       })
         .then(res => res.json())
@@ -60,7 +60,7 @@ export default function Chat() {
       // Si es una notificación de tarea completada, recargar mensajes
       if (activity.type === 'task_completed' || activity.type === 'task_failed') {
         setAiThinking(false)
-        fetch(`/api/user/companies/${selectedCompany}/chat/history?limit=50`, {
+        fetch(apiUrl(`/api/user/companies/${selectedCompany}/chat/history?limit=50`), {
           headers: { 'Authorization': `Bearer ${token}` }
         })
           .then(res => res.json())
@@ -90,7 +90,7 @@ export default function Chat() {
     }])
 
     try {
-      const res = await fetch(`/api/user/companies/${selectedCompany}/chat`, {
+      const res = await fetch(apiUrl(`/api/user/companies/${selectedCompany}/chat`), {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

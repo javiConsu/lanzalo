@@ -186,14 +186,14 @@ export default function LandingPage({ onNavigateToLogin }) {
           </div>
 
           <h1 className="text-4xl sm:text-6xl lg:text-7xl font-bold tracking-tight leading-[1.05] mb-6">
-            Describe tu idea.
+            Tu equipo de agentes de IA
             <br />
-            <span className="text-[#00ff87]">Nosotros lanzamos el negocio.</span>
+            <span className="text-[#00ff87]">en 5 minutos.</span>
           </h1>
 
           <p className="text-lg text-gray-400 max-w-2xl mb-6 leading-relaxed">
-            Un equipo de agentes IA trabaja 24/7 para construir tu negocio completo:
-            web, marketing, ventas y operaciones. En español, para emprendedores reales.
+            Crea tu empresa online con un equipo de IA que trabaja 24/7:
+            web, marketing, ventas y operaciones. Sin saber programar.
           </p>
 
           <div className="h-10 flex items-center mb-10">
@@ -207,7 +207,7 @@ export default function LandingPage({ onNavigateToLogin }) {
               onClick={() => onNavigateToLogin('register')}
               className="w-full sm:w-auto text-base font-bold font-mono bg-[#00ff87] hover:bg-[#00e87a] text-black px-8 py-3.5 rounded-xl transition-all"
             >
-              Empieza tu trial gratuito
+              Crear mi empresa
             </button>
             <button
               onClick={() => scrollToSection('demo')}
@@ -218,7 +218,7 @@ export default function LandingPage({ onNavigateToLogin }) {
           </div>
 
           <p className="text-xs text-gray-700 font-mono">
-            $39/mes por negocio &bull; 0% comisión sobre ventas &bull; cancela cuando quieras
+            Desde $29/mes &bull; 0% comisión sobre ventas &bull; cancela cuando quieras
           </p>
         </div>
       </section>
@@ -252,7 +252,7 @@ export default function LandingPage({ onNavigateToLogin }) {
         <div className="max-w-5xl mx-auto px-4 sm:px-6 flex flex-wrap items-center justify-center gap-x-12 gap-y-6">
           {[
             { value: '600M', label: 'hispanohablantes sin herramientas propias' },
-            { value: '$39', label: 'al mes por negocio' },
+            { value: 'Desde $29', label: 'al mes' },
             { value: '0%', label: 'comisión sobre ventas' },
             { value: '10+', label: 'agentes especializados' },
           ].map((stat, i) => (
@@ -421,60 +421,161 @@ export default function LandingPage({ onNavigateToLogin }) {
 
       {/* Pricing */}
       <section id="pricing" className="py-20 sm:py-28 px-4 sm:px-6 bg-[#0d1117]/40">
-        <div className="max-w-2xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           <div
             id="section-pricing"
             data-animate
-            className={`mb-12 transition-all duration-700 ${isVisible('section-pricing') ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
+            className={`mb-12 text-center transition-all duration-700 ${isVisible('section-pricing') ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
           >
-            <h2 className="text-3xl sm:text-4xl font-bold mb-4">Menos que un autonomo. Mas que un equipo.</h2>
-            <p className="text-gray-400 text-sm">
-              Un equipo de IA que trabaja 24/7 por menos de lo que cuesta una cena con vino.
+            <h2 className="text-3xl sm:text-4xl font-bold mb-4">Planes para cada etapa</h2>
+            <p className="text-gray-400 text-sm max-w-xl mx-auto">
+              Desde emprendedores que empiezan hasta negocios que escalan. Sin letra pequeña.
             </p>
           </div>
 
+          <div className="grid md:grid-cols-3 gap-4">
+            {[
+              {
+                name: 'Starter',
+                price: '29',
+                badge: null,
+                features: [
+                  '1 negocio',
+                  '5 agentes especializados',
+                  'Web basica desplegada',
+                  'Marketing automation basico',
+                  'Email sequences (hasta 5)',
+                  'Soporte por email',
+                ],
+                cta: 'Empezar gratis',
+              },
+              {
+                name: 'Pro',
+                price: '79',
+                badge: 'POPULAR',
+                features: [
+                  '3 negocios',
+                  '10+ agentes especializados',
+                  'Web personalizada + landing pages',
+                  'Marketing automation avanzado',
+                  'Email sequences ilimitadas',
+                  'Analytics en tiempo real',
+                  'Contenido social automatizado',
+                  'Soporte prioritario',
+                ],
+                cta: 'Empezar trial',
+                highlighted: true,
+              },
+              {
+                name: 'Business',
+                price: '199',
+                badge: null,
+                features: [
+                  'Negocios ilimitados',
+                  'Agentes personalizados',
+                  'API access',
+                  'Integraciones custom',
+                  'Dedicated account manager',
+                  'SLA garantizado',
+                  'Onboarding personalizado',
+                  'Soporte 24/7',
+                ],
+                cta: 'Contactar',
+              },
+            ].map((plan, i) => (
+              <div
+                key={i}
+                id={`plan-${i}`}
+                data-animate
+                className={`relative rounded-2xl p-6 sm:p-8 transition-all duration-700 ${
+                  plan.highlighted
+                    ? `bg-[#00ff87]/5 border-2 border-[#00ff87]/30 ${isVisible(`plan-${i}`) ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`
+                    : `bg-[#0d1117] border border-white/5 ${isVisible(`plan-${i}`) ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`
+                }`}
+                style={{ transitionDelay: `${i * 100}ms` }}
+              >
+                {plan.badge && (
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#00ff87] text-black text-xs font-mono font-bold px-4 py-1 rounded-full">
+                    {plan.badge}
+                  </div>
+                )}
+                <div className="text-xs font-mono text-gray-500 uppercase tracking-widest mb-2">{plan.name}</div>
+                <div className="flex items-baseline gap-1 mb-6">
+                  <span className="text-4xl font-mono font-bold tabular-nums">{plan.price}</span>
+                  <span className="text-gray-500 text-sm">/mes</span>
+                </div>
+                <ul className="space-y-2 mb-8">
+                  {plan.features.map((feat, j) => (
+                    <li key={j} className="flex items-start gap-2 text-sm text-gray-400">
+                      <span className={`${plan.highlighted ? 'text-[#00ff87]' : 'text-gray-600'} font-mono mt-0.5 flex-shrink-0`}>+</span>
+                      {feat}
+                    </li>
+                  ))}
+                </ul>
+                <button
+                  onClick={() => onNavigateToLogin('register')}
+                  className={`w-full text-sm font-bold font-mono py-3 rounded-xl transition-all ${
+                    plan.highlighted
+                      ? 'bg-[#00ff87] hover:bg-[#00e87a] text-black'
+                      : 'border border-white/10 hover:border-white/20 text-white'
+                  }`}
+                >
+                  {plan.cta}
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Testimonios / Casos de uso */}
+      <section className="py-20 sm:py-28 px-4 sm:px-6">
+        <div className="max-w-5xl mx-auto">
           <div
-            id="price-card"
+            id="section-cases"
             data-animate
-            className={`relative bg-[#0d1117] border border-[#00ff87]/20 rounded-2xl p-8 sm:p-10 transition-all duration-700 ${isVisible('price-card') ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}
+            className={`mb-12 text-center transition-all duration-700 ${isVisible('section-cases') ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
           >
-            <div className="absolute -top-3 left-8 bg-[#00ff87] text-black text-xs font-mono font-bold px-4 py-1 rounded-full">
-              14 DIAS GRATIS
-            </div>
-
-            <div className="flex items-baseline gap-2 mb-1">
-              <span className="text-5xl font-mono font-bold tabular-nums">$39</span>
-              <span className="text-gray-500">/mes</span>
-            </div>
-            <p className="text-xs text-gray-700 font-mono mb-8">por negocio</p>
-
-            <ul className="space-y-2.5 mb-8">
-              {[
-                'Co-Fundador IA + 10 agentes especializados',
-                'Web desplegada y funcionando desde dia 1',
-                'Marketing y email automatizados',
-                'Analytics y metricas en tiempo real',
-                'Generacion de contenido ilimitada',
-                '0% comision sobre tus ventas',
-                'Soporte continuo',
-              ].map((feat, i) => (
-                <li key={i} className="flex items-start gap-3 text-sm text-gray-400">
-                  <span className="text-[#00ff87] font-mono mt-0.5 flex-shrink-0">+</span>
-                  {feat}
-                </li>
-              ))}
-            </ul>
-
-            <button
-              onClick={() => onNavigateToLogin('register')}
-              className="w-full text-base font-bold font-mono bg-[#00ff87] hover:bg-[#00e87a] text-black py-3.5 rounded-xl transition-all"
-            >
-              Empieza tu trial gratuito
-            </button>
-
-            <p className="text-xs text-gray-700 font-mono text-center mt-4">
-              Sin tarjeta. Cancela cuando quieras.
+            <h2 className="text-3xl sm:text-4xl font-bold mb-4">Negocios que nacieron aqui</h2>
+            <p className="text-gray-400 text-sm max-w-xl mx-auto">
+              Emprendedores reales que describieron su idea y la vieron realidad.
             </p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-4">
+            {[
+              {
+                name: 'SaaS para Foodtrucks',
+                desc: 'Gestion de pedidos y reservas para foodtrucks. Lanzado en 3 semanas.',
+                metrics: '12 clientes / 2.4K MRR',
+                icon: '🚚',
+              },
+              {
+                name: 'Marketplace Artesanias',
+                desc: 'Plataforma para artesanos locales. El agente de marketing genero todo el contenido.',
+                metrics: '340 productos / 8K MRR',
+                icon: '🏺',
+              },
+              {
+                name: 'Cursos Fermentacion',
+                desc: 'Academia online de fermentacion. El agente de codigo construyo la plataforma completa.',
+                metrics: '180 estudiantes / 5.2K MRR',
+                icon: '🥬',
+              },
+            ].map((item, i) => (
+              <div
+                key={i}
+                id={`case-${i}`}
+                data-animate
+                className={`bg-[#0d1117] border border-white/5 rounded-xl p-6 hover:border-[#00ff87]/20 transition-all duration-500 ${isVisible(`case-${i}`) ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'}`}
+                style={{ transitionDelay: `${i * 100}ms` }}
+              >
+                <div className="text-3xl mb-4">{item.icon}</div>
+                <h3 className="text-base font-semibold mb-2">{item.name}</h3>
+                <p className="text-sm text-gray-400 leading-relaxed mb-4">{item.desc}</p>
+                <div className="text-xs font-mono text-[#00ff87]">{item.metrics}</div>
+              </div>
+            ))}
           </div>
         </div>
       </section>

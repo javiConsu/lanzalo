@@ -5,7 +5,7 @@
 const express = require('express');
 const router = express.Router();
 const { pool } = require('../db');
-const { activatePro, renewMonthly, addCredits } = require('../middleware/credits');
+const { activatePro, activateTier, renewMonthly, addCredits } = require('../middleware/credits');
 const { captureServerEvent } = require('../services/posthog');
 const { sendPaymentFailedEmail } = require('../services/email-service');
 
@@ -75,9 +75,10 @@ router.post('/stripe', express.raw({ type: 'application/json' }), async (req, re
  */
 async function handleCheckoutComplete(session) {
   const userId = session.metadata?.userId;
+  const tier = session.metadata?.tier || 'pro';
   if (!userId) return;
 
-  console.log(`[Webhook] Checkout completado para usuario ${userId}`);
+  console.log(`[Webhook] Checkout completado para usuario ${userId}, tier: ${tier}`);
 
   // Verificar si es compra de pack de créditos
   if (session.metadata?.type === 'credit_pack') {
@@ -124,19 +125,19 @@ async function handleCheckoutComplete(session) {
     return;
   }
 
-  // Suscripción Pro
+  // Suscripción (starter, pro, business)
   await pool.query(
     `UPDATE users SET 
-      subscription_tier = 'pro',
-      stripe_subscription_id = $1,
+      subscription_tier = $1,
+      stripe_subscription_id = $2,
       updated_at = NOW()
-     WHERE id = $2`,
-    [session.subscription, userId]
+     WHERE id = $3`,
+    [tier, session.subscription, userId]
   );
 
-  // Activar créditos Pro (20/mes)
-  await activatePro(userId).catch(err => {
-    console.error('[Webhook] Error activando créditos Pro:', err);
+  // Activar créditos según el tier
+  await activateTier(userId, tier).catch(err => {
+    console.error(`[Webhook] Error activando créditos ${tier}:`, err);
   });
 
   // Log actividad
@@ -146,14 +147,14 @@ async function handleCheckoutComplete(session) {
   if (companies.rows.length > 0) {
     await pool.query(
       `INSERT INTO activity_log (company_id, activity_type, message, created_at)
-       VALUES ($1, 'subscription_activated', '💰 Plan Pro activado', NOW())`,
-      [companies.rows[0].id]
+       VALUES ($1, 'subscription_activated', $2, NOW())`,
+      [companies.rows[0].id, `💰 Plan ${tier.charAt(0).toUpperCase() + tier.slice(1)} activado`]
     );
   }
 
   // Trackear suscripción iniciada en PostHog (server-side)
   captureServerEvent(String(userId), 'subscription_started', {
-    plan: 'pro',
+    plan: tier,
     stripe_subscription_id: session.subscription,
   });
 }
@@ -163,6 +164,7 @@ async function handleCheckoutComplete(session) {
  */
 async function handleSubscriptionUpdate(subscription) {
   const customerId = subscription.customer;
+  const tier = subscription.metadata?.tier || getTierFromPriceId(subscription.items?.data?.[0]?.price?.id);
   
   const userResult = await pool.query(
     'SELECT id FROM users WHERE stripe_customer_id = $1', [customerId]
@@ -172,14 +174,26 @@ async function handleSubscriptionUpdate(subscription) {
   const userId = userResult.rows[0].id;
   const status = subscription.status; // active, past_due, canceled, etc.
 
-  const tier = ['active', 'trialing'].includes(status) ? 'pro' : 'free';
+  const newTier = ['active', 'trialing'].includes(status) ? tier : 'free';
 
   await pool.query(
     'UPDATE users SET subscription_tier = $1, updated_at = NOW() WHERE id = $2',
-    [tier, userId]
+    [newTier, userId]
   );
 
-  console.log(`[Webhook] Suscripción ${status} → tier: ${tier} para ${userId}`);
+  console.log(`[Webhook] Suscripción ${status} → tier: ${newTier} para ${userId}`);
+}
+
+/**
+ * Determinar tier desde Price ID
+ */
+function getTierFromPriceId(priceId) {
+  const priceMap = {
+    [process.env.STRIPE_PRICE_ID_STARTER]: 'starter',
+    [process.env.STRIPE_PRICE_ID_PRO]: 'pro',
+    [process.env.STRIPE_PRICE_ID_BUSINESS]: 'business',
+  };
+  return priceMap[priceId] || 'pro';
 }
 
 /**
