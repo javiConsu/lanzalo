@@ -4,8 +4,11 @@
 
 const express = require('express');
 const governanceService = require('../services/governance');
+const { requireAuth } = require('../middleware/auth');
 
 const router = express.Router();
+
+router.use(requireAuth);
 
 /**
  * POST /api/governance/:agentId/pause
@@ -13,12 +16,7 @@ const router = express.Router();
  */
 router.post('/:agentId/pause', async (req, res) => {
   try {
-    const token = req.headers.authorization?.replace('Bearer ', '');
     const { companyId, agent_name, agent_role, reason } = req.body;
-
-    if (!token) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
 
     if (!companyId || !agent_name || !agent_role) {
       return res.status(400).json({ error: 'Missing required fields' });
@@ -49,12 +47,7 @@ router.post('/:agentId/pause', async (req, res) => {
  */
 router.post('/:agentId/resume', async (req, res) => {
   try {
-    const token = req.headers.authorization?.replace('Bearer ', '');
     const { companyId, agent_name, agent_role, reason } = req.body;
-
-    if (!token) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
 
     if (!companyId || !agent_name || !agent_role) {
       return res.status(400).json({ error: 'Missing required fields' });
@@ -85,12 +78,7 @@ router.post('/:agentId/resume', async (req, res) => {
  */
 router.post('/:agentId/terminate', async (req, res) => {
   try {
-    const token = req.headers.authorization?.replace('Bearer ', '');
     const { companyId, agent_name, agent_role, reason } = req.body;
-
-    if (!token) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
 
     if (!companyId || !agent_name || !agent_role) {
       return res.status(400).json({ error: 'Missing required fields' });
@@ -121,12 +109,6 @@ router.post('/:agentId/terminate', async (req, res) => {
  */
 router.get('/events', async (req, res) => {
   try {
-    const token = req.headers.authorization?.replace('Bearer ', '');
-
-    if (!token) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
-
     const { companyId, limit } = req.query;
 
     if (!companyId) {

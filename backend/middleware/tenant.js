@@ -1,20 +1,20 @@
 /**
  * Middleware de Multi-tenancy
- * Asegura que cada request tiene contexto de empresa
+ * Asegura que cada request tiene contexto de empresa y verifica ownership
  */
 
 const { pool } = require('../db');
 
 /**
  * Extrae company_id del request (desde token, header, o query)
+ * Verifica que el usuario autenticado es dueño de la empresa (o admin)
  */
 async function tenantContext(req, res, next) {
   try {
-    // Obtener company_id de diferentes fuentes
     const companyId = 
-      req.headers['x-company-id'] ||  // Header
-      req.query.company_id ||          // Query param
-      req.user?.company_id;            // Desde auth token
+      req.headers['x-company-id'] ||
+      req.query.company_id ||
+      req.user?.company_id;
     
     if (!companyId) {
       return res.status(400).json({ 
@@ -22,7 +22,6 @@ async function tenantContext(req, res, next) {
       });
     }
 
-    // Verificar que la empresa existe
     const result = await pool.query(
       'SELECT * FROM companies WHERE id = $1',
       [companyId]
@@ -34,8 +33,18 @@ async function tenantContext(req, res, next) {
       });
     }
 
-    // Adjuntar al request
-    req.company = result.rows[0];
+    const company = result.rows[0];
+
+    // Verificar ownership si hay usuario autenticado
+    if (req.user && req.user.role !== 'admin') {
+      if (company.user_id !== req.user.id) {
+        return res.status(403).json({
+          error: 'No tienes acceso a esta empresa'
+        });
+      }
+    }
+
+    req.company = company;
     req.companyId = companyId;
     
     next();

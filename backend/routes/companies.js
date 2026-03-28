@@ -6,6 +6,7 @@ const express = require('express');
 const router = express.Router();
 const { tenantContext, TenantDB } = require('../middleware/tenant');
 const { checkQuota, incrementUsage } = require('../middleware/quotas');
+const { requireAuth } = require('../middleware/auth');
 const { pool } = require('../db');
 
 /**
@@ -79,10 +80,12 @@ router.get('/:id', async (req, res) => {
 
 /**
  * Crear nueva empresa
+ * Requiere autenticación. El user_id se toma del usuario autenticado.
  */
-router.post('/', checkQuota, async (req, res) => {
+router.post('/', requireAuth, async (req, res) => {
   try {
-    const { user_id, name, description, industry } = req.body;
+    const { name, description, industry } = req.body;
+    const userId = req.user.id;
     
     if (!name || !description) {
       return res.status(400).json({ 
@@ -90,35 +93,30 @@ router.post('/', checkQuota, async (req, res) => {
       });
     }
 
-    // ─── Check business slots ───
-    if (user_id) {
-      const slotCheck = await pool.query(
-        `SELECT u.business_slots, COUNT(c.id)::int as company_count
-         FROM users u
-         LEFT JOIN companies c ON u.id = c.user_id
-         WHERE u.id = $1
-         GROUP BY u.id`,
-        [user_id]
-      );
-      const slots = slotCheck.rows[0]?.business_slots ?? 1;
-      const used = slotCheck.rows[0]?.company_count ?? 0;
-      if (used >= slots) {
-        return res.status(403).json({
-          error: 'Has alcanzado el límite de negocios de tu plan.',
-          code: 'NO_SLOTS',
-          slots,
-          used
-        });
-      }
+    const slotCheck = await pool.query(
+      `SELECT u.business_slots, COUNT(c.id)::int as company_count
+       FROM users u
+       LEFT JOIN companies c ON u.id = c.user_id
+       WHERE u.id = $1
+       GROUP BY u.id`,
+      [userId]
+    );
+    const slots = slotCheck.rows[0]?.business_slots ?? 1;
+    const used = slotCheck.rows[0]?.company_count ?? 0;
+    if (used >= slots) {
+      return res.status(403).json({
+        error: 'Has alcanzado el límite de negocios de tu plan.',
+        code: 'NO_SLOTS',
+        slots,
+        used
+      });
     }
     
-    // Generar subdomain
     const subdomain = name
       .toLowerCase()
       .replace(/[^a-z0-9]/g, '-')
       .substring(0, 50);
     
-    // Verificar que el subdomain no exista
     const existing = await pool.query(
       'SELECT id FROM companies WHERE subdomain = $1',
       [subdomain]
@@ -130,18 +128,16 @@ router.post('/', checkQuota, async (req, res) => {
       });
     }
     
-    // Crear empresa
     const result = await pool.query(
       `INSERT INTO companies 
        (user_id, name, description, industry, subdomain, status)
        VALUES ($1, $2, $3, $4, $5, 'planning')
        RETURNING *`,
-      [user_id, name, description, industry, subdomain]
+      [userId, name, description, industry, subdomain]
     );
     
     const company = result.rows[0];
     
-    // Incrementar uso
     await incrementUsage(company.id, 'companiesCreated', 1);
     
     res.json({ company });
@@ -218,16 +214,15 @@ router.post('/:id/toggle', tenantContext, async (req, res) => {
 /**
  * Obtener última empresa del usuario actual (para Business Ticker)
  */
-router.get('/last', tenantContext, async (req, res) => {
+router.get('/last', requireAuth, async (req, res) => {
   try {
-    const token = req.headers.authorization?.replace('Bearer ', '');
     const result = await pool.query(
       `SELECT id, name, subdomain, revenue_total, created_at
        FROM companies
-       WHERE created_by = (SELECT id FROM users WHERE token = $1 OR email = $1)
+       WHERE user_id = $1
        ORDER BY created_at DESC
        LIMIT 1`,
-      [token]
+      [req.user.id]
     );
 
     if (result.rows.length === 0) {
