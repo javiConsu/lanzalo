@@ -7,6 +7,7 @@ const router = express.Router();
 const { pool } = require('../db');
 const { activatePro, renewMonthly, addCredits } = require('../middleware/credits');
 const { captureServerEvent } = require('../services/posthog');
+const { sendPaymentFailedEmail } = require('../services/email-service');
 
 const stripe = process.env.STRIPE_SECRET_KEY 
   ? require('stripe')(process.env.STRIPE_SECRET_KEY) 
@@ -220,7 +221,28 @@ async function handlePaymentSuccess(invoice) {
  */
 async function handlePaymentFailed(invoice) {
   console.error(`[Webhook] Pago fallido para customer ${invoice.customer}`);
-  // TODO: Enviar email de pago fallido
+  
+  // Obtener info del usuario para enviar email
+  try {
+    const result = await pool.query(
+      `SELECT u.email, u.name, c.name as company_name
+       FROM users u
+       JOIN companies c ON c.stripe_customer_id = $1
+       WHERE u.id = c.owner_id
+       LIMIT 1`,
+      [invoice.customer]
+    );
+    
+    if (result.rows.length > 0) {
+      const user = result.rows[0];
+      await sendPaymentFailedEmail(
+        { email: user.email, name: user.name },
+        user.company_name
+      );
+    }
+  } catch (error) {
+    console.error('[Webhook] Error sending payment failed email:', error);
+  }
 }
 
 /**

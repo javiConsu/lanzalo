@@ -4,6 +4,7 @@
 
 const { pool } = require('../backend/db');
 const { callLLM } = require('../backend/llm');
+const { sendUpgradeRequiredEmail } = require('../backend/services/email-service');
 
 class FinancialAgent {
   constructor() {
@@ -314,7 +315,23 @@ Responde en JSON:
       [companyId]
     );
 
-    // TODO: Enviar email al dueño solicitando upgrade
+    // Obtener info del owner para enviar email
+    const ownerResult = await pool.query(
+      `SELECT u.email, u.name, c.name as company_name
+       FROM users u
+       JOIN companies c ON c.id = $1
+       WHERE u.id = c.owner_id`,
+      [companyId]
+    );
+
+    if (ownerResult.rows.length > 0) {
+      const owner = ownerResult.rows[0];
+      await sendUpgradeRequiredEmail(
+        { email: owner.email, name: owner.name },
+        { name: owner.company_name },
+        'Límite de presupuesto excedido'
+      );
+    }
 
     return {
       success: true,

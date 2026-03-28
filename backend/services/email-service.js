@@ -272,6 +272,66 @@ async function sendDowngradeNotification(user) {
   }
 }
 
+/**
+ * Send upgrade required email (company paused due to budget limits)
+ */
+async function sendUpgradeRequiredEmail(user, company, reason) {
+  if (!resend) {
+    console.log('[Email] Resend not configured, skipping upgrade required email');
+    return { success: false, reason: 'not_configured' };
+  }
+
+  try {
+    const { data, error } = await resend.emails.send({
+      from: FROM_EMAIL,
+      to: user.email,
+      subject: `🛑 ${company.name} pausada — Upgrade requerido`,
+      html: renderUpgradeRequiredEmail(user, company, reason)
+    });
+
+    if (error) {
+      console.error('[Email] Error sending upgrade required:', error);
+      return { success: false, error };
+    }
+
+    console.log(`[Email] Upgrade required email sent to ${user.email}`);
+    return { success: true, data };
+  } catch (error) {
+    console.error('[Email] Exception sending upgrade required:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Send payment failed email
+ */
+async function sendPaymentFailedEmail(user, companyName) {
+  if (!resend) {
+    console.log('[Email] Resend not configured, skipping payment failed email');
+    return { success: false, reason: 'not_configured' };
+  }
+
+  try {
+    const { data, error } = await resend.emails.send({
+      from: FROM_EMAIL,
+      to: user.email,
+      subject: `❌ Pago fallido — ${companyName}`,
+      html: renderPaymentFailedEmail(user, companyName)
+    });
+
+    if (error) {
+      console.error('[Email] Error sending payment failed:', error);
+      return { success: false, error };
+    }
+
+    console.log(`[Email] Payment failed email sent to ${user.email}`);
+    return { success: true, data };
+  } catch (error) {
+    console.error('[Email] Exception sending payment failed:', error);
+    return { success: false, error: error.message };
+  }
+}
+
 // ============================================================================
 // EMAIL RENDERERS (Simple HTML versions)
 // TODO: Replace with React Email when templates are built
@@ -602,6 +662,85 @@ function renderDowngradeEmail(user) {
   `;
 }
 
+function renderUpgradeRequiredEmail(user, company, reason) {
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; line-height: 1.6; color: #1f2937; max-width: 600px; margin: 0 auto; padding: 20px; }
+        h1 { font-size: 24px; margin-bottom: 16px; }
+        .warning { background: #fef3c7; border-left: 4px solid #f59e0b; padding: 16px; margin: 16px 0; }
+        .cta { display: inline-block; background: #10b981; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 16px 0; }
+      </style>
+    </head>
+    <body>
+      <h1>🛑 ${company.name} pausada</h1>
+      
+      <p>Hola ${user.name || 'ahí'},</p>
+      
+      <div class="warning">
+        <strong>Tu empresa está pausada.</strong><br>
+        Razón: ${reason || 'Límite de presupuesto excedido'}
+      </div>
+      
+      <p>Tus agentes han dejado de trabajar en ${company.name}.</p>
+      
+      <p>Para reactivar:</p>
+      
+      <a href="https://lanzalo.pro/settings/billing" class="cta">Upgrade de plan →</a>
+      
+      <p style="margin-top: 24px; font-size: 14px; color: #6b7280;">
+        Planes disponibles: Starter €29/mes | Pro €79/mes | Business €199/mes
+      </p>
+      
+    </body>
+    </html>
+  `;
+}
+
+function renderPaymentFailedEmail(user, companyName) {
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; line-height: 1.6; color: #1f2937; max-width: 600px; margin: 0 auto; padding: 20px; }
+        h1 { font-size: 24px; margin-bottom: 16px; }
+        .error { background: #fef2f2; border-left: 4px solid #ef4444; padding: 16px; margin: 16px 0; }
+        .cta { display: inline-block; background: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 16px 0; }
+      </style>
+    </head>
+    <body>
+      <h1>❌ Pago fallido</h1>
+      
+      <p>Hola ${user.name || 'ahí'},</p>
+      
+      <div class="error">
+        <strong>No pudimos procesar tu pago.</strong><br>
+        Empresa: ${companyName}
+      </div>
+      
+      <p>Posibles causas:</p>
+      <ul>
+        <li>Tarjeta expirada</li>
+        <li>Fondos insuficientes</li>
+        <li>Tarjeta bloqueada</li>
+      </ul>
+      
+      <a href="https://lanzalo.pro/settings/billing" class="cta">Actualizar método de pago →</a>
+      
+      <p style="margin-top: 24px; font-size: 14px; color: #6b7280;">
+        Intentaremos cobrar de nuevo en 3 días. Si falla otra vez, tu cuenta pasará a plan Free.
+      </p>
+      
+    </body>
+    </html>
+  `;
+}
+
 module.exports = {
   sendWelcomeEmail,
   sendCoFounderFirstEmail,
@@ -609,5 +748,7 @@ module.exports = {
   sendValidationComplete,
   sendDailySync,
   sendTaskCompleted,
-  sendDowngradeNotification
+  sendDowngradeNotification,
+  sendUpgradeRequiredEmail,
+  sendPaymentFailedEmail
 };
