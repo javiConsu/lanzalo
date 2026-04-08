@@ -4,12 +4,12 @@ import { apiUrl } from '../api.js'
 import TrialBadge from '../components/TrialBadge.jsx'
 
 const NAV_ITEMS = [
-  { path: '/chat', label: 'Bender' },
-  // { path: '/ideas', label: 'Ideas' },
-  // { path: '/backlog', label: 'Cola de trabajo' },
-  // { path: '/metrics', label: 'Métricas' },
-  // { path: '/company', label: 'Control' },
-  // { path: '/live', label: 'Live Feed' },
+  { path: '/', label: 'Dashboard' },
+  { path: '/agents', label: 'Agentes' },
+  { path: '/backlog', label: 'Tareas' },
+  { path: '/metrics', label: 'Métricas' },
+  { path: '/marketing', label: 'Marketing' },
+  { path: '/ideas', label: 'Ideas' },
 ]
 
 export default function Dashboard({ user, onLogout }) {
@@ -19,7 +19,7 @@ export default function Dashboard({ user, onLogout }) {
   const [userMenuOpen, setUserMenuOpen] = useState(false)
 
   const isActive = (path) => {
-    if (path === '/chat') return location.pathname === '/' || location.pathname === '/chat'
+    if (path === '/') return location.pathname === '/'
     return location.pathname.startsWith(path)
   }
 
