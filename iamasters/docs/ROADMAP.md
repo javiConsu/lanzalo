@@ -19,12 +19,17 @@
 - [ ] Rate limiting por IP y logging estructurado
 - [ ] Health check con verificación de OpenAI y DB
 
-## Fase 2 — Reproductor web (2‑3 semanas)
-- [ ] App Vite+React: login → lista de cursos → reproductor
-- [ ] Reproductor: slide + `<audio>` con narración + barra de progreso
-- [ ] Chat lateral con Tutor, streaming de tokens
-- [ ] Quiz al final de cada lección con feedback inmediato
-- [ ] Guardar progreso por usuario (enrollments)
+## Fase 2 — Reproductor web
+- [x] App Vite + React + Tailwind: lista de cursos → detalle → reproductor
+- [x] Reproductor: slide con heading, bullets, ejemplo + `<audio>` con narración
+- [x] Navegación prev/next entre slides + intro y summary
+- [x] Chat lateral con el Tutor (sin streaming, respuesta completa)
+- [x] Quiz al final con generación y corrección slide-a-slide
+- [x] Botón de generar contenido de una lección on-demand desde la UI
+- [ ] Login / auth (Clerk)
+- [ ] Guardar progreso por usuario (enrollments, lección completada)
+- [ ] Streaming de tokens en el chat del Tutor
+- [ ] Responsive móvil pulido
 
 ## Fase 3 — Ingesta de contenido corporativo (2 semanas)
 - [ ] Upload de PDF/DOCX con extracción y chunking

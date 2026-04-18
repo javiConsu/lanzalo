@@ -12,10 +12,10 @@ IAmasters convierte documentos internos (políticas, playbooks, casos reales) en
 
 ```
 IAmasters
-├── backend/     API Express + agentes (Profesor, Tutor, Evaluador)
+├── backend/     API Express + agentes (Profesor, Tutor, Evaluador) + TTS
 ├── content/     Outlines de cursos por departamento
 ├── docs/        Arquitectura y roadmap
-└── frontend/    (pendiente) Reproductor de clases + chat
+└── frontend/    Reproductor Vite + React + Tailwind
 ```
 
 - **IA**: OpenAI (GPT‑4o para razonamiento, TTS‑1 para voz en español)
@@ -26,12 +26,14 @@ IAmasters
 
 ```bash
 cp .env.example .env          # rellena OPENAI_API_KEY y DATABASE_URL
-npm install
+npm install                   # instala backend + frontend (workspaces)
 npm run db:setup              # crea tablas
-npm run dev                   # arranca backend en :4100
+npm run dev                   # arranca backend :4100 y frontend :5173 en paralelo
 ```
 
-Prueba el endpoint de voz:
+Luego abre `http://localhost:5173`.
+
+Prueba el endpoint de voz aisladamente:
 
 ```bash
 curl -X POST http://localhost:4100/api/tts \

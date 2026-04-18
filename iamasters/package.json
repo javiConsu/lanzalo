@@ -3,15 +3,21 @@
   "version": "0.1.0",
   "private": true,
   "description": "Academia de IA para departamentos de empresas, en español",
-  "workspaces": ["backend"],
+  "workspaces": ["backend", "frontend"],
   "scripts": {
-    "dev": "npm --workspace backend run dev",
+    "dev": "npm-run-all --parallel dev:backend dev:frontend",
+    "dev:backend": "npm --workspace backend run dev",
+    "dev:frontend": "npm --workspace frontend run dev",
     "start": "npm --workspace backend run start",
+    "build:frontend": "npm --workspace frontend run build",
     "db:setup": "psql $DATABASE_URL -f backend/db/schema.sql",
     "seed": "npm --workspace backend run seed",
     "generate:content": "npm --workspace backend run generate:content",
     "generate:audio": "npm --workspace backend run generate:audio",
     "test": "npm --workspace backend test"
+  },
+  "devDependencies": {
+    "npm-run-all": "^4.1.5"
   },
   "engines": {
     "node": ">=18.0.0"
