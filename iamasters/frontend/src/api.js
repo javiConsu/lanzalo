@@ -16,6 +16,8 @@ async function req(path, options = {}) {
 export const api = {
   listCourses: () => req('/api/courses'),
   getCourse: (id) => req(`/api/courses/${id}`),
+  createCourse: (payload) =>
+    req('/api/courses', { method: 'POST', body: JSON.stringify(payload) }),
   getLesson: (id) => req(`/api/lessons/${id}`),
   generateLessonContent: (id) =>
     req(`/api/lessons/${id}/generate-content`, { method: 'POST', body: '{}' }),
@@ -39,5 +41,19 @@ export const api = {
     });
     if (!res.ok) throw new Error(`TTS falló: ${res.status}`);
     return { blob: await res.blob(), hash: res.headers.get('X-Audio-Hash') };
+  },
+  listDocuments: () => req('/api/ingest'),
+  getDocument: (id) => req(`/api/ingest/${id}`),
+  deleteDocument: (id) => req(`/api/ingest/${id}`, { method: 'DELETE' }),
+  uploadPdf: async (file, department) => {
+    const form = new FormData();
+    form.append('file', file);
+    if (department) form.append('department', department);
+    const res = await fetch(`${BASE}/api/ingest/pdf`, { method: 'POST', body: form });
+    if (!res.ok) {
+      const body = await res.text().catch(() => '');
+      throw new Error(`Upload falló: ${res.status} ${body}`);
+    }
+    return res.json();
   },
 };

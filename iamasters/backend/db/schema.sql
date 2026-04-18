@@ -2,16 +2,35 @@
 
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
-CREATE TABLE IF NOT EXISTS courses (
+CREATE TABLE IF NOT EXISTS ingested_documents (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  department  VARCHAR(64) NOT NULL,
-  title       VARCHAR(255) NOT NULL,
-  summary     TEXT,
-  audience    VARCHAR(255),
-  outline     JSONB,
-  created_at  TIMESTAMPTZ DEFAULT NOW(),
-  updated_at  TIMESTAMPTZ DEFAULT NOW()
+  filename    VARCHAR(512) NOT NULL,
+  mime_type   VARCHAR(128) NOT NULL,
+  department  VARCHAR(64),
+  text        TEXT NOT NULL,
+  pages       INT,
+  chars       INT,
+  created_at  TIMESTAMPTZ DEFAULT NOW()
 );
+
+CREATE INDEX IF NOT EXISTS ingested_documents_department_idx ON ingested_documents(department);
+
+CREATE TABLE IF NOT EXISTS courses (
+  id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  department          VARCHAR(64) NOT NULL,
+  title               VARCHAR(255) NOT NULL,
+  summary             TEXT,
+  audience            VARCHAR(255),
+  outline             JSONB,
+  source_document_id  UUID REFERENCES ingested_documents(id) ON DELETE SET NULL,
+  created_at          TIMESTAMPTZ DEFAULT NOW(),
+  updated_at          TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Para bases de datos creadas antes de añadir source_document_id
+ALTER TABLE courses
+  ADD COLUMN IF NOT EXISTS source_document_id UUID
+  REFERENCES ingested_documents(id) ON DELETE SET NULL;
 
 CREATE INDEX IF NOT EXISTS courses_department_idx ON courses(department);
 CREATE UNIQUE INDEX IF NOT EXISTS courses_department_title_uidx ON courses(department, title);

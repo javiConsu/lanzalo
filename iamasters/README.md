@@ -62,6 +62,15 @@ npm run generate:content    # rellena slides y narración con gpt-4o (~$1.60 tot
 npm run generate:audio      # pre-renderiza narración con tts-1 (~$3.80 total, cacheado)
 ```
 
+### Cursos a medida desde documentos del cliente
+
+Abre `http://localhost:5173/ingest`:
+
+1. Sube un PDF del cliente (playbook de ventas, manual contable, política interna…)
+2. Haz clic en "Generar curso", indica el tema y el departamento
+3. El Profesor crea un outline anclado en ese documento
+4. `generate:content` y `generate:audio` respetan la fuente automáticamente
+
 Filtros útiles (funcionan en `generate:content` y `generate:audio`):
 
 ```bash

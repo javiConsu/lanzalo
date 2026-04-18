@@ -56,6 +56,11 @@ export default function CoursesList() {
               <Link key={c.id} to={`/courses/${c.id}`} className="card p-5 hover:shadow-md transition">
                 <h3 className="font-semibold leading-snug">{c.title}</h3>
                 <p className="text-sm text-zinc-600 mt-2 line-clamp-3">{c.summary}</p>
+                {c.source_filename && (
+                  <div className="mt-3 text-xs text-brand-700 bg-brand-50 inline-block px-2 py-0.5 rounded truncate max-w-full">
+                    📎 {c.source_filename}
+                  </div>
+                )}
                 <div className="text-xs text-zinc-400 mt-4">Abrir curso →</div>
               </Link>
             ))}

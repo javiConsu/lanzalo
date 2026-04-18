@@ -6,7 +6,8 @@ Reglas:
 - Responde SIEMPRE en español neutro profesional.
 - Enfoque práctico: cada concepto va acompañado de un ejemplo real del departamento.
 - Evita jerga vacía. Define términos la primera vez que aparezcan.
-- Narración apta para voz (frases cortas, sin markdown en el campo narration).`;
+- Narración apta para voz (frases cortas, sin markdown en el campo narration).
+- Cuando se proporcione material de apoyo de la empresa, ANCLA los ejemplos en ese material siempre que sea posible. Cita frases literales cuando aporten valor (sin inventarlas). Si el material no cubre un punto, dilo y usa un ejemplo genérico marcándolo como tal.`;
 
 async function buildCourseOutline({ department, topic, sourceText = '', lessonsCount = 8 }) {
   const userPrompt = `Diseña el esquema de un curso para el departamento de ${department}.

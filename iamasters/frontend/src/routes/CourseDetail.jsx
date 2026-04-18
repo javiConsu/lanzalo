@@ -25,6 +25,11 @@ export default function CourseDetail() {
           <span className="font-medium">Audiencia:</span> {course.audience}
         </p>
       )}
+      {course.source_filename && (
+        <div className="mt-3 text-xs text-brand-700 bg-brand-50 inline-block px-2 py-1 rounded">
+          📎 Basado en: {course.source_filename}
+        </div>
+      )}
 
       <ol className="mt-8 space-y-2">
         {(course.lessons || []).map(l => (

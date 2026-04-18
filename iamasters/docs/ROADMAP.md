@@ -31,11 +31,18 @@
 - [ ] Streaming de tokens en el chat del Tutor
 - [ ] Responsive móvil pulido
 
-## Fase 3 — Ingesta de contenido corporativo (2 semanas)
-- [ ] Upload de PDF/DOCX con extracción y chunking
-- [ ] Embeddings con pgvector
-- [ ] RAG en el agente Profesor: la lección cita pasajes del manual
-- [ ] Conectores Notion y Google Drive (OAuth)
+## Fase 3 — Ingesta de contenido corporativo
+- [x] Upload de PDF con extracción de texto y persistencia (`ingested_documents`)
+- [x] Vinculación documento → curso (`courses.source_document_id`)
+- [x] Endpoint `POST /api/courses` acepta `documentId` y usa su texto como fuente
+- [x] `POST /api/lessons/:id/generate-content` hereda la fuente del curso
+- [x] UI `/ingest`: subir PDF, listar, eliminar y generar curso desde un documento
+- [x] Prompt del Profesor: instrucción explícita de anclar ejemplos en el material aportado
+- [ ] Chunking inteligente por lección (hoy truncamos a 8k chars)
+- [ ] Embeddings con pgvector para RAG en el Tutor durante Q&A
+- [ ] Soporte DOCX y texto plano además de PDF
+- [ ] OCR para PDFs escaneados
+- [ ] Conectores Notion, Google Drive y Confluence (OAuth)
 
 ## Fase 4 — Multi‑tenant + Billing (2 semanas)
 - [ ] Organizaciones + invitaciones por email

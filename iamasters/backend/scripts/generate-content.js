@@ -44,7 +44,8 @@ async function fetchLessons(args) {
   }
   const sql = `
     SELECT l.id, l."order", l.title, l.objectives, l.keywords,
-           c.id AS course_id, c.department, c.title AS course_title
+           c.id AS course_id, c.department, c.title AS course_title,
+           c.source_document_id
     FROM lessons l
     JOIN courses c ON c.id = l.course_id
     WHERE ${filters.join(' AND ')}
@@ -52,6 +53,18 @@ async function fetchLessons(args) {
   `;
   const { rows } = await db.query(sql, params);
   return rows;
+}
+
+async function loadSourceText(documentId, cache) {
+  if (!documentId) return '';
+  if (cache.has(documentId)) return cache.get(documentId);
+  const { rows } = await db.query(
+    'SELECT text FROM ingested_documents WHERE id = $1',
+    [documentId]
+  );
+  const text = rows[0]?.text || '';
+  cache.set(documentId, text);
+  return text;
 }
 
 async function run() {
@@ -75,10 +88,12 @@ async function run() {
 
   let ok = 0;
   let ko = 0;
+  const docCache = new Map();
   for (const lesson of lessons) {
     const label = `[${lesson.department}] ${lesson.course_title} — ${lesson.order}. ${lesson.title}`;
     try {
       process.stdout.write(`→ ${label} ... `);
+      const sourceText = await loadSourceText(lesson.source_document_id, docCache);
       const content = await professor.buildLesson({
         department: lesson.department,
         lesson: {
@@ -86,10 +101,11 @@ async function run() {
           objectives: lesson.objectives || [],
           keywords: lesson.keywords || [],
         },
+        sourceText,
       });
       await db.query('UPDATE lessons SET content = $1 WHERE id = $2', [content, lesson.id]);
       ok++;
-      console.log(`ok (${content.slides?.length ?? 0} slides)`);
+      console.log(`ok (${content.slides?.length ?? 0} slides${sourceText ? ', con fuente' : ''})`);
     } catch (err) {
       ko++;
       console.log(`FALLO: ${err.message}`);

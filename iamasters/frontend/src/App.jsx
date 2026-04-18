@@ -2,6 +2,7 @@ import { Routes, Route, Link, Outlet } from 'react-router-dom';
 import CoursesList from './routes/CoursesList.jsx';
 import CourseDetail from './routes/CourseDetail.jsx';
 import LessonPlayer from './routes/LessonPlayer.jsx';
+import IngestDocs from './routes/IngestDocs.jsx';
 
 function Shell() {
   return (
@@ -12,8 +13,9 @@ function Shell() {
             <span className="text-lg font-semibold tracking-tight">IAmasters</span>
             <span className="text-xs text-zinc-500 font-normal">Academia de IA en español</span>
           </Link>
-          <nav className="text-sm text-zinc-600">
+          <nav className="text-sm text-zinc-600 flex gap-5">
             <Link to="/" className="hover:text-zinc-900">Cursos</Link>
+            <Link to="/ingest" className="hover:text-zinc-900">Documentos</Link>
           </nav>
         </div>
       </header>
@@ -34,6 +36,7 @@ export default function App() {
         <Route path="/" element={<CoursesList />} />
         <Route path="/courses/:id" element={<CourseDetail />} />
         <Route path="/lessons/:id" element={<LessonPlayer />} />
+        <Route path="/ingest" element={<IngestDocs />} />
       </Route>
     </Routes>
   );

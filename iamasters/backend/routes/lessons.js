@@ -16,7 +16,7 @@ router.get('/:id', async (req, res, next) => {
 router.post('/:id/generate-content', async (req, res, next) => {
   try {
     const { rows } = await db.query(
-      `SELECT l.*, c.department, c.outline
+      `SELECT l.*, c.department, c.outline, c.source_document_id
        FROM lessons l JOIN courses c ON c.id = l.course_id
        WHERE l.id = $1`,
       [req.params.id]
@@ -24,10 +24,19 @@ router.post('/:id/generate-content', async (req, res, next) => {
     const lesson = rows[0];
     if (!lesson) return res.status(404).json({ error: 'not_found' });
 
+    let sourceText = req.body?.sourceText || '';
+    if (!sourceText && lesson.source_document_id) {
+      const doc = await db.query(
+        'SELECT text FROM ingested_documents WHERE id = $1',
+        [lesson.source_document_id]
+      );
+      if (doc.rows[0]) sourceText = doc.rows[0].text;
+    }
+
     const content = await professor.buildLesson({
       department: lesson.department,
       lesson,
-      sourceText: req.body?.sourceText || '',
+      sourceText,
     });
 
     await db.query('UPDATE lessons SET content = $1 WHERE id = $2', [content, lesson.id]);
