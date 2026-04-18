@@ -6,11 +6,14 @@
 - [x] Agentes Profesor, Tutor, Evaluador
 - [x] Servicio TTS con OpenAI tts‑1
 - [x] Schema Postgres
-- [x] Outlines de Ventas y Finanzas
+- [x] Outlines de los 5 cursos iniciales (Ventas, Finanzas, Dirección, Management, Productividad)
+- [x] Catálogo estructurado en `seeds/courses.js` (fuente de verdad)
+- [x] Seed idempotente (`npm run seed`)
+- [x] Generación de contenido de lecciones vía agente Profesor (`npm run generate:content`)
 
 ## Fase 1 — MVP backend (1‑2 semanas)
-- [ ] Seed scripts que generen los 2 cursos iniciales con sus 8 lecciones cada uno
 - [ ] Cache de audio TTS por hash de texto (evita re‑sintetizar)
+- [ ] Script `generate:audio` que pre‑renderiza narración de cada slide
 - [ ] Tests: agentes devuelven JSON válido contra schemas Zod
 - [ ] Rate limiting por IP y logging estructurado
 - [ ] Health check con verificación de OpenAI y DB

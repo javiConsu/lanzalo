@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "nodemon server.js",
     "start": "node server.js",
+    "seed": "node scripts/seed.js",
+    "generate:content": "node scripts/generate-content.js",
     "test": "jest"
   },
   "dependencies": {

@@ -8,6 +8,8 @@
     "dev": "npm --workspace backend run dev",
     "start": "npm --workspace backend run start",
     "db:setup": "psql $DATABASE_URL -f backend/db/schema.sql",
+    "seed": "npm --workspace backend run seed",
+    "generate:content": "npm --workspace backend run generate:content",
     "test": "npm --workspace backend test"
   },
   "engines": {

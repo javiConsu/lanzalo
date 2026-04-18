@@ -6,7 +6,7 @@ IAmasters convierte documentos internos (políticas, playbooks, casos reales) en
 
 ## Estado
 
-🚧 MVP en desarrollo — primer lote de cursos: **Ventas** y **Finanzas**.
+🚧 MVP en desarrollo — primer lote de cursos: **Ventas**, **Finanzas**, **Dirección**, **Management** y **Productividad**.
 
 ## Arquitectura
 
@@ -46,8 +46,26 @@ curl -X POST http://localhost:4100/api/tts \
 |---|---|---|
 | Ventas | Prospección y cierre con IA | 8 |
 | Finanzas | Análisis y forecasting con IA | 8 |
+| Dirección | Liderazgo y dirección en tiempos de IA | 8 |
+| Management | Coordinación de equipos con IA | 8 |
+| Productividad | Asistentes virtuales con IA | 8 |
 
-Ver [`content/ventas`](./content/ventas) y [`content/finanzas`](./content/finanzas).
+Outlines en [`content/`](./content). Metadatos completos (fuente de verdad para el seed) en [`backend/seeds/courses.js`](./backend/seeds/courses.js).
+
+### Poblar la base de datos
+
+```bash
+npm run seed                # inserta los 5 cursos + 40 lecciones (idempotente)
+npm run generate:content    # rellena slides y narración con gpt-4o (~$1.60 total)
+```
+
+Filtros útiles:
+
+```bash
+npm run generate:content -- --department ventas
+npm run generate:content -- --course "Análisis y forecasting con IA"
+npm run generate:content -- --dry-run
+```
 
 ## Licencia
 

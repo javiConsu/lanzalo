@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS courses (
 );
 
 CREATE INDEX IF NOT EXISTS courses_department_idx ON courses(department);
+CREATE UNIQUE INDEX IF NOT EXISTS courses_department_title_uidx ON courses(department, title);
 
 CREATE TABLE IF NOT EXISTS lessons (
   id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
