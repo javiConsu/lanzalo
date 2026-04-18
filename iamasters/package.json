@@ -10,6 +10,7 @@
     "db:setup": "psql $DATABASE_URL -f backend/db/schema.sql",
     "seed": "npm --workspace backend run seed",
     "generate:content": "npm --workspace backend run generate:content",
+    "generate:audio": "npm --workspace backend run generate:audio",
     "test": "npm --workspace backend test"
   },
   "engines": {

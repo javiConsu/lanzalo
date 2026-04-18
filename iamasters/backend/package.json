@@ -8,6 +8,7 @@
     "start": "node server.js",
     "seed": "node scripts/seed.js",
     "generate:content": "node scripts/generate-content.js",
+    "generate:audio": "node scripts/generate-audio.js",
     "test": "jest"
   },
   "dependencies": {

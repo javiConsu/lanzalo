@@ -10,10 +10,11 @@
 - [x] Catálogo estructurado en `seeds/courses.js` (fuente de verdad)
 - [x] Seed idempotente (`npm run seed`)
 - [x] Generación de contenido de lecciones vía agente Profesor (`npm run generate:content`)
+- [x] Cache de audio TTS por hash de texto (evita re‑sintetizar)
+- [x] Script `generate:audio` que pre‑renderiza narración (intro + slides + summary)
+- [x] Endpoint `GET /api/tts/:hash` para servir audio cacheado
 
 ## Fase 1 — MVP backend (1‑2 semanas)
-- [ ] Cache de audio TTS por hash de texto (evita re‑sintetizar)
-- [ ] Script `generate:audio` que pre‑renderiza narración de cada slide
 - [ ] Tests: agentes devuelven JSON válido contra schemas Zod
 - [ ] Rate limiting por IP y logging estructurado
 - [ ] Health check con verificación de OpenAI y DB

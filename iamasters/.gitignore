@@ -7,5 +7,6 @@ dist/
 build/
 .DS_Store
 tmp/
+.cache/
 *.mp3
 !content/**/*.mp3

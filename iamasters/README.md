@@ -57,14 +57,15 @@ Outlines en [`content/`](./content). Metadatos completos (fuente de verdad para 
 ```bash
 npm run seed                # inserta los 5 cursos + 40 lecciones (idempotente)
 npm run generate:content    # rellena slides y narración con gpt-4o (~$1.60 total)
+npm run generate:audio      # pre-renderiza narración con tts-1 (~$3.80 total, cacheado)
 ```
 
-Filtros útiles:
+Filtros útiles (funcionan en `generate:content` y `generate:audio`):
 
 ```bash
 npm run generate:content -- --department ventas
-npm run generate:content -- --course "Análisis y forecasting con IA"
-npm run generate:content -- --dry-run
+npm run generate:audio   -- --course "Análisis y forecasting con IA"
+npm run generate:audio   -- --dry-run
 ```
 
 ## Licencia
