@@ -1,0 +1,17 @@
+{
+  "name": "iamasters",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Academia de IA para departamentos de empresas, en español",
+  "workspaces": ["backend"],
+  "scripts": {
+    "dev": "npm --workspace backend run dev",
+    "start": "npm --workspace backend run start",
+    "db:setup": "psql $DATABASE_URL -f backend/db/schema.sql",
+    "test": "npm --workspace backend test"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "license": "MIT"
+}
